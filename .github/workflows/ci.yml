@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gradle-test:
+    name: Java 21 Gradle Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Make Gradle wrapper executable
+        if: ${{ hashFiles('gradlew') != '' }}
+        run: chmod +x ./gradlew
+
+      - name: Run tests and quality checks
+        shell: bash
+        run: |
+          if [[ -f ./gradlew ]]; then
+            ./gradlew clean check --no-daemon --stacktrace
+          else
+            gradle clean check --no-daemon --stacktrace
+          fi
+
+      - name: Upload Gradle test and quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-reports-${{ github.run_number }}
+          path: |
+            **/build/reports/**
+            **/build/test-results/**/*.xml
+          if-no-files-found: warn
+          retention-days: 14
