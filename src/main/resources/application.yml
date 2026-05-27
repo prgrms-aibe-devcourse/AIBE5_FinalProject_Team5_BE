@@ -45,3 +45,9 @@ app:
   openai:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-4o}
+  work24:
+    crawler:
+      default-course-url: "${WORK24_CRAWLER_DEFAULT_COURSE_URL:https://www.work24.go.kr/hr/a/a/3100/selectTracseDetl.do?tracseId=AIG20250000501645&tracseTme=4&crseTracseSe=C0061&trainstCstmrId=500020021537}"
+      output-path: ${WORK24_CRAWLER_OUTPUT_PATH:build/crawled/work24-training-course-overview.json}
+      timeout-millis: ${WORK24_CRAWLER_TIMEOUT_MILLIS:10000}
+      user-agent: ${WORK24_CRAWLER_USER_AGENT:Mozilla/5.0 BootSignalCrawler/1.0}
