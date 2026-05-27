@@ -26,6 +26,10 @@ public class Course extends BaseEntity {
     @Column(nullable = false)
     private String title;
 
+    // 기관명 / 원본: subtitle
+    @Column(nullable = false)
+    private String subTitle;
+
     // 과정 상세 링크 / 원본: titleLink
     @Column(length = 1000)
     private String titleLink;
@@ -42,9 +46,6 @@ public class Course extends BaseEntity {
 
     // NCS 여부 / 원본: ncsYn
     private String ncsYn;
-
-    // 훈련 대상 / 원본: trprTarget
-    private String trainTarget;
 
     // 훈련비 / 원본: courseMan
     private BigDecimal courseMan;
