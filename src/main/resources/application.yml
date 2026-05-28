@@ -13,6 +13,13 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
+  # ── Spring Batch 설정 ──
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: never
+
 server:
   servlet:
     encoding:
@@ -45,6 +52,12 @@ app:
   openai:
     api-key: ${OPENAI_API_KEY:}
     model: ${OPENAI_MODEL:gpt-4o}
+ 
+  hrd:
+    api:
+      auth-key: ${HRD_API_AUTH_KEY:}
+      base-url: https://www.work24.go.kr/cm/openApi/call/hr
+      return-type: JSON
   work24:
     crawler:
       default-course-url: "${WORK24_CRAWLER_DEFAULT_COURSE_URL:https://www.work24.go.kr/hr/a/a/3100/selectTracseDetl.do?tracseId=AIG20250000501645&tracseTme=4&crseTracseSe=C0061&trainstCstmrId=500020021537}"

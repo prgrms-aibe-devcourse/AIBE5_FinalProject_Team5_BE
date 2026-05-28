@@ -17,7 +17,12 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+  # ── local 전용: H2에 Batch 메타 테이블 자동 생성 ──
+  # application.yml에서 never로 설정된 것을 embedded로 오버라이드
+  batch:
+    jdbc:
+      initialize-schema: embedded
+
 logging:
   level:
     org.hibernate.SQL: debug
-
