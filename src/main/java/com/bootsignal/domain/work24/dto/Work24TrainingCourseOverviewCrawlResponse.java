@@ -1,5 +1,6 @@
 package com.bootsignal.domain.work24.dto;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 public record Work24TrainingCourseOverviewCrawlResponse(
@@ -7,6 +8,12 @@ public record Work24TrainingCourseOverviewCrawlResponse(
 	String savedPath,
 	String trainingTargetRequirements,
 	String trainingGoal,
+	Integer confirmedTraineeCount,
+	Integer selectedTraineeCount,
+	Integer recruitmentCount,
+	BigDecimal employmentRate,
+	String institutionProfileImageUrl,
+	String institutionIntroduction,
 	Instant crawledAt
 ) {
 
@@ -17,6 +24,12 @@ public record Work24TrainingCourseOverviewCrawlResponse(
 			result.savedPath(),
 			overview.trainingTargetRequirements(),
 			overview.trainingGoal(),
+			overview.confirmedTraineeCount(),
+			overview.selectedTraineeCount(),
+			overview.recruitmentCount(),
+			overview.employmentRate(),
+			overview.institutionProfileImageUrl(),
+			overview.institutionIntroduction(),
 			overview.crawledAt()
 		);
 	}
