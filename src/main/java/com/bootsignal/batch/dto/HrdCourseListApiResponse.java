@@ -26,7 +26,7 @@ public class HrdCourseListApiResponse {
     public static class CourseListItem {
         @JsonProperty("trprId") private String trprId;
         @JsonProperty("trprDegr") private Integer trprDegr;
-        @JsonProperty("trainstCstmrId") private String trainstCstmrId;
+        @JsonProperty("trainstCstId") private String trainstCstmrId;
         @JsonProperty("title") private String title;
         @JsonProperty("subTitle") private String subTitle;
         @JsonProperty("titleLink") private String titleLink;

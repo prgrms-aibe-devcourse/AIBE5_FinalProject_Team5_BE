@@ -9,7 +9,7 @@ import java.util.List;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class HrdTrainingScheduleApiResponse {
 
-    @JsonProperty("srchList")
+    @JsonProperty("scn_list")
     private List<ScheduleItem> items;
 
     public ScheduleItem getFirstItem() {
