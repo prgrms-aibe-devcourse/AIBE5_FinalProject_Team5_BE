@@ -72,4 +72,26 @@ public class Course extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "institution_id")
     private Institution institution;
+
+    public void updateFromRaw(String title, String subTitle, String titleLink, String subTitleLink,
+                              String ncsCd, String ncsName, String ncsYn,
+                              BigDecimal courseMan, BigDecimal realMan, BigDecimal selfPaymentAmount,
+                              BigDecimal stdgScor, Integer totalTrainingDays, Integer totalTrainingHours,
+                              String trngAreaCd, Institution institution) {
+        this.title = title;
+        this.subTitle = subTitle;
+        this.titleLink = titleLink;
+        this.subTitleLink = subTitleLink;
+        this.ncsCd = ncsCd;
+        this.ncsName = ncsName;
+        this.ncsYn = ncsYn;
+        this.courseMan = courseMan;
+        this.realMan = realMan;
+        this.selfPaymentAmount = selfPaymentAmount;
+        this.stdgScor = stdgScor;
+        this.totalTrainingDays = totalTrainingDays;
+        this.totalTrainingHours = totalTrainingHours;
+        this.trngAreaCd = trngAreaCd;
+        this.institution = institution;
+    }
 }

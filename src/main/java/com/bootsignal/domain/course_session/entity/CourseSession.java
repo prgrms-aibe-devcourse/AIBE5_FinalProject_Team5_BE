@@ -53,4 +53,16 @@ public class CourseSession extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id")
     private Course course;
+
+    public void updateFromRaw(LocalDate traStartDate, LocalDate traEndDate,
+                              Integer yardMan, Integer totParMks, Integer finiCnt,
+                              BigDecimal eiEmplRate3, BigDecimal eiEmplRate6) {
+        this.traStartDate = traStartDate;
+        this.traEndDate = traEndDate;
+        this.yardMan = yardMan;
+        this.totParMks = totParMks;
+        this.finiCnt = finiCnt;
+        this.eiEmplRate3 = eiEmplRate3;
+        this.eiEmplRate6 = eiEmplRate6;
+    }
 }
