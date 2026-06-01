@@ -37,7 +37,7 @@ public class SecurityConfig {
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
 			.authorizeHttpRequests(auth -> auth
-				.requestMatchers("/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
+				.requestMatchers("/api/health", "/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
 				.anyRequest().permitAll()
 			)
 			.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
