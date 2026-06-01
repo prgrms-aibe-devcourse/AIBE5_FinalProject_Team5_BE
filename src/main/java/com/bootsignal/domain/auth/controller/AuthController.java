@@ -1,5 +1,7 @@
 package com.bootsignal.domain.auth.controller;
 
+import com.bootsignal.domain.auth.dto.LoginRequest;
+import com.bootsignal.domain.auth.dto.LoginResponse;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
 import com.bootsignal.domain.auth.service.AuthService;
@@ -23,5 +25,10 @@ public class AuthController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public SignupResponse signup(@Valid @RequestBody SignupRequest request) {
 		return authService.signup(request);
+	}
+
+	@PostMapping("/login")
+	public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+		return authService.login(request);
 	}
 }

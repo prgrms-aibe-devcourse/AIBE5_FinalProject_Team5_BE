@@ -8,8 +8,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.bootsignal.domain.auth.dto.LoginResponse;
 import com.bootsignal.domain.auth.dto.SignupResponse;
 import com.bootsignal.domain.auth.service.AuthService;
+import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,43 @@ class AuthControllerTest {
 	}
 
 	@Test
+	void loginReturnsOkResponse() throws Exception {
+		given(authService.login(any()))
+			.willReturn(new LoginResponse(
+				1L,
+				"user@example.com",
+				"tester",
+				UserRole.USER,
+				"Bearer",
+				"access-token",
+				3600L,
+				"refresh-token",
+				1209600L
+			));
+
+		mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"email": "user@example.com",
+						"password": "password123"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.userId").value(1))
+			.andExpect(jsonPath("$.data.email").value("user@example.com"))
+			.andExpect(jsonPath("$.data.nickname").value("tester"))
+			.andExpect(jsonPath("$.data.role").value("USER"))
+			.andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+			.andExpect(jsonPath("$.data.accessToken").value("access-token"))
+			.andExpect(jsonPath("$.data.accessTokenExpiresIn").value(3600))
+			.andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
+			.andExpect(jsonPath("$.data.refreshTokenExpiresIn").value(1209600))
+			.andExpect(jsonPath("$.error").doesNotExist());
+	}
+
+	@Test
 	void signupReturnsValidationErrorWhenRequestIsInvalid() throws Exception {
 		mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -70,6 +109,45 @@ class AuthControllerTest {
 			.andExpect(jsonPath("$.error.fieldErrors").isArray());
 
 		verify(authService, never()).signup(any());
+	}
+
+	@Test
+	void loginReturnsValidationErrorWhenRequestIsInvalid() throws Exception {
+		mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"email": "invalid-email",
+						"password": "short"
+					}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.data").doesNotExist())
+			.andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
+			.andExpect(jsonPath("$.error.fieldErrors").isArray());
+
+		verify(authService, never()).login(any());
+	}
+
+	@Test
+	void loginReturnsUnauthorizedWhenCredentialsAreInvalid() throws Exception {
+		given(authService.login(any()))
+			.willThrow(new BootSignalException(ErrorCode.INVALID_LOGIN_CREDENTIALS));
+
+		mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"email": "user@example.com",
+						"password": "password123"
+					}
+					"""))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.data").doesNotExist())
+			.andExpect(jsonPath("$.error.code").value("INVALID_LOGIN_CREDENTIALS"))
+			.andExpect(jsonPath("$.error.message").value("이메일 또는 비밀번호가 올바르지 않습니다."));
 	}
 
 	@Test
