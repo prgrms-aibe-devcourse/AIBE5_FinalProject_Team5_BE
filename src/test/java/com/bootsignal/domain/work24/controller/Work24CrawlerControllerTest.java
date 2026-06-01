@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.bootsignal.domain.work24.dto.Work24TrainingCourseOverview;
 import com.bootsignal.domain.work24.dto.Work24TrainingCourseOverviewSaveResult;
 import com.bootsignal.domain.work24.service.Work24CrawlerService;
+import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,12 @@ class Work24CrawlerControllerTest {
 			"https://example.com/course",
 			"[훈련대상자]\n- 취업 준비생",
 			"[인재상]\n- 데이터 처리 역량 확보",
+			18,
+			18,
+			60,
+			new BigDecimal("37.8"),
+			"https://www.work24.go.kr/hr/z/z/0000/hrdFileDownLoad.do?athfilId=test&athfilSeqNo=4",
+			"그렙 소개",
 			Instant.parse("2026-05-27T00:00:00Z")
 		);
 		given(work24CrawlerService.crawlAndSave(any()))
@@ -48,6 +55,13 @@ class Work24CrawlerControllerTest {
 			.andExpect(jsonPath("$.data.savedPath").value("build/crawled/test.json"))
 			.andExpect(jsonPath("$.data.trainingTargetRequirements").value("[훈련대상자]\n- 취업 준비생"))
 			.andExpect(jsonPath("$.data.trainingGoal").value("[인재상]\n- 데이터 처리 역량 확보"))
+			.andExpect(jsonPath("$.data.confirmedTraineeCount").value(18))
+			.andExpect(jsonPath("$.data.selectedTraineeCount").value(18))
+			.andExpect(jsonPath("$.data.recruitmentCount").value(60))
+			.andExpect(jsonPath("$.data.employmentRate").value(37.8))
+			.andExpect(jsonPath("$.data.institutionProfileImageUrl")
+				.value("https://www.work24.go.kr/hr/z/z/0000/hrdFileDownLoad.do?athfilId=test&athfilSeqNo=4"))
+			.andExpect(jsonPath("$.data.institutionIntroduction").value("그렙 소개"))
 			.andExpect(jsonPath("$.data.crawledAt").value("2026-05-27T00:00:00Z"))
 			.andExpect(jsonPath("$.error").doesNotExist());
 	}

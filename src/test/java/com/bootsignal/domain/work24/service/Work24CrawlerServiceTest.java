@@ -6,6 +6,7 @@ import com.bootsignal.domain.work24.config.Work24CrawlerProperties;
 import com.bootsignal.domain.work24.dto.Work24TrainingCourseOverview;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -30,8 +31,18 @@ class Work24CrawlerServiceTest {
 	Path tempDir;
 
 	@Test
-	void parseExtractsTrainingRequirementsAndGoal() {
-		String html = """
+	void parseExtractsTrainingCourseAndInstitutionDetails() {
+		String courseHtml = """
+			<div class="etc_info">
+				<div class="flex-wrap">
+					<span class="count">수강확정인원 <strong class="clr_orange">18명</strong></span> /
+					<span class="count ml0">선발인원 <strong class="clr_blue">18명</strong></span> /
+					<span class="count ml0">모집인원 <strong>60명</strong></span>
+				</div>
+			</div>
+			<script>
+				newEmpymnRt = '37.8';
+			</script>
 			<div id="traCrseinfo">
 				<table>
 					<tbody>
@@ -47,9 +58,26 @@ class Work24CrawlerServiceTest {
 				</table>
 			</div>
 			""";
+		String institutionHtml = """
+			<div class="box_btn_group">
+				<img src="/hr/z/z/0000/hrdFileDownLoad.do?athfilId=test&athfilSeqNo=4" alt="훈련기관사진">
+			</div>
+			<div class="box_group_wrap">
+				<div class="title">
+					<h3 class="t2_sb h3_flex_type">훈련기관 소개</h3>
+				</div>
+			</div>
+			<div class="addExplainBoxArea">
+				<div class="my_info_area">
+					<pre class="txt">그렙 소개
+			교육, 평가, 채용 서비스 제공</pre>
+				</div>
+			</div>
+			""";
 
 		Work24TrainingCourseOverview overview = work24CrawlerService.parse(
-			Jsoup.parse(html),
+			Jsoup.parse(courseHtml),
+			Jsoup.parse(institutionHtml, "https://www.work24.go.kr/hr/a/a/3200/selectTrainInstitutionPost.do"),
 			"https://example.com/course",
 			Instant.parse("2026-05-27T00:00:00Z")
 		);
@@ -58,6 +86,13 @@ class Work24CrawlerServiceTest {
 			.isEqualTo("[훈련대상자]\n- 취업 준비생\n\n[선수학습]\n- 고등학교 이상 수준");
 		assertThat(overview.trainingGoal())
 			.isEqualTo("[인재상]\n- 데이터 처리 역량 확보\n\n[프로젝트 역량]\n- 프로젝트 수행 가능");
+		assertThat(overview.confirmedTraineeCount()).isEqualTo(18);
+		assertThat(overview.selectedTraineeCount()).isEqualTo(18);
+		assertThat(overview.recruitmentCount()).isEqualTo(60);
+		assertThat(overview.employmentRate()).isEqualByComparingTo(new BigDecimal("37.8"));
+		assertThat(overview.institutionProfileImageUrl())
+			.isEqualTo("https://www.work24.go.kr/hr/z/z/0000/hrdFileDownLoad.do?athfilId=test&athfilSeqNo=4");
+		assertThat(overview.institutionIntroduction()).isEqualTo("그렙 소개\n교육, 평가, 채용 서비스 제공");
 		assertThat(overview.sourceUrl()).isEqualTo("https://example.com/course");
 		assertThat(overview.crawledAt()).isEqualTo(Instant.parse("2026-05-27T00:00:00Z"));
 	}
@@ -68,6 +103,12 @@ class Work24CrawlerServiceTest {
 			"https://example.com/course",
 			"[훈련대상자]\n- 취업 준비생",
 			"[인재상]\n- 데이터 처리 역량 확보",
+			18,
+			18,
+			60,
+			new BigDecimal("37.8"),
+			"https://www.work24.go.kr/hr/z/z/0000/hrdFileDownLoad.do?athfilId=test&athfilSeqNo=4",
+			"그렙 소개",
 			Instant.parse("2026-05-27T00:00:00Z")
 		);
 		Path outputPath = tempDir.resolve("overview.json");
@@ -79,5 +120,12 @@ class Work24CrawlerServiceTest {
 		JsonNode jsonNode = objectMapper.readTree(savedPath.toFile());
 		assertThat(jsonNode.get("trainingTargetRequirements").asText()).isEqualTo("[훈련대상자]\n- 취업 준비생");
 		assertThat(jsonNode.get("trainingGoal").asText()).isEqualTo("[인재상]\n- 데이터 처리 역량 확보");
+		assertThat(jsonNode.get("confirmedTraineeCount").asInt()).isEqualTo(18);
+		assertThat(jsonNode.get("selectedTraineeCount").asInt()).isEqualTo(18);
+		assertThat(jsonNode.get("recruitmentCount").asInt()).isEqualTo(60);
+		assertThat(jsonNode.get("employmentRate").decimalValue()).isEqualByComparingTo(new BigDecimal("37.8"));
+		assertThat(jsonNode.get("institutionProfileImageUrl").asText())
+			.isEqualTo("https://www.work24.go.kr/hr/z/z/0000/hrdFileDownLoad.do?athfilId=test&athfilSeqNo=4");
+		assertThat(jsonNode.get("institutionIntroduction").asText()).isEqualTo("그렙 소개");
 	}
 }

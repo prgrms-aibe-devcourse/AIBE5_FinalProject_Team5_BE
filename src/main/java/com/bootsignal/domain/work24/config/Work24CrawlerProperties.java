@@ -14,7 +14,7 @@ public record Work24CrawlerProperties(
 ) {
 
 	private static final String DEFAULT_COURSE_URL = "https://www.work24.go.kr/hr/a/a/3100/selectTracseDetl.do"
-		+ "?tracseId=AIG20250000501645&tracseTme=4&crseTracseSe=C0061&trainstCstmrId=500020021537";
+		+ "?tracseId=AIG20240000498288&tracseTme=7&crseTracseSe=C0061&trainstCstmrId=500036172479";
 	private static final String DEFAULT_OUTPUT_PATH = "build/crawled/work24-training-course-overview.json";
 	private static final int DEFAULT_TIMEOUT_MILLIS = 10_000;
 	private static final String DEFAULT_USER_AGENT = "Mozilla/5.0 BootSignalCrawler/1.0";
