@@ -171,8 +171,8 @@ public class HrdDataCollectJobConfig {
                 );
                 if (response == null || response.getInstBaseInfo() == null) return null;
 
-                var base = response.getInstBaseInfo();
-                var detail = response.getInstDetailInfo();
+                HrdCourseDetailApiResponse.InstBaseInfo base = response.getInstBaseInfo();
+                HrdCourseDetailApiResponse.InstDetailInfo detail = response.getInstDetailInfo();
 
                 return HrdCourseDetailRaw.builder()
                         .trprId(listRaw.getTrprId())
@@ -250,7 +250,7 @@ public class HrdDataCollectJobConfig {
                 );
                 if (response == null || response.getFirstItem() == null) return null;
 
-                var schedule = response.getFirstItem();
+                HrdTrainingScheduleApiResponse.ScheduleItem schedule = response.getFirstItem();
 
                 return HrdTrainingScheduleRaw.builder()
                         .trprId(listRaw.getTrprId())
