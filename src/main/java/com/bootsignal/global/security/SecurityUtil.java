@@ -7,7 +7,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 public class SecurityUtil {
 
-	private SecurityUtil() {}
+	private SecurityUtil() {
+	}
 
 	public static String getCurrentUserEmail() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -15,6 +16,11 @@ public class SecurityUtil {
 				|| "anonymousUser".equals(authentication.getPrincipal())) {
 			throw new BootSignalException(ErrorCode.UNAUTHORIZED);
 		}
-		return authentication.getName();
+
+		String email = EmailFormatValidator.normalize(authentication.getName());
+		if (!EmailFormatValidator.isValid(email)) {
+			throw new BootSignalException(ErrorCode.UNAUTHORIZED, "인증 정보의 이메일이 올바르지 않습니다.");
+		}
+		return email;
 	}
 }

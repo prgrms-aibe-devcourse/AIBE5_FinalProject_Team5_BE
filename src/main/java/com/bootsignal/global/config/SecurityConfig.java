@@ -1,9 +1,12 @@
 package com.bootsignal.global.config;
 
 import com.bootsignal.global.config.properties.CorsProperties;
+import com.bootsignal.global.security.jwt.JwtAuthenticationFilter;
+import com.bootsignal.global.security.jwt.JwtTokenProvider;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -14,10 +17,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.util.StringUtils;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
 @EnableWebSecurity
@@ -28,7 +33,10 @@ public class SecurityConfig {
 	private final CorsProperties corsProperties;
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain securityFilterChain(
+		HttpSecurity http,
+		JwtAuthenticationFilter jwtAuthenticationFilter
+	) throws Exception {
 		return http
 			.csrf(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)
@@ -40,8 +48,17 @@ public class SecurityConfig {
 				.requestMatchers("/api/health", "/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
 				.anyRequest().permitAll()
 			)
+			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 			.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
 			.build();
+	}
+
+	@Bean
+	public JwtAuthenticationFilter jwtAuthenticationFilter(
+		JwtTokenProvider jwtTokenProvider,
+		@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
+	) {
+		return new JwtAuthenticationFilter(jwtTokenProvider, handlerExceptionResolver);
 	}
 
 	@Bean

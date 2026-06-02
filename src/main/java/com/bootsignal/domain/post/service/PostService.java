@@ -88,6 +88,7 @@ public class PostService {
 	private User getAuthenticatedUser() {
 		String email = SecurityUtil.getCurrentUserEmail();
 		return userRepository.findByEmail(email)
+			.filter(user -> !user.isDeleted())
 			.orElseThrow(() -> new BootSignalException(ErrorCode.UNAUTHORIZED));
 	}
 
