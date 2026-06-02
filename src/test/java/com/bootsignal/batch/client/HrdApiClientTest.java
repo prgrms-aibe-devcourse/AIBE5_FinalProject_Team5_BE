@@ -3,6 +3,8 @@ package com.bootsignal.batch.client;
 import com.bootsignal.batch.dto.HrdCourseDetailApiResponse;
 import com.bootsignal.batch.dto.HrdCourseListApiResponse;
 import com.bootsignal.batch.dto.HrdTrainingScheduleApiResponse;
+
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,7 @@ import java.time.format.DateTimeFormatter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Disabled("OpenAPI 실서버 연동 검증용 테스트 CI 환경 실행 제외")
 @SpringBootTest
 @ActiveProfiles("local")
 class HrdApiClientTest {
@@ -31,12 +34,12 @@ class HrdApiClientTest {
         System.out.println("================================================");
         System.out.println("[1] 목록 API (310L01) 테스트 시작");
         System.out.println("================================================");
-        
+
         HrdCourseListApiResponse listResponse = hrdApiClient.fetchCourseList(startDate, endDate, 1, 10);
-        
+
         assertThat(listResponse).isNotNull();
         System.out.println("전체 검색 건수 (scn_cnt): " + listResponse.getTotalCount());
-        
+
         if (listResponse.getCourseItems() == null || listResponse.getCourseItems().isEmpty()) {
             System.out.println("조회된 훈련과정이 없습니다. 날짜나 키를 확인하세요.");
             return;
@@ -52,19 +55,18 @@ class HrdApiClientTest {
         System.out.println("\n================================================");
         System.out.println("[2] 상세 API (310L02) 테스트 시작");
         System.out.println("================================================");
-        
+
         HrdCourseDetailApiResponse detailResponse = hrdApiClient.fetchCourseDetail(
-                firstItem.getTrprId(), firstItem.getTrprDegr(), firstItem.getTrainstCstmrId()
-        );
-        
+                firstItem.getTrprId(), firstItem.getTrprDegr(), firstItem.getTrainstCstmrId());
+
         assertThat(detailResponse).isNotNull();
         HrdCourseDetailApiResponse.InstBaseInfo baseInfo = detailResponse.getInstBaseInfo();
-        
+
         if (baseInfo != null) {
             System.out.println("훈련기관 홈페이지: " + baseInfo.getHpAddr());
             System.out.println("담당자 이메일: " + baseInfo.getTrprChapEmail());
             System.out.println("총 훈련시간: " + baseInfo.getTrtm());
-            
+
             if (detailResponse.getInstDetailInfo() != null) {
                 System.out.println("본인부담금: " + detailResponse.getInstDetailInfo().getTgcrGnrlTrneOwepAllt());
             }
@@ -76,14 +78,13 @@ class HrdApiClientTest {
         System.out.println("\n================================================");
         System.out.println("[3] 일정/통계 API (310L03) 테스트 시작");
         System.out.println("================================================");
-        
+
         HrdTrainingScheduleApiResponse scheduleResponse = hrdApiClient.fetchTrainingSchedule(
-                firstItem.getTrprId(), firstItem.getTrprDegr(), firstItem.getTrainstCstmrId()
-        );
-        
+                firstItem.getTrprId(), firstItem.getTrprDegr(), firstItem.getTrainstCstmrId());
+
         assertThat(scheduleResponse).isNotNull();
         HrdTrainingScheduleApiResponse.ScheduleItem scheduleItem = scheduleResponse.getFirstItem();
-        
+
         if (scheduleItem != null) {
             System.out.println("취업률 (6개월): " + scheduleItem.getEiEmplRate6());
             System.out.println("실제 수강인원: " + scheduleItem.getTotParMks());
