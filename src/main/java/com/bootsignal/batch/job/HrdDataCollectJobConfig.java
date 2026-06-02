@@ -69,10 +69,11 @@ public class HrdDataCollectJobConfig {
 
     @Bean
     public Step collectListStep(JobRepository jobRepository,
-                                PlatformTransactionManager txManager) {
+                                PlatformTransactionManager txManager,
+                                CourseListPagingReader courseListPagingReader) {
         return new StepBuilder("collectListStep", jobRepository)
                 .<CourseListItem, HrdCourseListRaw>chunk(100, txManager)
-                .reader(courseListPagingReader(null, null))
+                .reader(courseListPagingReader)
                 .processor(courseListProcessor())
                 .writer(courseListRawWriter())
                 .build();

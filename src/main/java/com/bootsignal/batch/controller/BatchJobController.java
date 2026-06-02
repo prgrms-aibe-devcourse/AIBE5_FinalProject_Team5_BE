@@ -1,6 +1,7 @@
 package com.bootsignal.batch.controller;
 
 import com.bootsignal.batch.dto.BatchJobResponse;
+import com.bootsignal.global.config.properties.HrdApiProperties;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
@@ -33,14 +34,17 @@ public class BatchJobController {
     private final JobLauncher jobLauncher;
     private final Job hrdDataCollectJob;
     private final Job hrdDataRefineJob;
+    private final HrdApiProperties properties;
 
     public BatchJobController(
             JobLauncher jobLauncher,
             @Qualifier("hrdDataCollectJob") Job hrdDataCollectJob,
-            @Qualifier("hrdDataRefineJob") Job hrdDataRefineJob) {
+            @Qualifier("hrdDataRefineJob") Job hrdDataRefineJob,
+            HrdApiProperties properties) {
         this.jobLauncher = jobLauncher;
         this.hrdDataCollectJob = hrdDataCollectJob;
         this.hrdDataRefineJob = hrdDataRefineJob;
+        this.properties = properties;
     }
 
     /**
@@ -56,6 +60,11 @@ public class BatchJobController {
 
         String start = (startDate != null) ? startDate : LocalDate.now().format(DATE_FMT);
         String end   = (endDate   != null) ? endDate   : LocalDate.now().plusMonths(3).format(DATE_FMT);
+
+        // API 인증키 주입 디버깅 로깅
+        String key = properties.authKey();
+        String maskedKey = (key != null && key.length() > 4) ? key.substring(0, 4) + "****" : "null/empty";
+        log.info("[DEBUG] API Properties - authKey: {}, baseUrl: {}, returnType: {}", maskedKey, properties.baseUrl(), properties.returnType());
 
         JobParameters params = new JobParametersBuilder()
                 .addString("startDate", start)
