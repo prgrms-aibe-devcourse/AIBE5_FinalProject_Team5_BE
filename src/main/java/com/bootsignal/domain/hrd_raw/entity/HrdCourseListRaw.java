@@ -79,6 +79,9 @@ public class HrdCourseListRaw {
     // 만족도 점수
     private String stdgScor;
 
+    // 훈련 대상/유형 코드 (TRAIN_TARGET_CD)
+    private String trainTargetCd;
+
     // 수집 일시
     @Column(nullable = false)
     private LocalDateTime fetchedAt;
@@ -89,7 +92,7 @@ public class HrdCourseListRaw {
     public void updateFromApi(String title, String subTitle, String titleLink, String subTitleLink,
                               String ncsCd, String courseMan, String yardMan, String traStartDate,
                               String traEndDate, String instCd, String address, String trngAreaCd,
-                              String realMan, String stdgScor, String trainstCstmrId) {
+                              String realMan, String stdgScor, String trainstCstmrId, String trainTargetCd) {
         this.title = title;
         this.subTitle = subTitle;
         this.titleLink = titleLink;
@@ -105,6 +108,7 @@ public class HrdCourseListRaw {
         this.realMan = realMan;
         this.stdgScor = stdgScor;
         this.trainstCstmrId = trainstCstmrId;
+        this.trainTargetCd = trainTargetCd;
         this.fetchedAt = LocalDateTime.now();
     }
 }

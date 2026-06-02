@@ -41,5 +41,6 @@ public class HrdCourseListApiResponse {
         @JsonProperty("trngAreaCd") private String trngAreaCd;
         @JsonProperty("realMan") private String realMan;
         @JsonProperty("stdgScor") private String stdgScor;
+        @JsonProperty("trainTargetCd") private String trainTargetCd;
     }
 }

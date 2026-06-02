@@ -92,26 +92,33 @@ public class HrdDataCollectJobConfig {
     // DTO → Entity 변환
     @Bean
     public ItemProcessor<CourseListItem, HrdCourseListRaw> courseListProcessor() {
-        return item -> HrdCourseListRaw.builder()
-                .trprId(item.getTrprId())
-                .trprDegr(item.getTrprDegr())
-                .trainstCstmrId(item.getTrainstCstmrId())
-                .title(item.getTitle())
-                .subTitle(item.getSubTitle())
-                .titleLink(item.getTitleLink())
-                .subTitleLink(item.getSubTitleLink())
-                .ncsCd(item.getNcsCd())
-                .courseMan(item.getCourseMan())
-                .yardMan(item.getYardMan())
-                .traStartDate(item.getTraStartDate())
-                .traEndDate(item.getTraEndDate())
-                .instCd(item.getInstCd())
-                .address(item.getAddress())
-                .trngAreaCd(item.getTrngAreaCd())
-                .realMan(item.getRealMan())
-                .stdgScor(item.getStdgScor())
-                .fetchedAt(LocalDateTime.now())
-                .build();
+        return item -> {
+            // 이중 필터: TRAIN_TARGET_CD가 C0104(K-디지털 트레이닝)가 아니면 수집에서 제외
+            if (!"C0104".equals(item.getTrainTargetCd())) {
+                return null;
+            }
+            return HrdCourseListRaw.builder()
+                    .trprId(item.getTrprId())
+                    .trprDegr(item.getTrprDegr())
+                    .trainstCstmrId(item.getTrainstCstmrId())
+                    .title(item.getTitle())
+                    .subTitle(item.getSubTitle())
+                    .titleLink(item.getTitleLink())
+                    .subTitleLink(item.getSubTitleLink())
+                    .ncsCd(item.getNcsCd())
+                    .courseMan(item.getCourseMan())
+                    .yardMan(item.getYardMan())
+                    .traStartDate(item.getTraStartDate())
+                    .traEndDate(item.getTraEndDate())
+                    .instCd(item.getInstCd())
+                    .address(item.getAddress())
+                    .trngAreaCd(item.getTrngAreaCd())
+                    .realMan(item.getRealMan())
+                    .stdgScor(item.getStdgScor())
+                    .trainTargetCd(item.getTrainTargetCd())
+                    .fetchedAt(LocalDateTime.now())
+                    .build();
+        };
     }
 
     // Upsert: 기존 데이터가 있으면 갱신, 없으면 신규 저장
@@ -125,7 +132,8 @@ public class HrdDataCollectJobConfig {
                                         item.getSubTitleLink(), item.getNcsCd(), item.getCourseMan(),
                                         item.getYardMan(), item.getTraStartDate(), item.getTraEndDate(),
                                         item.getInstCd(), item.getAddress(), item.getTrngAreaCd(),
-                                        item.getRealMan(), item.getStdgScor(), item.getTrainstCstmrId()
+                                        item.getRealMan(), item.getStdgScor(), item.getTrainstCstmrId(),
+                                        item.getTrainTargetCd()
                                 ),
                                 () -> listRawRepo.save(item)
                         )

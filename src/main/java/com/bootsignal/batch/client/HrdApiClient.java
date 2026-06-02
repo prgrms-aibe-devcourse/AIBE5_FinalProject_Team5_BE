@@ -33,6 +33,7 @@ public class HrdApiClient {
                 .queryParam("pageSize", pageSize)
                 .queryParam("srchTraStDt", startDate)
                 .queryParam("srchTraEndDt", endDate)
+                .queryParam("crseTracseSe", "C0104")
                 .queryParam("sort", "DESC") // 고정값: 내림차순
                 .queryParam("sortCol", "2") // 고정값: 훈련시작일 기준
                 .toUriString();
