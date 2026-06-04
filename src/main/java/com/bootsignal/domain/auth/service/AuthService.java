@@ -1,9 +1,12 @@
 package com.bootsignal.domain.auth.service;
 
+import com.bootsignal.domain.auth.dto.GoogleLoginRequest;
 import com.bootsignal.domain.auth.dto.LoginRequest;
 import com.bootsignal.domain.auth.dto.LoginResponse;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
+import com.bootsignal.domain.auth.oauth.GoogleTokenVerifier;
+import com.bootsignal.domain.auth.oauth.GoogleUserInfo;
 import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
@@ -16,15 +19,20 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AuthService {
 
+	private static final int MAX_NICKNAME_LENGTH = 30;
+	private static final int MAX_NICKNAME_RETRY_COUNT = 100;
+
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final GoogleTokenVerifier googleTokenVerifier;
 
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
@@ -61,6 +69,80 @@ public class AuthService {
 		}
 
 		return LoginResponse.of(user, jwtTokenProvider.createTokenPair(user));
+	}
+
+	@Transactional
+	public LoginResponse googleLogin(GoogleLoginRequest request) {
+		GoogleUserInfo googleUserInfo = googleTokenVerifier.verify(request.idToken());
+		User user = userRepository.findByEmail(googleUserInfo.email())
+			.map(this::validateGoogleLoginUser)
+			.orElseGet(() -> signupGoogleUser(googleUserInfo));
+
+		return LoginResponse.of(user, jwtTokenProvider.createTokenPair(user));
+	}
+
+	private User signupGoogleUser(GoogleUserInfo googleUserInfo) {
+		User user = User.signupGoogle(
+			googleUserInfo.email(),
+			googleUserInfo.name(),
+			createUniqueGoogleNickname(googleUserInfo),
+			googleUserInfo.pictureUrl()
+		);
+
+		try {
+			return userRepository.save(user);
+		} catch (DataIntegrityViolationException exception) {
+			throw new BootSignalException(resolveDuplicateErrorCode(exception));
+		}
+	}
+
+	private User validateGoogleLoginUser(User user) {
+		if (user.isDeleted()) {
+			throw invalidLoginCredentials();
+		}
+		if (user.getProvider() != AuthProvider.GOOGLE) {
+			throw new BootSignalException(ErrorCode.OAUTH_PROVIDER_MISMATCH);
+		}
+		return user;
+	}
+
+	private String createUniqueGoogleNickname(GoogleUserInfo googleUserInfo) {
+		// 구글 프로필 이름을 기본 닉네임으로 사용하고 중복이면 번호를 붙인다.
+		String baseNickname = normalizeNickname(googleUserInfo.name());
+		if (!StringUtils.hasText(baseNickname)) {
+			baseNickname = googleUserInfo.email().substring(0, googleUserInfo.email().indexOf('@'));
+		}
+		baseNickname = truncate(baseNickname, MAX_NICKNAME_LENGTH);
+
+		if (!userRepository.existsByNickname(baseNickname)) {
+			return baseNickname;
+		}
+
+		for (int suffix = 1; suffix <= MAX_NICKNAME_RETRY_COUNT; suffix++) {
+			String candidate = appendNicknameSuffix(baseNickname, suffix);
+			if (!userRepository.existsByNickname(candidate)) {
+				return candidate;
+			}
+		}
+
+		throw new BootSignalException(ErrorCode.INTERNAL_SERVER_ERROR, "사용 가능한 Google 로그인 닉네임을 생성하지 못했습니다.");
+	}
+
+	private String normalizeNickname(String nickname) {
+		return nickname == null ? "" : nickname.strip().replaceAll("\\s+", " ");
+	}
+
+	private String appendNicknameSuffix(String baseNickname, int suffix) {
+		String suffixText = "-" + suffix;
+		int baseMaxLength = MAX_NICKNAME_LENGTH - suffixText.length();
+		return truncate(baseNickname, baseMaxLength) + suffixText;
+	}
+
+	private String truncate(String value, int maxLength) {
+		if (value.length() <= maxLength) {
+			return value;
+		}
+		return value.substring(0, maxLength);
 	}
 
 	private boolean isLocalActiveUser(User user) {

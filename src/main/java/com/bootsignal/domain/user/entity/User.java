@@ -60,18 +60,31 @@ public class User extends BaseEntity {
 	@Column(name = "deleted_at")
 	private LocalDateTime deletedAt;
 
-	private User(String email, String passwordHash, String name, String nickname) {
+	private User(
+		String email,
+		String passwordHash,
+		String name,
+		String nickname,
+		AuthProvider provider,
+		String profileImageUrl
+	) {
 		this.email = email;
 		this.passwordHash = passwordHash;
 		this.name = name;
 		this.nickname = nickname;
 		this.role = UserRole.USER;
-		this.provider = AuthProvider.LOCAL;
+		this.provider = provider;
+		this.profileImageUrl = profileImageUrl;
 		this.deleted = false;
 	}
 
 	public static User signupLocal(String email, String encodedPassword, String nickname) {
 		// 기존 users 스키마의 필수 name 컬럼은 닉네임과 같은 값으로 저장한다.
-		return new User(email, encodedPassword, nickname, nickname);
+		return new User(email, encodedPassword, nickname, nickname, AuthProvider.LOCAL, null);
+	}
+
+	public static User signupGoogle(String email, String name, String nickname, String profileImageUrl) {
+		// 구글 계정은 비밀번호 없이 OAuth 제공자 정보로 가입한다.
+		return new User(email, null, name, nickname, AuthProvider.GOOGLE, profileImageUrl);
 	}
 }
