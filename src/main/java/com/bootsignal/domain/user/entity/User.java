@@ -87,4 +87,9 @@ public class User extends BaseEntity {
 		// 구글 계정은 비밀번호 없이 OAuth 제공자 정보로 가입한다.
 		return new User(email, null, name, nickname, AuthProvider.GOOGLE, profileImageUrl);
 	}
+
+	public static User signupKakao(String email, String name, String nickname, String profileImageUrl) {
+		// 카카오 계정도 비밀번호 없이 OAuth 제공자 정보로 가입한다.
+		return new User(email, null, name, nickname, AuthProvider.KAKAO, profileImageUrl);
+	}
 }

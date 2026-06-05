@@ -42,6 +42,9 @@ app:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
       jwk-set-uri: ${GOOGLE_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
+    kakao:
+      client-id: ${KAKAO_CLIENT_ID:}
+      jwk-set-uri: ${KAKAO_JWK_SET_URI:https://kauth.kakao.com/.well-known/jwks.json}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   aws:

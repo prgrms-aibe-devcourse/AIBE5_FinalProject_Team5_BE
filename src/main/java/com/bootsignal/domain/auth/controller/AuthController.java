@@ -1,6 +1,7 @@
 package com.bootsignal.domain.auth.controller;
 
 import com.bootsignal.domain.auth.dto.GoogleLoginRequest;
+import com.bootsignal.domain.auth.dto.KakaoLoginRequest;
 import com.bootsignal.domain.auth.dto.LoginRequest;
 import com.bootsignal.domain.auth.dto.LoginResponse;
 import com.bootsignal.domain.auth.dto.SignupRequest;
@@ -36,5 +37,10 @@ public class AuthController {
 	@PostMapping("/google/login")
 	public LoginResponse googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
 		return authService.googleLogin(request);
+	}
+
+	@PostMapping("/kakao/login")
+	public LoginResponse kakaoLogin(@Valid @RequestBody KakaoLoginRequest request) {
+		return authService.kakaoLogin(request);
 	}
 }
