@@ -117,6 +117,8 @@ public class HrdDataCollectJobConfig {
                     .realMan(item.getRealMan())
                     .stdgScor(item.getStdgScor())
                     .trainTargetCd(item.getTrainTargetCd())
+                    .wkendSe(item.getWkendSe())
+                    .regCourseMan(item.getRegCourseMan())
                     .fetchedAt(LocalDateTime.now())
                     .build();
         };
@@ -134,7 +136,7 @@ public class HrdDataCollectJobConfig {
                                         item.getYardMan(), item.getTraStartDate(), item.getTraEndDate(),
                                         item.getInstCd(), item.getAddress(), item.getTrngAreaCd(),
                                         item.getRealMan(), item.getStdgScor(), item.getTrainstCstmrId(),
-                                        item.getTrainTargetCd()
+                                        item.getTrainTargetCd(), item.getWkendSe(), item.getRegCourseMan()
                                 ),
                                 () -> listRawRepo.save(item)
                         )

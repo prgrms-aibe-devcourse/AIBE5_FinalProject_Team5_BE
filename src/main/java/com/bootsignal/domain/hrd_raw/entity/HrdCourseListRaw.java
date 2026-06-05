@@ -82,6 +82,12 @@ public class HrdCourseListRaw {
     // 훈련 대상/유형 코드 (TRAIN_TARGET_CD)
     private String trainTargetCd;
 
+    // 주말/주중 구분 (W: 주말, D: 주중)
+    private String wkendSe;
+
+    // 수강신청 인원
+    private String regCourseMan;
+
     // 수집 일시
     @Column(nullable = false)
     private LocalDateTime fetchedAt;
@@ -92,7 +98,8 @@ public class HrdCourseListRaw {
     public void updateFromApi(String title, String subTitle, String titleLink, String subTitleLink,
                               String ncsCd, String courseMan, String yardMan, String traStartDate,
                               String traEndDate, String instCd, String address, String trngAreaCd,
-                              String realMan, String stdgScor, String trainstCstmrId, String trainTargetCd) {
+                              String realMan, String stdgScor, String trainstCstmrId, String trainTargetCd,
+                              String wkendSe, String regCourseMan) {
         this.title = title;
         this.subTitle = subTitle;
         this.titleLink = titleLink;
@@ -109,6 +116,8 @@ public class HrdCourseListRaw {
         this.stdgScor = stdgScor;
         this.trainstCstmrId = trainstCstmrId;
         this.trainTargetCd = trainTargetCd;
+        this.wkendSe = wkendSe;
+        this.regCourseMan = regCourseMan;
         this.fetchedAt = LocalDateTime.now();
     }
 }

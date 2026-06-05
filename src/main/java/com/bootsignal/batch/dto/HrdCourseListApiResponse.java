@@ -42,5 +42,9 @@ public class HrdCourseListApiResponse {
         @JsonProperty("realMan") private String realMan;
         @JsonProperty("stdgScor") private String stdgScor;
         @JsonProperty("trainTargetCd") private String trainTargetCd;
+        // 주말/주중 구분 (W: 주말, D: 주중)
+        @JsonProperty("wkendSe") private String wkendSe;
+        // 수강신청 인원
+        @JsonProperty("regCourseMan") private String regCourseMan;
     }
 }

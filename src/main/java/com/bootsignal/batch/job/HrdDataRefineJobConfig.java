@@ -32,6 +32,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -108,9 +109,19 @@ public class HrdDataRefineJobConfig {
                     .findByTrprIdAndTrprDegr(listRaw.getTrprId(), listRaw.getTrprDegr())
                     .orElse(null);
 
-            // 이미 존재하는 Institution이면 null 반환 (Writer에서 Upsert하지 않고 Processor에서 필터)
-            // 단, 정보 갱신이 필요하면 null 대신 기존 엔티티를 반환해도 됨
-            if (institutionRepo.findByInstCd(listRaw.getInstCd()).isPresent()) return null;
+            // 이미 존재하는 Institution이면 최신 정보로 갱신(Upsert)
+            Institution existing = institutionRepo.findByInstCd(listRaw.getInstCd()).orElse(null);
+            if (existing != null) {
+                existing.updateFromRaw(
+                        listRaw.getSubTitle(),
+                        listRaw.getAddress(),
+                        detail != null ? detail.getHpAddr() : null,
+                        detail != null ? detail.getTrprChap() : null,
+                        detail != null ? detail.getTrprChapTel() : null,
+                        detail != null ? detail.getTrprChapEmail() : null
+                );
+                return existing; // Dirty Checking + save() → UPDATE 쿼리 발생
+            }
 
             return Institution.builder()
                     .instCd(listRaw.getInstCd())
@@ -264,12 +275,14 @@ public class HrdDataRefineJobConfig {
                         parseDate(listRaw.getTraStartDate()),
                         parseDate(listRaw.getTraEndDate()),
                         parseInteger(listRaw.getYardMan()),
+                        parseInteger(listRaw.getRegCourseMan()),
                         schedule != null ? parseInteger(schedule.getTotParMks()) : null,
                         schedule != null ? parseInteger(schedule.getFiniCnt()) : null,
-                        schedule != null ? parseBigDecimal(schedule.getEiEmplRate3()) : null,
-                        schedule != null ? parseBigDecimal(schedule.getEiEmplRate6()) : null
+                        schedule != null ? schedule.getEiEmplRate3() : null,
+                        schedule != null ? schedule.getEiEmplRate6() : null,
+                        listRaw.getWkendSe()
                 );
-                return null;
+                return existing; // null 대신 반환 → Writer의 save()로 명시적 UPDATE 보장
             }
 
             return CourseSession.builder()
@@ -277,10 +290,12 @@ public class HrdDataRefineJobConfig {
                     .traStartDate(parseDate(listRaw.getTraStartDate()))
                     .traEndDate(parseDate(listRaw.getTraEndDate()))
                     .yardMan(parseInteger(listRaw.getYardMan()))
+                    .regCourseMan(parseInteger(listRaw.getRegCourseMan()))
                     .totParMks(schedule != null ? parseInteger(schedule.getTotParMks()) : null)
                     .finiCnt(schedule != null ? parseInteger(schedule.getFiniCnt()) : null)
-                    .eiEmplRate3(schedule != null ? parseBigDecimal(schedule.getEiEmplRate3()) : null)
-                    .eiEmplRate6(schedule != null ? parseBigDecimal(schedule.getEiEmplRate6()) : null)
+                    .eiEmplRate3(schedule != null ? schedule.getEiEmplRate3() : null)
+                    .eiEmplRate6(schedule != null ? schedule.getEiEmplRate6() : null)
+                    .wkendSe(listRaw.getWkendSe())
                     .course(course)
                     .build();
         };
@@ -316,13 +331,23 @@ public class HrdDataRefineJobConfig {
         }
     }
 
+    private static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
+            DateTimeFormatter.ofPattern("yyyyMMdd"),   // 20260101
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"), // 2026-01-01
+            DateTimeFormatter.ofPattern("yyyy.MM.dd")  // 2026.01.01
+    );
+
     private LocalDate parseDate(String value) {
         if (value == null || value.isBlank()) return null;
-        try {
-            return LocalDate.parse(value.trim(), DATE_FMT);
-        } catch (DateTimeParseException e) {
-            log.warn("LocalDate 변환 실패: '{}'", value);
-            return null;
+        String trimmed = value.trim();
+        for (DateTimeFormatter fmt : DATE_FORMATTERS) {
+            try {
+                return LocalDate.parse(trimmed, fmt);
+            } catch (DateTimeParseException ignored) {
+                // 다음 포맷으로 재시도
+            }
         }
+        log.warn("LocalDate 변환 실패 (지원되지 않는 형식): '{}'", trimmed);
+        return null;
     }
 }

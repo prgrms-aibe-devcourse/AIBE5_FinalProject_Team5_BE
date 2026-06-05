@@ -5,7 +5,6 @@ import com.bootsignal.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -41,10 +40,10 @@ public class CourseSession extends BaseEntity {
     private Integer finiCnt;
 
     // 고용보험 3개월 취업률 / 원본: eiEmplRate3
-    private BigDecimal eiEmplRate3;
+    private String eiEmplRate3;
 
     // 고용보험 6개월 취업률 / 원본: eiEmplRate6
-    private BigDecimal eiEmplRate6;
+    private String eiEmplRate6;
 
     // 주말/주중 구분 / 원본: wkendSe
     private String wkendSe;
@@ -55,14 +54,18 @@ public class CourseSession extends BaseEntity {
     private Course course;
 
     public void updateFromRaw(LocalDate traStartDate, LocalDate traEndDate,
-                              Integer yardMan, Integer totParMks, Integer finiCnt,
-                              BigDecimal eiEmplRate3, BigDecimal eiEmplRate6) {
+                              Integer yardMan, Integer regCourseMan,
+                              Integer totParMks, Integer finiCnt,
+                              String eiEmplRate3, String eiEmplRate6,
+                              String wkendSe) {
         this.traStartDate = traStartDate;
         this.traEndDate = traEndDate;
         this.yardMan = yardMan;
+        this.regCourseMan = regCourseMan;
         this.totParMks = totParMks;
         this.finiCnt = finiCnt;
         this.eiEmplRate3 = eiEmplRate3;
         this.eiEmplRate6 = eiEmplRate6;
+        this.wkendSe = wkendSe;
     }
 }
