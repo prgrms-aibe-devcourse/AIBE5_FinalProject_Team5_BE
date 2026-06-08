@@ -31,12 +31,19 @@ dependencyManagement {
 
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// ── Spring Batch: 대량 데이터 수집/변환을 위한 배치 처리 프레임워크 ──
+	implementation 'org.springframework.boot:spring-boot-starter-batch'
+
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+
+	implementation 'org.apache.httpcomponents.client5:httpclient5'
 	implementation 'org.jsoup:jsoup:1.22.2'
 	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:auth'
@@ -48,6 +55,10 @@ dependencies {
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	// ── Spring Batch Test: @SpringBatchTest로 Job/Step 단위 테스트 지원 ──
+	testImplementation 'org.springframework.batch:spring-batch-test'
+
 	testImplementation 'org.springframework.security:spring-security-test'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

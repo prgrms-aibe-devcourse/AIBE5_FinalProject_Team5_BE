@@ -43,4 +43,14 @@ public class Institution extends BaseEntity {
 
     // 담당자 이메일 / 원본: trprChapEmail
     private String managerEmail;
+
+    public void updateFromRaw(String institutionName, String address, String homepageUrl,
+                              String managerName, String managerTel, String managerEmail) {
+        this.institutionName = institutionName;
+        this.address = address;
+        this.homepageUrl = homepageUrl;
+        this.managerName = managerName;
+        this.managerTel = managerTel;
+        this.managerEmail = managerEmail;
+    }
 }
