@@ -2,6 +2,8 @@ package com.bootsignal.batch.controller;
 
 import com.bootsignal.batch.dto.BatchJobResponse;
 import com.bootsignal.global.config.properties.HrdApiProperties;
+import com.bootsignal.global.exception.BootSignalException;
+import com.bootsignal.global.exception.ErrorCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
@@ -9,7 +11,6 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -54,7 +55,7 @@ public class BatchJobController {
      * @param endDate   훈련 시작일 to   (yyyyMMdd). 미입력 시 3개월 뒤
      */
     @PostMapping("/collect")
-    public ResponseEntity<BatchJobResponse> runCollectJob(
+    public BatchJobResponse runCollectJob(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
 
@@ -80,7 +81,7 @@ public class BatchJobController {
      * 수집 Job이 완료된 뒤 실행
      */
     @PostMapping("/refine")
-    public ResponseEntity<BatchJobResponse> runRefineJob() {
+    public BatchJobResponse runRefineJob() {
         JobParameters params = new JobParametersBuilder()
                 .addLong("runAt", System.currentTimeMillis())
                 .toJobParameters();
@@ -89,41 +90,41 @@ public class BatchJobController {
     }
 
     /**
-     * Job을 실행하고 결과를 HTTP 응답으로 변환하는 공통 헬퍼 (날짜 범위 포함).
-     * 성공하면 200 OK, 예외가 발생하면 500 Internal Server Error를 반환한다.
+     * Job을 실행하고 결과를 반환하는 공통 헬퍼 (날짜 범위 포함).
+     * 성공: BatchJobResponse - ApiResponseAdvice
+     * 실패: BootSignalException -> GlobalExceptionHandler
      */
-    private ResponseEntity<BatchJobResponse> runJob(
+    private BatchJobResponse runJob(
             Job job, String jobName, JobParameters params,
             String startDate, String endDate) {
         try {
             JobExecution execution = jobLauncher.run(job, params);
             log.info("Job 실행 완료: name={}, status={}", jobName, execution.getStatus());
-            return ResponseEntity.ok(
-                    BatchJobResponse.success(jobName, execution.getStatus().toString(),
-                            execution.getJobId(), startDate, endDate));
+            return BatchJobResponse.success(jobName, execution.getStatus().toString(),
+                    execution.getJobId(), startDate, endDate);
         } catch (Exception e) {
             log.error("Job 실행 실패: name={}, error={}", jobName, e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(BatchJobResponse.error(jobName, e.getMessage()));
+            throw new BootSignalException(ErrorCode.INTERNAL_SERVER_ERROR,
+                    jobName + " 실행 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
     /**
-     * Job을 실행하고 결과를 HTTP 응답으로 변환하는 공통 헬퍼 (날짜 범위 없음).
-     * 성공하면 200 OK, 예외가 발생하면 500 Internal Server Error를 반환한다.
+     * Job을 실행하고 결과를 반환하는 공통 헬퍼 (날짜 범위 없음).
+     * 성공하면 BatchJobResponse 반환 — ApiResponseAdvice가 ApiResponse.success()로 자동 래핑.
+
      */
-    private ResponseEntity<BatchJobResponse> runJob(
+    private BatchJobResponse runJob(
             Job job, String jobName, JobParameters params) {
         try {
             JobExecution execution = jobLauncher.run(job, params);
             log.info("Job 실행 완료: name={}, status={}", jobName, execution.getStatus());
-            return ResponseEntity.ok(
-                    BatchJobResponse.success(jobName, execution.getStatus().toString(),
-                            execution.getJobId()));
+            return BatchJobResponse.success(jobName, execution.getStatus().toString(),
+                    execution.getJobId());
         } catch (Exception e) {
             log.error("Job 실행 실패: name={}, error={}", jobName, e.getMessage(), e);
-            return ResponseEntity.internalServerError()
-                    .body(BatchJobResponse.error(jobName, e.getMessage()));
+            throw new BootSignalException(ErrorCode.INTERNAL_SERVER_ERROR,
+                    jobName + " 실행 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 }

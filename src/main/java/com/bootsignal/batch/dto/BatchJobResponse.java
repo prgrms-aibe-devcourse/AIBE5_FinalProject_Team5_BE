@@ -15,7 +15,6 @@ public class BatchJobResponse {
     private final Long jobId;
     private final String startDate;
     private final String endDate;
-    private final String errorMessage;
 
     /** 날짜 범위가 있는 Job 성공 응답 (수집 Job) */
     public static BatchJobResponse success(String jobName, String status, Long jobId,
@@ -26,17 +25,10 @@ public class BatchJobResponse {
                 .build();
     }
 
-    // 날짜 범위가 없는 Job 성공 응답 (정제 Job)
+    /** 날짜 범위가 없는 Job 성공 응답 (정제 Job) */
     public static BatchJobResponse success(String jobName, String status, Long jobId) {
         return builder()
                 .jobName(jobName).status(status).jobId(jobId)
-                .build();
-    }
-
-    /** 실패 응답 */
-    public static BatchJobResponse error(String jobName, String errorMessage) {
-        return builder()
-                .jobName(jobName).status("FAILED").errorMessage(errorMessage)
                 .build();
     }
 }
