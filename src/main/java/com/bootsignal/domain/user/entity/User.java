@@ -21,7 +21,8 @@ import lombok.NoArgsConstructor;
 	name = "users",
 	uniqueConstraints = {
 		@UniqueConstraint(name = "uk_users_email", columnNames = "email"),
-		@UniqueConstraint(name = "uk_users_nickname", columnNames = "nickname")
+		@UniqueConstraint(name = "uk_users_nickname", columnNames = "nickname"),
+		@UniqueConstraint(name = "uk_users_provider_provider_user_id", columnNames = {"provider", "provider_user_id"})
 	}
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -34,7 +35,7 @@ public class User extends BaseEntity {
 	@Column(nullable = false, unique = true, length = 255)
 	private String email;
 
-	@Column(name = "password_hash", length = 255)
+	@Column(name = "password_hash", nullable = true, length = 255)
 	private String passwordHash;
 
 	@Column(nullable = false, length = 100)
@@ -51,6 +52,9 @@ public class User extends BaseEntity {
 	@Column(nullable = false, length = 20)
 	private AuthProvider provider;
 
+	@Column(name = "provider_user_id", nullable = true, length = 255)
+	private String providerUserId;
+
 	@Column(name = "profile_image_url", columnDefinition = "text")
 	private String profileImageUrl;
 
@@ -66,6 +70,7 @@ public class User extends BaseEntity {
 		String name,
 		String nickname,
 		AuthProvider provider,
+		String providerUserId,
 		String profileImageUrl
 	) {
 		this.email = email;
@@ -74,22 +79,35 @@ public class User extends BaseEntity {
 		this.nickname = nickname;
 		this.role = UserRole.USER;
 		this.provider = provider;
+		this.providerUserId = providerUserId;
 		this.profileImageUrl = profileImageUrl;
 		this.deleted = false;
 	}
 
 	public static User signupLocal(String email, String encodedPassword, String nickname) {
 		// 기존 users 스키마의 필수 name 컬럼은 닉네임과 같은 값으로 저장한다.
-		return new User(email, encodedPassword, nickname, nickname, AuthProvider.LOCAL, null);
+		return new User(email, encodedPassword, nickname, nickname, AuthProvider.LOCAL, null, null);
 	}
 
-	public static User signupGoogle(String email, String name, String nickname, String profileImageUrl) {
-		// 구글 계정은 비밀번호 없이 OAuth 제공자 정보로 가입한다.
-		return new User(email, null, name, nickname, AuthProvider.GOOGLE, profileImageUrl);
+	public static User signupGoogle(
+		String email,
+		String providerUserId,
+		String name,
+		String nickname,
+		String profileImageUrl
+	) {
+		// 구글 계정은 비밀번호 없이 제공자 고유 식별자로 가입한다.
+		return new User(email, null, name, nickname, AuthProvider.GOOGLE, providerUserId, profileImageUrl);
 	}
 
-	public static User signupKakao(String email, String name, String nickname, String profileImageUrl) {
-		// 카카오 계정도 비밀번호 없이 OAuth 제공자 정보로 가입한다.
-		return new User(email, null, name, nickname, AuthProvider.KAKAO, profileImageUrl);
+	public static User signupKakao(
+		String email,
+		String providerUserId,
+		String name,
+		String nickname,
+		String profileImageUrl
+	) {
+		// 카카오 계정도 비밀번호 없이 제공자 고유 식별자로 가입한다.
+		return new User(email, null, name, nickname, AuthProvider.KAKAO, providerUserId, profileImageUrl);
 	}
 }

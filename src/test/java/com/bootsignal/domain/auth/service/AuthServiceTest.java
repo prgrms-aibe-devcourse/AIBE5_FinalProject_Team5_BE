@@ -85,6 +85,7 @@ class AuthServiceTest {
 		assertThat(savedUser.getNickname()).isEqualTo("tester");
 		assertThat(savedUser.getRole()).isEqualTo(UserRole.USER);
 		assertThat(savedUser.getProvider()).isEqualTo(AuthProvider.LOCAL);
+		assertThat(savedUser.getProviderUserId()).isNull();
 		assertThat(savedUser.isDeleted()).isFalse();
 		assertThat(response.email()).isEqualTo("user@example.com");
 		assertThat(response.nickname()).isEqualTo("tester");
@@ -214,7 +215,9 @@ class AuthServiceTest {
 		);
 		JwtTokenPair tokenPair = new JwtTokenPair("Bearer", "access-token", 3600L, "refresh-token", 1209600L);
 		given(googleTokenVerifier.verify("id-token")).willReturn(googleUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.empty());
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-sub"))
+			.willReturn(Optional.empty());
+		given(userRepository.existsByEmail("user@example.com")).willReturn(false);
 		given(userRepository.existsByNickname("Google User")).willReturn(false);
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> {
 			User savedUser = invocation.getArgument(0);
@@ -233,6 +236,7 @@ class AuthServiceTest {
 		assertThat(savedUser.getName()).isEqualTo("Google User");
 		assertThat(savedUser.getNickname()).isEqualTo("Google User");
 		assertThat(savedUser.getProvider()).isEqualTo(AuthProvider.GOOGLE);
+		assertThat(savedUser.getProviderUserId()).isEqualTo("google-sub");
 		assertThat(savedUser.getProfileImageUrl()).isEqualTo("https://example.com/profile.png");
 		assertThat(response.userId()).isEqualTo(2L);
 		assertThat(response.email()).isEqualTo("user@example.com");
@@ -253,7 +257,9 @@ class AuthServiceTest {
 		);
 		JwtTokenPair tokenPair = new JwtTokenPair("Bearer", "access-token", 3600L, "refresh-token", 1209600L);
 		given(googleTokenVerifier.verify("id-token")).willReturn(googleUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.empty());
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-sub"))
+			.willReturn(Optional.empty());
+		given(userRepository.existsByEmail("user@example.com")).willReturn(false);
 		given(userRepository.existsByNickname("Google User")).willReturn(true);
 		given(userRepository.existsByNickname("Google User-1")).willReturn(false);
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -273,7 +279,8 @@ class AuthServiceTest {
 		User user = googleUser(3L);
 		JwtTokenPair tokenPair = new JwtTokenPair("Bearer", "access-token", 3600L, "refresh-token", 1209600L);
 		given(googleTokenVerifier.verify("id-token")).willReturn(googleUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-sub"))
+			.willReturn(Optional.of(user));
 		given(jwtTokenProvider.createTokenPair(user)).willReturn(tokenPair);
 
 		LoginResponse response = authService.googleLogin(request);
@@ -290,9 +297,10 @@ class AuthServiceTest {
 	void googleLoginThrowsProviderMismatchWhenEmailBelongsToLocalUser() {
 		GoogleLoginRequest request = new GoogleLoginRequest("id-token");
 		GoogleUserInfo googleUserInfo = new GoogleUserInfo("google-sub", "user@example.com", "Google User", null);
-		User user = localUser(1L);
 		given(googleTokenVerifier.verify("id-token")).willReturn(googleUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-sub"))
+			.willReturn(Optional.empty());
+		given(userRepository.existsByEmail("user@example.com")).willReturn(true);
 
 		assertThatThrownBy(() -> authService.googleLogin(request))
 			.isInstanceOf(BootSignalException.class)
@@ -310,7 +318,8 @@ class AuthServiceTest {
 		User user = googleUser(3L);
 		ReflectionTestUtils.setField(user, "deleted", true);
 		given(googleTokenVerifier.verify("id-token")).willReturn(googleUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-sub"))
+			.willReturn(Optional.of(user));
 
 		assertThatThrownBy(() -> authService.googleLogin(request))
 			.isInstanceOf(BootSignalException.class)
@@ -332,7 +341,7 @@ class AuthServiceTest {
 			.extracting(exception -> ((BootSignalException) exception).errorCode())
 			.isEqualTo(ErrorCode.INVALID_OAUTH_TOKEN);
 
-		verify(userRepository, never()).findByEmail(any());
+		verify(userRepository, never()).findByProviderAndProviderUserId(any(), any());
 		verify(jwtTokenProvider, never()).createTokenPair(any());
 	}
 
@@ -347,7 +356,9 @@ class AuthServiceTest {
 		);
 		JwtTokenPair tokenPair = new JwtTokenPair("Bearer", "access-token", 3600L, "refresh-token", 1209600L);
 		given(kakaoTokenVerifier.verify("id-token")).willReturn(kakaoUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.empty());
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.KAKAO, "kakao-sub"))
+			.willReturn(Optional.empty());
+		given(userRepository.existsByEmail("user@example.com")).willReturn(false);
 		given(userRepository.existsByNickname("Kakao User")).willReturn(false);
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> {
 			User savedUser = invocation.getArgument(0);
@@ -366,6 +377,7 @@ class AuthServiceTest {
 		assertThat(savedUser.getName()).isEqualTo("Kakao User");
 		assertThat(savedUser.getNickname()).isEqualTo("Kakao User");
 		assertThat(savedUser.getProvider()).isEqualTo(AuthProvider.KAKAO);
+		assertThat(savedUser.getProviderUserId()).isEqualTo("kakao-sub");
 		assertThat(savedUser.getProfileImageUrl()).isEqualTo("https://example.com/kakao-profile.png");
 		assertThat(response.userId()).isEqualTo(4L);
 		assertThat(response.email()).isEqualTo("user@example.com");
@@ -386,7 +398,9 @@ class AuthServiceTest {
 		);
 		JwtTokenPair tokenPair = new JwtTokenPair("Bearer", "access-token", 3600L, "refresh-token", 1209600L);
 		given(kakaoTokenVerifier.verify("id-token")).willReturn(kakaoUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.empty());
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.KAKAO, "kakao-sub"))
+			.willReturn(Optional.empty());
+		given(userRepository.existsByEmail("user@example.com")).willReturn(false);
 		given(userRepository.existsByNickname("Kakao User")).willReturn(true);
 		given(userRepository.existsByNickname("Kakao User-1")).willReturn(false);
 		given(userRepository.save(any(User.class))).willAnswer(invocation -> invocation.getArgument(0));
@@ -406,7 +420,8 @@ class AuthServiceTest {
 		User user = kakaoUser(5L);
 		JwtTokenPair tokenPair = new JwtTokenPair("Bearer", "access-token", 3600L, "refresh-token", 1209600L);
 		given(kakaoTokenVerifier.verify("id-token")).willReturn(kakaoUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.KAKAO, "kakao-sub"))
+			.willReturn(Optional.of(user));
 		given(jwtTokenProvider.createTokenPair(user)).willReturn(tokenPair);
 
 		LoginResponse response = authService.kakaoLogin(request);
@@ -423,9 +438,10 @@ class AuthServiceTest {
 	void kakaoLoginThrowsProviderMismatchWhenEmailBelongsToLocalUser() {
 		KakaoLoginRequest request = new KakaoLoginRequest("id-token");
 		KakaoUserInfo kakaoUserInfo = new KakaoUserInfo("kakao-sub", "user@example.com", "Kakao User", null);
-		User user = localUser(1L);
 		given(kakaoTokenVerifier.verify("id-token")).willReturn(kakaoUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.KAKAO, "kakao-sub"))
+			.willReturn(Optional.empty());
+		given(userRepository.existsByEmail("user@example.com")).willReturn(true);
 
 		assertThatThrownBy(() -> authService.kakaoLogin(request))
 			.isInstanceOf(BootSignalException.class)
@@ -443,7 +459,8 @@ class AuthServiceTest {
 		User user = kakaoUser(5L);
 		ReflectionTestUtils.setField(user, "deleted", true);
 		given(kakaoTokenVerifier.verify("id-token")).willReturn(kakaoUserInfo);
-		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(userRepository.findByProviderAndProviderUserId(AuthProvider.KAKAO, "kakao-sub"))
+			.willReturn(Optional.of(user));
 
 		assertThatThrownBy(() -> authService.kakaoLogin(request))
 			.isInstanceOf(BootSignalException.class)
@@ -465,7 +482,7 @@ class AuthServiceTest {
 			.extracting(exception -> ((BootSignalException) exception).errorCode())
 			.isEqualTo(ErrorCode.INVALID_OAUTH_TOKEN);
 
-		verify(userRepository, never()).findByEmail(any());
+		verify(userRepository, never()).findByProviderAndProviderUserId(any(), any());
 		verify(jwtTokenProvider, never()).createTokenPair(any());
 	}
 
@@ -478,6 +495,7 @@ class AuthServiceTest {
 	private User googleUser(Long id) {
 		User user = User.signupGoogle(
 			"user@example.com",
+			"google-sub",
 			"Google User",
 			"google-user",
 			"https://example.com/profile.png"
@@ -489,6 +507,7 @@ class AuthServiceTest {
 	private User kakaoUser(Long id) {
 		User user = User.signupKakao(
 			"user@example.com",
+			"kakao-sub",
 			"Kakao User",
 			"kakao-user",
 			"https://example.com/kakao-profile.png"

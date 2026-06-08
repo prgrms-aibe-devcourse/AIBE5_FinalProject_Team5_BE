@@ -78,7 +78,7 @@ public class AuthService {
 	@Transactional
 	public LoginResponse googleLogin(GoogleLoginRequest request) {
 		GoogleUserInfo googleUserInfo = googleTokenVerifier.verify(request.idToken());
-		User user = userRepository.findByEmail(googleUserInfo.email())
+		User user = userRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, googleUserInfo.subject())
 			.map(this::validateGoogleLoginUser)
 			.orElseGet(() -> signupGoogleUser(googleUserInfo));
 
@@ -88,7 +88,7 @@ public class AuthService {
 	@Transactional
 	public LoginResponse kakaoLogin(KakaoLoginRequest request) {
 		KakaoUserInfo kakaoUserInfo = kakaoTokenVerifier.verify(request.idToken());
-		User user = userRepository.findByEmail(kakaoUserInfo.email())
+		User user = userRepository.findByProviderAndProviderUserId(AuthProvider.KAKAO, kakaoUserInfo.subject())
 			.map(this::validateKakaoLoginUser)
 			.orElseGet(() -> signupKakaoUser(kakaoUserInfo));
 
@@ -96,8 +96,11 @@ public class AuthService {
 	}
 
 	private User signupGoogleUser(GoogleUserInfo googleUserInfo) {
+		validateEmailNotUsedByAnotherAccount(googleUserInfo.email());
+
 		User user = User.signupGoogle(
 			googleUserInfo.email(),
+			googleUserInfo.subject(),
 			googleUserInfo.name(),
 			createUniqueGoogleNickname(googleUserInfo),
 			googleUserInfo.pictureUrl()
@@ -121,8 +124,11 @@ public class AuthService {
 	}
 
 	private User signupKakaoUser(KakaoUserInfo kakaoUserInfo) {
+		validateEmailNotUsedByAnotherAccount(kakaoUserInfo.email());
+
 		User user = User.signupKakao(
 			kakaoUserInfo.email(),
+			kakaoUserInfo.subject(),
 			kakaoUserInfo.nickname(),
 			createUniqueNickname(kakaoUserInfo.nickname(), kakaoUserInfo.email(), "Kakao"),
 			kakaoUserInfo.pictureUrl()
@@ -143,6 +149,13 @@ public class AuthService {
 			throw new BootSignalException(ErrorCode.OAUTH_PROVIDER_MISMATCH);
 		}
 		return user;
+	}
+
+	private void validateEmailNotUsedByAnotherAccount(String email) {
+		// 제공자 subject가 다른 계정에 같은 이메일을 자동 연결하지 않는다.
+		if (userRepository.existsByEmail(email)) {
+			throw new BootSignalException(ErrorCode.OAUTH_PROVIDER_MISMATCH);
+		}
 	}
 
 	private String createUniqueGoogleNickname(GoogleUserInfo googleUserInfo) {
