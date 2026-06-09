@@ -10,5 +10,5 @@ public interface CourseSessionRepository extends JpaRepository<CourseSession, Lo
 
     List<CourseSession> findByCourse_Id(Long courseId);
 
-    Optional<CourseSession> findByCourse_TrprIdAndTrprDegr(String trprId, Integer trprDegr);
+    Optional<CourseSession> findByTrprIdAndTrprDegr(String trprId, Integer trprDegr);
 }
