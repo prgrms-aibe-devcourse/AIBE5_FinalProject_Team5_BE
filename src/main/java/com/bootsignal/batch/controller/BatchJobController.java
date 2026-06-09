@@ -35,16 +35,19 @@ public class BatchJobController {
     private final JobLauncher jobLauncher;
     private final Job hrdDataCollectJob;
     private final Job hrdDataRefineJob;
+    private final Job hrdWebCrawlJob;
     private final HrdApiProperties properties;
 
     public BatchJobController(
             JobLauncher jobLauncher,
             @Qualifier("hrdDataCollectJob") Job hrdDataCollectJob,
             @Qualifier("hrdDataRefineJob") Job hrdDataRefineJob,
+            @Qualifier("hrdWebCrawlJob") Job hrdWebCrawlJob,
             HrdApiProperties properties) {
         this.jobLauncher = jobLauncher;
         this.hrdDataCollectJob = hrdDataCollectJob;
         this.hrdDataRefineJob = hrdDataRefineJob;
+        this.hrdWebCrawlJob = hrdWebCrawlJob;
         this.properties = properties;
     }
 
@@ -87,6 +90,24 @@ public class BatchJobController {
                 .toJobParameters();
 
         return runJob(hrdDataRefineJob, "hrdDataRefineJob", params);
+    }
+
+    /**
+     * 웹 크롤링 Job 실행 — Course.titleLink 기반으로 고용24 상세 페이지를 크롤링하여
+     * Course / Institution / CourseSession 의 보조 정보 업데이트
+     * 정제 Job이 완료된 뒤 실행
+     *
+     * @param delayMillis 과정 간 요청 딜레이(ms). 기본 1500ms. 너무 낮으면 IP 차단 위험.
+     */
+    @PostMapping("/web-crawl")
+    public BatchJobResponse runWebCrawlJob(
+            @RequestParam(required = false) Long delayMillis) {
+        JobParameters params = new JobParametersBuilder()
+                .addLong("runAt", System.currentTimeMillis())
+                .addLong("delayMillis", delayMillis != null ? delayMillis : 1500L)
+                .toJobParameters();
+
+        return runJob(hrdWebCrawlJob, "hrdWebCrawlJob", params);
     }
 
     /**
