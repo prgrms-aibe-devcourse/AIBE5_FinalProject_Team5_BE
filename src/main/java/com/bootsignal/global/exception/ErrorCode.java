@@ -25,6 +25,11 @@ public enum ErrorCode {
 	INVALID_LOGIN_CREDENTIALS(HttpStatus.UNAUTHORIZED, "INVALID_LOGIN_CREDENTIALS", "이메일 또는 비밀번호가 올바르지 않습니다."),
 	INVALID_OAUTH_TOKEN(HttpStatus.UNAUTHORIZED, "INVALID_OAUTH_TOKEN", "유효하지 않은 소셜 로그인 토큰입니다."),
 	OAUTH_PROVIDER_MISMATCH(HttpStatus.CONFLICT, "OAUTH_PROVIDER_MISMATCH", "이미 다른 로그인 방식으로 가입된 이메일입니다."),
+	AI_AGENT_NOT_FOUND(HttpStatus.BAD_REQUEST, "AI_AGENT_NOT_FOUND", "실행할 AI Agent를 찾을 수 없습니다."),
+	AI_INPUT_INVALID(HttpStatus.BAD_REQUEST, "AI_INPUT_INVALID", "AI Agent 입력 값이 올바르지 않습니다."),
+	AI_OUTPUT_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "AI_OUTPUT_INVALID", "AI Agent 출력 값이 올바르지 않습니다."),
+	AI_RETRY_EXHAUSTED(HttpStatus.INTERNAL_SERVER_ERROR, "AI_RETRY_EXHAUSTED", "AI Agent 재시도 횟수를 초과했습니다."),
+	AI_EXECUTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI_EXECUTION_FAILED", "AI Agent 실행 중 오류가 발생했습니다."),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.");
 
 	private final HttpStatus status;

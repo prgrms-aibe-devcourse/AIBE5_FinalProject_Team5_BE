@@ -14,6 +14,11 @@ public class BootSignalException extends RuntimeException {
 		this.errorCode = errorCode;
 	}
 
+	public BootSignalException(ErrorCode errorCode, String message, Throwable cause) {
+		super(message, cause);
+		this.errorCode = errorCode;
+	}
+
 	public ErrorCode errorCode() {
 		return errorCode;
 	}
