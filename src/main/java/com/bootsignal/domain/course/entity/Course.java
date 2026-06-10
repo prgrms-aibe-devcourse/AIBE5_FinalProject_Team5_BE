@@ -93,27 +93,6 @@ public class Course extends BaseEntity {
     // 상태 변경 사유
     private String statusReason;
 
-    public void adminUpdate(String title, String subTitle, String titleLink, String subTitleLink,
-                            String ncsCd, String ncsName, String ncsYn,
-                            BigDecimal courseMan, BigDecimal realMan, BigDecimal selfPaymentAmount,
-                            BigDecimal stdgScor, Integer totalTrainingDays, Integer totalTrainingHours,
-                            String trngAreaCd) {
-        if (title != null) this.title = title;
-        if (subTitle != null) this.subTitle = subTitle;
-        if (titleLink != null) this.titleLink = titleLink;
-        if (subTitleLink != null) this.subTitleLink = subTitleLink;
-        if (ncsCd != null) this.ncsCd = ncsCd;
-        if (ncsName != null) this.ncsName = ncsName;
-        if (ncsYn != null) this.ncsYn = ncsYn;
-        if (courseMan != null) this.courseMan = courseMan;
-        if (realMan != null) this.realMan = realMan;
-        if (selfPaymentAmount != null) this.selfPaymentAmount = selfPaymentAmount;
-        if (stdgScor != null) this.stdgScor = stdgScor;
-        if (totalTrainingDays != null) this.totalTrainingDays = totalTrainingDays;
-        if (totalTrainingHours != null) this.totalTrainingHours = totalTrainingHours;
-        if (trngAreaCd != null) this.trngAreaCd = trngAreaCd;
-    }
-
     public void changeStatus(CourseStatus status, String reason) {
         this.status = status;
         this.statusReason = reason;
