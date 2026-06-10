@@ -2,6 +2,7 @@ package com.bootsignal.domain.admin.dto;
 
 import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course.entity.CourseStatus;
+import com.bootsignal.domain.course.entity.CourseVisibility;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -29,7 +30,9 @@ public record AdminCourseResponse(
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
-    public static AdminCourseResponse from(Course course) {
+    public static AdminCourseResponse from(Course course, CourseVisibility visibility) {
+        CourseStatus effectiveStatus = visibility != null ? visibility.getStatus() : CourseStatus.ACTIVE;
+        String reason = visibility != null ? visibility.getReason() : null;
         return new AdminCourseResponse(
             course.getId(),
             course.getInstitution() != null ? course.getInstitution().getId() : null,
@@ -49,8 +52,8 @@ public record AdminCourseResponse(
             course.getTotalTrainingDays(),
             course.getTotalTrainingHours(),
             course.getTrngAreaCd(),
-            course.getStatus(),
-            course.getStatusReason(),
+            effectiveStatus,
+            reason,
             course.getCreatedAt(),
             course.getUpdatedAt()
         );

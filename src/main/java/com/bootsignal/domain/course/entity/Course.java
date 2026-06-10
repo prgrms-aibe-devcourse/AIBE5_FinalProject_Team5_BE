@@ -85,19 +85,6 @@ public class Course extends BaseEntity {
     @JoinColumn(name = "institution_id")
     private Institution institution;
 
-    // 노출 상태
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private CourseStatus status = CourseStatus.ACTIVE;
-
-    // 상태 변경 사유
-    private String statusReason;
-
-    public void changeStatus(CourseStatus status, String reason) {
-        this.status = status;
-        this.statusReason = reason;
-    }
-
     public void updateFromRaw(String title, String subTitle, String titleLink, String subTitleLink,
                               String ncsCd, String ncsName, String ncsYn,
                               BigDecimal courseMan, BigDecimal realMan, BigDecimal selfPaymentAmount,
