@@ -73,3 +73,12 @@ app:
       output-path: ${WORK24_CRAWLER_OUTPUT_PATH:build/crawled/work24-training-course-overview.json}
       timeout-millis: ${WORK24_CRAWLER_TIMEOUT_MILLIS:10000}
       user-agent: ${WORK24_CRAWLER_USER_AGENT:Mozilla/5.0 BootSignalCrawler/1.0}
+  profile-image:
+    # 저장소 유형 : (local: 로컬 임시 저장), (s3: s3 저장) 
+    storage-type: ${PROFILE_IMAGE_STORAGE_TYPE:local}
+    local:
+      upload-dir: ${PROFILE_IMAGE_UPLOAD_DIR:temp-storage/profile-images}
+      public-path-prefix: ${PROFILE_IMAGE_PUBLIC_PATH_PREFIX:/local-files/profile}
+      base-url: ${PROFILE_IMAGE_BASE_URL:http://localhost:8080}
+    s3:
+      # S3 저장 관련 설정 예정

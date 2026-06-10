@@ -110,4 +110,18 @@ public class User extends BaseEntity {
 		// 카카오 계정도 비밀번호 없이 제공자 고유 식별자로 가입한다.
 		return new User(email, null, name, nickname, AuthProvider.KAKAO, providerUserId, profileImageUrl);
 	}
+
+	public void updateProfile(String nickname, String profileImageUrl) {
+		if (nickname != null) { // 새 닉네임 전달
+			this.nickname = nickname;
+			
+			// 이메일 가입 사용자는 name 컬럼도 닉네임과 동일하게 유지한다.
+			if (this.provider == AuthProvider.LOCAL) {
+				this.name = nickname;
+			}
+		}
+		if (profileImageUrl != null) { // 새 프로필 이미지 전달
+			this.profileImageUrl = profileImageUrl;
+		}
+	}
 }
