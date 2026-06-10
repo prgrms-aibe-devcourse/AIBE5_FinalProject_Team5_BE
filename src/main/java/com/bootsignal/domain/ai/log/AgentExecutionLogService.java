@@ -56,6 +56,7 @@ public class AgentExecutionLogService {
 
 	private String hashInput(String inputSummary) {
 		try {
+			// 입력 원문 대신 요약 문자열의 SHA-256 해시만 저장한다.
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
 			byte[] hash = digest.digest(inputSummary.getBytes(StandardCharsets.UTF_8));
 			return HexFormat.of().formatHex(hash);

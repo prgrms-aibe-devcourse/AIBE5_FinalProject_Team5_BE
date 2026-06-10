@@ -14,6 +14,7 @@ public record GuardrailResult(
 ) {
 
 	public GuardrailResult {
+		// Guardrail 실패 결과는 Harness에서 재시도 가능 여부에 맞는 AI 예외로 바뀐다.
 		if (valid) {
 			errorCode = null;
 			message = "";

@@ -38,6 +38,7 @@ public class RetryPolicy {
 	}
 
 	public boolean canRetry(RuntimeException exception, int attempt) {
+		// OpenAI 일시 장애나 파싱 실패처럼 회복 가능한 예외만 재시도한다.
 		return attempt < maxAttempts
 			&& isRetryableException(exception);
 	}

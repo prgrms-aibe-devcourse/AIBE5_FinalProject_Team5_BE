@@ -18,6 +18,7 @@ public record AgentExecutionResult(
 ) {
 
 	public AgentExecutionResult {
+		// Service는 Agent 내부 구현을 몰라도 공통 결과 모델만 다룬다.
 		if (executionId == null) {
 			throw new IllegalArgumentException("AI 실행 ID는 필수입니다.");
 		}

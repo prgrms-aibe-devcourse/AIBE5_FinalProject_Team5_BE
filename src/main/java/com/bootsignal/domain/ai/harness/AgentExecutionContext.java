@@ -16,6 +16,7 @@ public record AgentExecutionContext(
 ) {
 
 	public AgentExecutionContext {
+		// 실행 로그에는 원문 입력 대신 요약과 해시를 남기는 것을 기본 원칙으로 둔다.
 		if (executionId == null) {
 			throw new IllegalArgumentException("AI 실행 ID는 필수입니다.");
 		}

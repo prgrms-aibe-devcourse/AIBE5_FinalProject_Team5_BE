@@ -49,6 +49,7 @@ public class AgentExecutionLog extends BaseEntity {
 	@Column(name = "input_summary", columnDefinition = "text")
 	private String inputSummary;
 
+	// 원문 입력을 보관하지 않고 동일 입력 여부만 비교하기 위한 해시를 저장한다.
 	@Column(name = "input_hash", nullable = false, length = 64)
 	private String inputHash;
 
@@ -104,6 +105,7 @@ public class AgentExecutionLog extends BaseEntity {
 	}
 
 	public void markRetrying(String errorMessage) {
+		// 재시도 중에도 마지막 실패 원인을 남겨 운영자가 흐름을 추적할 수 있게 한다.
 		this.status = AgentExecutionStatus.RETRYING;
 		this.errorMessage = errorMessage;
 		this.retryCount++;

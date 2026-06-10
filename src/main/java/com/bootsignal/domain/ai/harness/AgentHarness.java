@@ -26,6 +26,7 @@ public class AgentHarness {
 	private final List<OutputGuardrail> outputGuardrails;
 
 	public AgentHarness(List<AiAgent> agents, AgentExecutionLogService logService) {
+		// 단위 테스트에서는 Guardrail과 재시도 정책 없이도 Harness를 검증할 수 있게 둔다.
 		this(agents, logService, RetryPolicy.noRetry(), List.of(), List.of());
 	}
 
@@ -46,6 +47,7 @@ public class AgentHarness {
 	}
 
 	public AgentExecutionResult execute(AgentExecutionContext context) {
+		// Harness는 검증, 재시도, 로그 저장을 담당하고 실제 작업은 Agent에 위임한다.
 		AiAgent agent = findAgent(context.agentType());
 		logService.start(context);
 
@@ -69,6 +71,7 @@ public class AgentHarness {
 	}
 
 	private AgentExecutionResult executeWithRetry(AiAgent agent, AgentExecutionContext context) {
+		// 재시도 가능 예외만 다시 실행하고, 입력 오류처럼 확정 실패인 경우는 즉시 종료한다.
 		int attempt = 1;
 		while (true) {
 			try {
@@ -100,6 +103,7 @@ public class AgentHarness {
 	}
 
 	private void validateInput(AgentExecutionContext context) {
+		// 입력 Guardrail은 Agent 실행 전 데이터 부족이나 권한 문제를 빠르게 차단한다.
 		for (InputGuardrail guardrail : inputGuardrails) {
 			GuardrailResult result = guardrail.validate(context);
 			if (!result.valid()) {
@@ -109,6 +113,7 @@ public class AgentHarness {
 	}
 
 	private void validateOutput(AgentExecutionContext context, AgentExecutionResult agentResult) {
+		// 출력 Guardrail은 깨진 응답이나 필수 필드 누락을 저장 전에 차단한다.
 		for (OutputGuardrail guardrail : outputGuardrails) {
 			GuardrailResult result = guardrail.validate(context, agentResult);
 			if (!result.valid()) {
