@@ -26,14 +26,8 @@ public class Institution extends BaseEntity {
     // 주소 / 원본: address
     private String address;
 
-    // 우편번호 / 원본: zipCd
-    private String zipCd;
-
     // 홈페이지 주소 / 원본: hpAddr
     private String homepageUrl;
-
-    // 대표 전화번호 / 원본: telNo
-    private String telNo;
 
     // 담당자명 / 원본: trprChap
     private String managerName;
@@ -44,6 +38,14 @@ public class Institution extends BaseEntity {
     // 담당자 이메일 / 원본: trprChapEmail
     private String managerEmail;
 
+    // 기관 대표 사진 URL (HTML 크롤링)
+    @Column(length = 1000)
+    private String profileImageUrl;
+
+    // 기관 소개 텍스트 (HTML 크롤링)
+    @Column(columnDefinition = "TEXT")
+    private String introduction;
+
     public void updateFromRaw(String institutionName, String address, String homepageUrl,
                               String managerName, String managerTel, String managerEmail) {
         this.institutionName = institutionName;
@@ -52,5 +54,10 @@ public class Institution extends BaseEntity {
         this.managerName = managerName;
         this.managerTel = managerTel;
         this.managerEmail = managerEmail;
+    }
+
+    public void updateFromCrawl(String profileImageUrl, String introduction) {
+        this.profileImageUrl = profileImageUrl;
+        this.introduction = introduction;
     }
 }

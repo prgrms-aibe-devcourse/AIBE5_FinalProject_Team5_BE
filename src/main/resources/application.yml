@@ -71,5 +71,5 @@ app:
     crawler:
       default-course-url: "${WORK24_CRAWLER_DEFAULT_COURSE_URL:https://www.work24.go.kr/hr/a/a/3100/selectTracseDetl.do?tracseId=AIG20240000498288&tracseTme=7&crseTracseSe=C0061&trainstCstmrId=500036172479}"
       output-path: ${WORK24_CRAWLER_OUTPUT_PATH:build/crawled/work24-training-course-overview.json}
-      timeout-millis: ${WORK24_CRAWLER_TIMEOUT_MILLIS:10000}
-      user-agent: ${WORK24_CRAWLER_USER_AGENT:Mozilla/5.0 BootSignalCrawler/1.0}
+      timeout-millis: ${WORK24_CRAWLER_TIMEOUT_MILLIS:30000}
+      user-agent: ${WORK24_CRAWLER_USER_AGENT:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36}

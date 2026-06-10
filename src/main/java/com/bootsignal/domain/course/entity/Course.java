@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Entity
 @Getter
@@ -68,6 +69,17 @@ public class Course extends BaseEntity {
     // 훈련지역 코드 / 원본: trngAreaCd
     private String trngAreaCd;
 
+    // 훈련대상자요건 (HTML 크롤링)
+    @Column(columnDefinition = "TEXT")
+    private String trainingTargetRequirements;
+
+    // 훈련목표 (HTML 크롤링)
+    @Column(columnDefinition = "TEXT")
+    private String trainingGoal;
+
+    // HTML 크롤링 수행 시각 (UTC)
+    private Instant crawledAt;
+
     // 소속 기관
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "institution_id")
@@ -127,5 +139,11 @@ public class Course extends BaseEntity {
         this.totalTrainingHours = totalTrainingHours;
         this.trngAreaCd = trngAreaCd;
         this.institution = institution;
+    }
+
+    public void updateFromCrawl(String trainingTargetRequirements, String trainingGoal, Instant crawledAt) {
+        this.trainingTargetRequirements = trainingTargetRequirements;
+        this.trainingGoal = trainingGoal;
+        this.crawledAt = crawledAt;
     }
 }

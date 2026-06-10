@@ -266,8 +266,10 @@ public class HrdDataRefineJobConfig {
                     .findByTrprIdAndTrprDegr(listRaw.getTrprId(), listRaw.getTrprDegr())
                     .orElse(null);
 
+            Integer resolvedDegr = parseActualDegr(listRaw.getTitleLink(), listRaw.getTrprDegr());
+
             CourseSession existing = courseSessionRepo
-                    .findByCourse_TrprIdAndTrprDegr(listRaw.getTrprId(), listRaw.getTrprDegr())
+                    .findByTrprIdAndTrprDegr(listRaw.getTrprId(), resolvedDegr)
                     .orElse(null);
 
             if (existing != null) {
@@ -286,7 +288,8 @@ public class HrdDataRefineJobConfig {
             }
 
             return CourseSession.builder()
-                    .trprDegr(listRaw.getTrprDegr())
+                    .trprId(listRaw.getTrprId())
+                    .trprDegr(resolvedDegr)
                     .traStartDate(parseDate(listRaw.getTraStartDate()))
                     .traEndDate(parseDate(listRaw.getTraEndDate()))
                     .yardMan(parseInteger(listRaw.getYardMan()))
@@ -350,4 +353,23 @@ public class HrdDataRefineJobConfig {
         log.warn("LocalDate 변환 실패 (지원되지 않는 형식): '{}'", trimmed);
         return null;
     }
+
+    private Integer parseActualDegr(String titleLink, Integer fallbackDegr) {
+        if (titleLink == null || titleLink.isBlank()) {
+            return fallbackDegr;
+        }
+        try {
+            int index = titleLink.indexOf("tracseTme=");
+            if (index != -1) {
+                int start = index + "tracseTme=".length();
+                int end = titleLink.indexOf("&", start);
+                String val = (end == -1) ? titleLink.substring(start) : titleLink.substring(start, end);
+                return Integer.parseInt(val.trim());
+            }
+        } catch (Exception e) {
+            // fallback
+        }
+        return fallbackDegr;
+    }
 }
+
