@@ -11,4 +11,11 @@ public interface CourseSessionRepository extends JpaRepository<CourseSession, Lo
     List<CourseSession> findByCourse_Id(Long courseId);
 
     Optional<CourseSession> findByTrprIdAndTrprDegr(String trprId, Integer trprDegr);
+
+    // 과정 회차 목록: 훈련 시작일 오름차순
+    List<CourseSession> findByCourse_IdOrderByTraStartDateAsc(Long courseId);
+
+    Optional<CourseSession> findByTitleLink(String titleLink);
+
+    List<CourseSession> findByCourse_IdIn(List<Long> courseIds);
 }
