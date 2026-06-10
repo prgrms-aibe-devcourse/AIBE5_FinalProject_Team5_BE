@@ -77,6 +77,28 @@ public class Work24CrawlerService {
 		return parse(document, document, sourceUrl, crawledAt);
 	}
 
+	/**
+	 * 배치 Processor 에서 직접 기관정보 탭 Document 를 가져올 때 사용.
+	 */
+	public Document fetchInstitutionDocument(Document document, String sourceUrl) throws IOException {
+		return Jsoup.connect(resolveInstitutionInfoUrl(sourceUrl))
+			.userAgent(properties.userAgent())
+			.timeout(properties.timeoutMillis())
+			.referrer(sourceUrl)
+			.data(resolveInstitutionRequestData(document, sourceUrl))
+			.post();
+	}
+
+	/** 배치 Processor 에서 Jsoup 연결 시 사용할 User-Agent */
+	public String getUserAgent() {
+		return properties.userAgent();
+	}
+
+	/** 배치 Processor 에서 Jsoup 연결 시 사용할 타임아웃(ms) */
+	public int getTimeoutMillis() {
+		return properties.timeoutMillis();
+	}
+
 	public Work24TrainingCourseOverview parse(
 		Document document,
 		Document institutionDocument,

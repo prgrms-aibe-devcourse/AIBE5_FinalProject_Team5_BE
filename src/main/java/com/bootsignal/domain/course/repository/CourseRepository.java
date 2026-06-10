@@ -11,6 +11,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     Optional<Course> findByTrprId(String trprId);
 
+    Optional<Course> findByTitleLink(String titleLink);
+
     @Query("""
         select c
         from Course c

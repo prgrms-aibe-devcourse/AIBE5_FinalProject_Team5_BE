@@ -5,9 +5,14 @@ import com.bootsignal.global.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
+@Table(
+        name = "course_session",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"trpr_id", "trpr_degr"})
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -18,7 +23,12 @@ public class CourseSession extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // 훈련과정 ID / 원본: trprId
+    @Column(name = "trpr_id", nullable = false)
+    private String trprId;
+
     // 훈련과정 회차 / 원본: trprDegr
+    @Column(name = "trpr_degr")
     private Integer trprDegr;
 
     // 훈련 시작일 / 원본: traStartDate
@@ -45,8 +55,20 @@ public class CourseSession extends BaseEntity {
     // 고용보험 6개월 취업률 / 원본: eiEmplRate6
     private String eiEmplRate6;
 
-    // 주말/주중 구분 / 원본: wkendSe
+    // 주말·주중 구분 / 원본: wkendSe
     private String wkendSe;
+
+    // 선발인원 (HTML 크롤링)
+    private Integer selectedTraineeCount;
+
+    // 모집인원 (HTML 크롤링)
+    private Integer recruitmentCount;
+
+    // 수강확정인원 (HTML 크롤링)
+    private Integer confirmedTraineeCount;
+
+    // 취업률 (%) (HTML 크롤링 - newEmpymnRt)
+    private BigDecimal employmentRate;
 
     // 과정
     @ManyToOne(fetch = FetchType.LAZY)
@@ -67,5 +89,13 @@ public class CourseSession extends BaseEntity {
         this.eiEmplRate3 = eiEmplRate3;
         this.eiEmplRate6 = eiEmplRate6;
         this.wkendSe = wkendSe;
+    }
+
+    public void updateFromCrawl(Integer selectedTraineeCount, Integer recruitmentCount,
+                                Integer confirmedTraineeCount, BigDecimal employmentRate) {
+        this.selectedTraineeCount = selectedTraineeCount;
+        this.recruitmentCount = recruitmentCount;
+        this.confirmedTraineeCount = confirmedTraineeCount;
+        this.employmentRate = employmentRate;
     }
 }
