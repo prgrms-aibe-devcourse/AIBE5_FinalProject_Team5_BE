@@ -9,4 +9,6 @@ public interface VerificationRepository extends JpaRepository<Verification, Long
     boolean existsByUserIdAndCourseSessionIdAndStatus(
         Long userId, Long courseSessionId, VerificationStatus status
     );
+
+    long countByStatus(VerificationStatus status);
 }
