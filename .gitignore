@@ -1,6 +1,7 @@
 HELP.md
 .gradle
 build/
+temp-storage/profile-images/
 .env
 .env.*
 !.env.example

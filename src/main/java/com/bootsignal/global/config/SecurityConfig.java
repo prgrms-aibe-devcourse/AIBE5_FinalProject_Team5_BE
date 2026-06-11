@@ -46,6 +46,7 @@ public class SecurityConfig {
 			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/api/health", "/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
+				.requestMatchers("/local-files/profile/**").permitAll()
 				.anyRequest().permitAll()
 			)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

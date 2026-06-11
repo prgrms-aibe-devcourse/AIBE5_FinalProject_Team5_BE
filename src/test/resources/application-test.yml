@@ -17,4 +17,10 @@ app:
   security:
     jwt:
       secret: test-jwt-secret-change-before-deploy-32bytes
+  profile-image:
+    storage-type: local
+    local:
+      upload-dir: temp-storage/profile-images
+      public-path-prefix: /local-files/profile
+      base-url: http://localhost:8080
 
