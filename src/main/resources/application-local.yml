@@ -6,18 +6,18 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: update
     database-platform: org.hibernate.dialect.MySQLDialect
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
-  # ── local 전용: H2에 Batch 메타 테이블 자동 생성 ──
-  # application.yml에서 never로 설정된 것을 embedded로 오버라이드
+  # ── local 전용: Batch 메타 테이블 자동 생성 ──
+  # application.yml에서 never로 설정된 것을 always로 오버라이드
   batch:
     jdbc:
-      initialize-schema: embedded
+      initialize-schema: always
 
 logging:
   level:
