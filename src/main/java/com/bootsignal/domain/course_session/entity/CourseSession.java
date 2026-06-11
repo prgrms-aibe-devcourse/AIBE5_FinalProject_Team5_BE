@@ -7,6 +7,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Instant;
+import java.util.List;
 
 @Entity
 @Table(
@@ -30,6 +32,15 @@ public class CourseSession extends BaseEntity {
     // 훈련과정 회차 / 원본: trprDegr
     @Column(name = "trpr_degr")
     private Integer trprDegr;
+
+    // ── Course에서 이관된 회차별 변동 정보 ──
+    @Column(length = 1000)
+    private String titleLink;          // 과정 상세 링크 (회차별 파라미터 내포)
+
+    private Integer courseMan;       // 심사 훈련비
+    private Integer selfPaymentAmount; // 본인 부담금
+    private Integer totalTrainingDays;  // 총 훈련일수
+    private Integer totalTrainingHours; // 총 훈련시간
 
     // 훈련 시작일 / 원본: traStartDate
     private LocalDate traStartDate;
@@ -70,16 +81,22 @@ public class CourseSession extends BaseEntity {
     // 취업률 (%) (HTML 크롤링 - newEmpymnRt)
     private BigDecimal employmentRate;
 
+    // HTML 크롤링 수행 시각 (UTC)
+    private Instant crawledAt;
+
     // 과정
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id")
     private Course course;
 
     public void updateFromRaw(LocalDate traStartDate, LocalDate traEndDate,
-                              Integer yardMan, Integer regCourseMan,
-                              Integer totParMks, Integer finiCnt,
-                              String eiEmplRate3, String eiEmplRate6,
-                              String wkendSe) {
+                               Integer yardMan, Integer regCourseMan,
+                               Integer totParMks, Integer finiCnt,
+                               String eiEmplRate3, String eiEmplRate6,
+                               String wkendSe, String titleLink,
+                               Integer courseMan,
+                               Integer selfPaymentAmount,
+                               Integer totalTrainingDays, Integer totalTrainingHours) {
         this.traStartDate = traStartDate;
         this.traEndDate = traEndDate;
         this.yardMan = yardMan;
@@ -89,13 +106,59 @@ public class CourseSession extends BaseEntity {
         this.eiEmplRate3 = eiEmplRate3;
         this.eiEmplRate6 = eiEmplRate6;
         this.wkendSe = wkendSe;
+        this.titleLink = titleLink;
+        this.courseMan = courseMan;
+        this.selfPaymentAmount = selfPaymentAmount;
+        this.totalTrainingDays = totalTrainingDays;
+        this.totalTrainingHours = totalTrainingHours;
     }
 
     public void updateFromCrawl(Integer selectedTraineeCount, Integer recruitmentCount,
-                                Integer confirmedTraineeCount, BigDecimal employmentRate) {
+                                Integer confirmedTraineeCount, BigDecimal employmentRate, Instant crawledAt) {
         this.selectedTraineeCount = selectedTraineeCount;
         this.recruitmentCount = recruitmentCount;
         this.confirmedTraineeCount = confirmedTraineeCount;
         this.employmentRate = employmentRate;
+        this.crawledAt = crawledAt;
+    }
+
+    public static CourseSession findRepresentativeSession(List<CourseSession> sessions, java.time.LocalDate today) {
+        if (sessions == null || sessions.isEmpty()) {
+            return null;
+        }
+
+        CourseSession closestFutureSession = null;
+        CourseSession latestPastSession = null;
+
+        for (CourseSession session : sessions) {
+            java.time.LocalDate startDate = session.getTraStartDate();
+            if (startDate == null) {
+                continue;
+            }
+
+            // 오늘을 포함한 미래 기수 일정
+            if (!startDate.isBefore(today)) {
+                if (closestFutureSession == null || startDate.isBefore(closestFutureSession.getTraStartDate())) {
+                    closestFutureSession = session;
+                }
+            } 
+            // 과거 기수 일정
+            else {
+                if (latestPastSession == null || startDate.isAfter(latestPastSession.getTraStartDate())) {
+                    latestPastSession = session;
+                }
+            }
+        }
+
+        // 미래 세션 우선 반환
+        if (closestFutureSession != null) {
+            return closestFutureSession;
+        }
+        // 과거 세션 반환
+        if (latestPastSession != null) {
+            return latestPastSession;
+        }
+        // 예외 상황 시 첫 번째 요소를 반환
+        return sessions.get(0);
     }
 }

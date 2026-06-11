@@ -92,7 +92,7 @@ public class HrdDataRefineJobConfig {
     public RepositoryItemReader<HrdCourseListRaw> listRawReaderForInstitution() {
         RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
         reader.setRepository(listRawRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findByIsRefinedFalse");
         reader.setPageSize(50);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
@@ -163,7 +163,7 @@ public class HrdDataRefineJobConfig {
     public RepositoryItemReader<HrdCourseListRaw> listRawReaderForCourse() {
         RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
         reader.setRepository(listRawRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findByIsRefinedFalse");
         reader.setPageSize(50);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
@@ -184,16 +184,11 @@ public class HrdDataRefineJobConfig {
                 // 기존 Course 갱신
                 existing.updateFromRaw(
                         listRaw.getTitle(), listRaw.getSubTitle(),
-                        listRaw.getTitleLink(), listRaw.getSubTitleLink(),
+                        listRaw.getSubTitleLink(),
                         listRaw.getNcsCd(),
                         detail != null ? detail.getNcsNm() : null,
                         detail != null ? detail.getNcsYn() : null,
-                        parseBigDecimal(listRaw.getCourseMan()),
-                        parseBigDecimal(listRaw.getRealMan()),
-                        detail != null ? parseBigDecimal(detail.getTgcrGnrlTrneOwepAllt()) : null,
                         parseBigDecimal(listRaw.getStdgScor()),
-                        detail != null ? parseInteger(detail.getTrDcnt()) : null,
-                        detail != null ? parseInteger(detail.getTrtm()) : null,
                         listRaw.getTrngAreaCd(), institution
                 );
                 return null; // Processor가 null 반환 → Writer에 전달 안 됨 (이미 Dirty Checking으로 처리)
@@ -204,17 +199,11 @@ public class HrdDataRefineJobConfig {
                     .trprId(listRaw.getTrprId())
                     .title(listRaw.getTitle())
                     .subTitle(listRaw.getSubTitle())
-                    .titleLink(listRaw.getTitleLink())
                     .subTitleLink(listRaw.getSubTitleLink())
                     .ncsCd(listRaw.getNcsCd())
                     .ncsName(detail != null ? detail.getNcsNm() : null)
                     .ncsYn(detail != null ? detail.getNcsYn() : null)
-                    .courseMan(parseBigDecimal(listRaw.getCourseMan()))
-                    .realMan(parseBigDecimal(listRaw.getRealMan()))
-                    .selfPaymentAmount(detail != null ? parseBigDecimal(detail.getTgcrGnrlTrneOwepAllt()) : null)
                     .stdgScor(parseBigDecimal(listRaw.getStdgScor()))
-                    .totalTrainingDays(detail != null ? parseInteger(detail.getTrDcnt()) : null)
-                    .totalTrainingHours(detail != null ? parseInteger(detail.getTrtm()) : null)
                     .trngAreaCd(listRaw.getTrngAreaCd())
                     .institution(institution)
                     .build();
@@ -249,7 +238,7 @@ public class HrdDataRefineJobConfig {
     public RepositoryItemReader<HrdCourseListRaw> listRawReaderForSession() {
         RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
         reader.setRepository(listRawRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findByIsRefinedFalse");
         reader.setPageSize(50);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
@@ -263,6 +252,10 @@ public class HrdDataRefineJobConfig {
             if (course == null) return null;
 
             HrdTrainingScheduleRaw schedule = scheduleRawRepo
+                    .findByTrprIdAndTrprDegr(listRaw.getTrprId(), listRaw.getTrprDegr())
+                    .orElse(null);
+
+            HrdCourseDetailRaw detail = detailRawRepo
                     .findByTrprIdAndTrprDegr(listRaw.getTrprId(), listRaw.getTrprDegr())
                     .orElse(null);
 
@@ -282,11 +275,18 @@ public class HrdDataRefineJobConfig {
                         schedule != null ? parseInteger(schedule.getFiniCnt()) : null,
                         schedule != null ? schedule.getEiEmplRate3() : null,
                         schedule != null ? schedule.getEiEmplRate6() : null,
-                        listRaw.getWkendSe()
+                        listRaw.getWkendSe(),
+                        listRaw.getTitleLink(),
+                        parseInteger(listRaw.getCourseMan()),
+                        detail != null ? parseInteger(detail.getTgcrGnrlTrneOwepAllt()) : null,
+                        detail != null ? parseInteger(detail.getTrDcnt()) : null,
+                        detail != null ? parseInteger(detail.getTrtm()) : null
                 );
+                listRaw.markAsRefined();
                 return existing; // null 대신 반환 → Writer의 save()로 명시적 UPDATE 보장
             }
 
+            listRaw.markAsRefined();
             return CourseSession.builder()
                     .trprId(listRaw.getTrprId())
                     .trprDegr(resolvedDegr)
@@ -299,6 +299,11 @@ public class HrdDataRefineJobConfig {
                     .eiEmplRate3(schedule != null ? schedule.getEiEmplRate3() : null)
                     .eiEmplRate6(schedule != null ? schedule.getEiEmplRate6() : null)
                     .wkendSe(listRaw.getWkendSe())
+                    .titleLink(listRaw.getTitleLink())
+                    .courseMan(parseInteger(listRaw.getCourseMan()))
+                    .selfPaymentAmount(detail != null ? parseInteger(detail.getTgcrGnrlTrneOwepAllt()) : null)
+                    .totalTrainingDays(detail != null ? parseInteger(detail.getTrDcnt()) : null)
+                    .totalTrainingHours(detail != null ? parseInteger(detail.getTrtm()) : null)
                     .course(course)
                     .build();
         };

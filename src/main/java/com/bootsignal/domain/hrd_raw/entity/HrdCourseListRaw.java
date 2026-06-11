@@ -92,6 +92,10 @@ public class HrdCourseListRaw {
     @Column(nullable = false)
     private LocalDateTime fetchedAt;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean isRefined = false;
+
     /**
      * 중복 데이터 수집 시 값 갱신을 위한 편의 메서드 (Upsert용)
      */
@@ -119,5 +123,10 @@ public class HrdCourseListRaw {
         this.wkendSe = wkendSe;
         this.regCourseMan = regCourseMan;
         this.fetchedAt = LocalDateTime.now();
+        this.isRefined = false;
+    }
+
+    public void markAsRefined() {
+        this.isRefined = true;
     }
 }
