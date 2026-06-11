@@ -3,12 +3,14 @@ package com.bootsignal.global.config;
 import com.bootsignal.global.config.properties.ProfileImageProperties;
 import java.nio.file.Path;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /** 웹으로 전달된 프로필 이미지 요청 URL을 실제 파일 경로와 매핑 **/
 @Configuration
+@EnableConfigurationProperties(ProfileImageProperties.class)
 @ConditionalOnProperty(name = "app.profile-image.storage-type", havingValue = "local", matchIfMissing = true)
 public class LocalProfileImageWebConfig implements WebMvcConfigurer {
 
