@@ -56,16 +56,16 @@ public class AgentHarness {
 			AgentExecutionResult result = executeWithRetry(agent, context);
 
 			if (result.status() == AgentExecutionStatus.SUCCESS) {
-				logService.completeSuccess(context.executionId(), result.outputSummary());
+				logService.completeSuccess(context.executionId(), result.outputSummary(), result.metadata());
 			} else {
 				logService.completeFailure(context.executionId(), result.errorMessage());
 			}
 			return result;
 		} catch (BootSignalException exception) {
-			logService.completeFailure(context.executionId(), exception.getMessage());
+			logService.completeFailure(context.executionId(), exception.errorCode(), exception.getMessage());
 			throw exception;
 		} catch (RuntimeException exception) {
-			logService.completeFailure(context.executionId(), exception.getMessage());
+			logService.completeFailure(context.executionId(), ErrorCode.AI_EXECUTION_FAILED, exception.getMessage());
 			throw new BootSignalException(ErrorCode.AI_EXECUTION_FAILED, exception.getMessage());
 		}
 	}

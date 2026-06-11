@@ -59,8 +59,31 @@ public class AgentExecutionLog extends BaseEntity {
 	@Column(name = "error_message", columnDefinition = "text")
 	private String errorMessage;
 
+	@Column(name = "error_code", length = 50)
+	private String errorCode;
+
 	@Column(name = "retry_count", nullable = false)
 	private int retryCount;
+
+	@Column(length = 100)
+	private String model;
+
+	@Column(name = "prompt_version", length = 100)
+	private String promptVersion;
+
+	@Column(name = "prompt_tokens")
+	private Integer promptTokens;
+
+	@Column(name = "completion_tokens")
+	private Integer completionTokens;
+
+	@Column(name = "total_tokens")
+	private Integer totalTokens;
+
+	@Column(name = "reasoning_tokens")
+	private Integer reasoningTokens;
+
+	private Double temperature;
 
 	@Column(name = "started_at", nullable = false)
 	private LocalDateTime startedAt;
@@ -98,9 +121,11 @@ public class AgentExecutionLog extends BaseEntity {
 		return new AgentExecutionLog(executionId, agentType, userId, inputSummary, inputHash);
 	}
 
-	public void markSuccess(String outputSummary) {
+	public void markSuccess(String outputSummary, AgentExecutionMetadata metadata) {
 		this.outputSummary = outputSummary;
 		this.errorMessage = null;
+		this.errorCode = null;
+		applyMetadata(metadata);
 		finish(AgentExecutionStatus.SUCCESS);
 	}
 
@@ -111,9 +136,23 @@ public class AgentExecutionLog extends BaseEntity {
 		this.retryCount++;
 	}
 
-	public void markFailed(String errorMessage) {
+	public void markFailed(String errorMessage, String errorCode) {
 		this.errorMessage = errorMessage;
+		this.errorCode = errorCode;
 		finish(AgentExecutionStatus.FAILED);
+	}
+
+	private void applyMetadata(AgentExecutionMetadata metadata) {
+		if (metadata == null) {
+			return;
+		}
+		this.model = metadata.hasModel() ? metadata.model() : this.model;
+		this.promptVersion = metadata.hasPromptVersion() ? metadata.promptVersion() : this.promptVersion;
+		this.promptTokens = metadata.promptTokens();
+		this.completionTokens = metadata.completionTokens();
+		this.totalTokens = metadata.totalTokens();
+		this.reasoningTokens = metadata.reasoningTokens();
+		this.temperature = metadata.temperature();
 	}
 
 	private void finish(AgentExecutionStatus status) {

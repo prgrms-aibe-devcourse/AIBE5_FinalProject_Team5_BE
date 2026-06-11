@@ -13,6 +13,7 @@ import com.bootsignal.domain.ai.agent.AiAgent;
 import com.bootsignal.domain.ai.exception.AiNonRetryableException;
 import com.bootsignal.domain.ai.exception.AiRetryableException;
 import com.bootsignal.domain.ai.guardrail.GuardrailResult;
+import com.bootsignal.domain.ai.log.AgentExecutionMetadata;
 import com.bootsignal.domain.ai.log.AgentExecutionLogService;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
@@ -53,7 +54,11 @@ class AgentHarnessTest {
 		assertThat(result.isSuccess()).isTrue();
 		assertThat(result.output()).containsEntry("draft", "백엔드 개발자 포트폴리오 초안");
 		verify(logService).start(context);
-		verify(logService).completeSuccess(context.executionId(), "포트폴리오 초안 생성 완료");
+		verify(logService).completeSuccess(
+			context.executionId(),
+			"포트폴리오 초안 생성 완료",
+			AgentExecutionMetadata.empty()
+		);
 	}
 
 	@Test
@@ -91,7 +96,11 @@ class AgentHarnessTest {
 			.isEqualTo(ErrorCode.AI_EXECUTION_FAILED);
 
 		verify(logService).start(context);
-		verify(logService).completeFailure(eq(context.executionId()), contains("mock openai failure"));
+		verify(logService).completeFailure(
+			eq(context.executionId()),
+			eq(ErrorCode.AI_EXECUTION_FAILED),
+			contains("mock openai failure")
+		);
 	}
 
 	@Test
@@ -142,7 +151,7 @@ class AgentHarnessTest {
 
 		assertThat(executeCount).hasValue(0);
 		verify(logService).start(context);
-		verify(logService).completeFailure(context.executionId(), "필수 입력이 없습니다.");
+		verify(logService).completeFailure(context.executionId(), ErrorCode.AI_INPUT_INVALID, "필수 입력이 없습니다.");
 	}
 
 	@Test
@@ -174,7 +183,7 @@ class AgentHarnessTest {
 		assertThat(result.isSuccess()).isTrue();
 		assertThat(executeCount).hasValue(2);
 		verify(logService).recordRetry(context.executionId(), "일시적인 OpenAI 오류입니다.");
-		verify(logService).completeSuccess(context.executionId(), "리뷰 요약 완료");
+		verify(logService).completeSuccess(context.executionId(), "리뷰 요약 완료", AgentExecutionMetadata.empty());
 	}
 
 	@Test
@@ -206,7 +215,7 @@ class AgentHarnessTest {
 
 		assertThat(executeCount).hasValue(1);
 		verify(logService, never()).recordRetry(eq(context.executionId()), contains("리뷰 데이터가 없습니다."));
-		verify(logService).completeFailure(context.executionId(), "리뷰 데이터가 없습니다.");
+		verify(logService).completeFailure(context.executionId(), ErrorCode.AI_INPUT_INVALID, "리뷰 데이터가 없습니다.");
 	}
 
 	@Test
@@ -240,7 +249,11 @@ class AgentHarnessTest {
 		assertThat(result.isSuccess()).isTrue();
 		assertThat(executeCount).hasValue(2);
 		verify(logService).recordRetry(context.executionId(), "출력 요약이 없습니다.");
-		verify(logService).completeSuccess(context.executionId(), "포트폴리오 초안 생성 완료");
+		verify(logService).completeSuccess(
+			context.executionId(),
+			"포트폴리오 초안 생성 완료",
+			AgentExecutionMetadata.empty()
+		);
 	}
 
 	@Test
@@ -272,7 +285,11 @@ class AgentHarnessTest {
 
 		assertThat(executeCount).hasValue(2);
 		verify(logService, times(1)).recordRetry(context.executionId(), "계속 실패합니다.");
-		verify(logService).completeFailure(context.executionId(), "AI Agent 재시도 횟수를 초과했습니다.");
+		verify(logService).completeFailure(
+			context.executionId(),
+			ErrorCode.AI_RETRY_EXHAUSTED,
+			"AI Agent 재시도 횟수를 초과했습니다."
+		);
 	}
 
 	private record MockAgent(

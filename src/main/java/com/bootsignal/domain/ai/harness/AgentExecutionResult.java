@@ -1,6 +1,7 @@
 package com.bootsignal.domain.ai.harness;
 
 import com.bootsignal.domain.ai.agent.AgentType;
+import com.bootsignal.domain.ai.log.AgentExecutionMetadata;
 import com.bootsignal.domain.ai.log.AgentExecutionStatus;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -14,7 +15,8 @@ public record AgentExecutionResult(
 	AgentExecutionStatus status,
 	String outputSummary,
 	Map<String, Object> output,
-	String errorMessage
+	String errorMessage,
+	AgentExecutionMetadata metadata
 ) {
 
 	public AgentExecutionResult {
@@ -32,6 +34,7 @@ public record AgentExecutionResult(
 		outputSummary = normalize(outputSummary);
 		output = immutableOutput(output);
 		errorMessage = normalize(errorMessage);
+		metadata = metadata == null ? AgentExecutionMetadata.empty() : metadata;
 	}
 
 	public static AgentExecutionResult success(
@@ -39,13 +42,23 @@ public record AgentExecutionResult(
 		String outputSummary,
 		Map<String, Object> output
 	) {
+		return success(context, outputSummary, output, AgentExecutionMetadata.empty());
+	}
+
+	public static AgentExecutionResult success(
+		AgentExecutionContext context,
+		String outputSummary,
+		Map<String, Object> output,
+		AgentExecutionMetadata metadata
+	) {
 		return new AgentExecutionResult(
 			context.executionId(),
 			context.agentType(),
 			AgentExecutionStatus.SUCCESS,
 			outputSummary,
 			output,
-			null
+			null,
+			metadata
 		);
 	}
 
@@ -56,7 +69,8 @@ public record AgentExecutionResult(
 			AgentExecutionStatus.FAILED,
 			null,
 			Map.of(),
-			errorMessage
+			errorMessage,
+			AgentExecutionMetadata.empty()
 		);
 	}
 

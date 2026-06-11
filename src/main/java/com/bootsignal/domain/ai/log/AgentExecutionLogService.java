@@ -33,7 +33,12 @@ public class AgentExecutionLogService {
 
 	@Transactional
 	public void completeSuccess(UUID executionId, String outputSummary) {
-		findByExecutionId(executionId).markSuccess(outputSummary);
+		completeSuccess(executionId, outputSummary, AgentExecutionMetadata.empty());
+	}
+
+	@Transactional
+	public void completeSuccess(UUID executionId, String outputSummary, AgentExecutionMetadata metadata) {
+		findByExecutionId(executionId).markSuccess(outputSummary, metadata);
 	}
 
 	@Transactional
@@ -43,7 +48,12 @@ public class AgentExecutionLogService {
 
 	@Transactional
 	public void completeFailure(UUID executionId, String errorMessage) {
-		findByExecutionId(executionId).markFailed(errorMessage);
+		completeFailure(executionId, ErrorCode.AI_EXECUTION_FAILED, errorMessage);
+	}
+
+	@Transactional
+	public void completeFailure(UUID executionId, ErrorCode errorCode, String errorMessage) {
+		findByExecutionId(executionId).markFailed(errorMessage, errorCode.code());
 	}
 
 	private AgentExecutionLog findByExecutionId(UUID executionId) {
