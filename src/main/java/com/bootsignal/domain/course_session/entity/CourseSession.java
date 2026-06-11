@@ -31,6 +31,15 @@ public class CourseSession extends BaseEntity {
     @Column(name = "trpr_degr")
     private Integer trprDegr;
 
+    // ── Course에서 이관된 회차별 변동 정보 ──
+    @Column(length = 1000)
+    private String titleLink;          // 과정 상세 링크 (회차별 파라미터 내포)
+
+    private Integer courseMan;       // 심사 훈련비
+    private Integer selfPaymentAmount; // 본인 부담금
+    private Integer totalTrainingDays;  // 총 훈련일수
+    private Integer totalTrainingHours; // 총 훈련시간
+
     // 훈련 시작일 / 원본: traStartDate
     private LocalDate traStartDate;
 
@@ -76,10 +85,13 @@ public class CourseSession extends BaseEntity {
     private Course course;
 
     public void updateFromRaw(LocalDate traStartDate, LocalDate traEndDate,
-                              Integer yardMan, Integer regCourseMan,
-                              Integer totParMks, Integer finiCnt,
-                              String eiEmplRate3, String eiEmplRate6,
-                              String wkendSe) {
+                               Integer yardMan, Integer regCourseMan,
+                               Integer totParMks, Integer finiCnt,
+                               String eiEmplRate3, String eiEmplRate6,
+                               String wkendSe, String titleLink,
+                               Integer courseMan,
+                               Integer selfPaymentAmount,
+                               Integer totalTrainingDays, Integer totalTrainingHours) {
         this.traStartDate = traStartDate;
         this.traEndDate = traEndDate;
         this.yardMan = yardMan;
@@ -89,6 +101,11 @@ public class CourseSession extends BaseEntity {
         this.eiEmplRate3 = eiEmplRate3;
         this.eiEmplRate6 = eiEmplRate6;
         this.wkendSe = wkendSe;
+        this.titleLink = titleLink;
+        this.courseMan = courseMan;
+        this.selfPaymentAmount = selfPaymentAmount;
+        this.totalTrainingDays = totalTrainingDays;
+        this.totalTrainingHours = totalTrainingHours;
     }
 
     public void updateFromCrawl(Integer selectedTraineeCount, Integer recruitmentCount,
