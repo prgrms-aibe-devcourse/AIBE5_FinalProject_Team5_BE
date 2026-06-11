@@ -8,6 +8,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -83,6 +84,13 @@ public class GlobalExceptionHandler {
 		HttpMediaTypeNotSupportedException exception
 	) {
 		return toResponse(ErrorCode.UNSUPPORTED_MEDIA_TYPE, ErrorCode.UNSUPPORTED_MEDIA_TYPE.message());
+	}
+
+	@ExceptionHandler(AccessDeniedException.class)
+	public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException exception) {
+		// @PreAuthorize 등 메서드 보안 인가 실패(AuthorizationDeniedException 포함)는 403으로 응답한다.
+		// 핸들러가 없으면 catch-all(Exception)이 가로채 500으로 내려가므로 명시적으로 처리한다.
+		return toResponse(ErrorCode.FORBIDDEN, ErrorCode.FORBIDDEN.message());
 	}
 
 	@ExceptionHandler(IOException.class)

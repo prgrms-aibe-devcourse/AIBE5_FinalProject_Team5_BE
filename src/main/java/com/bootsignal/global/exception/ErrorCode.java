@@ -12,6 +12,7 @@ public enum ErrorCode {
 	POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_NOT_FOUND", "게시글을 찾을 수 없습니다."),
 	COURSE_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "COURSE_SESSION_NOT_FOUND", "훈련과정 회차를 찾을 수 없습니다."),
 	REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW_NOT_FOUND", "리뷰를 찾을 수 없습니다."),
+	REPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "REPORT_NOT_FOUND", "신고를 찾을 수 없습니다."),
 	REVIEW_ALREADY_EXISTS(HttpStatus.CONFLICT, "REVIEW_ALREADY_EXISTS", "이미 해당 회차에 리뷰를 작성하셨습니다."),
 	VERIFICATION_NOT_APPROVED(HttpStatus.FORBIDDEN, "VERIFICATION_NOT_APPROVED", "수료 인증이 승인되지 않아 인증 리뷰를 작성할 수 없습니다."),
 	REVIEW_TYPE_DOWNGRADE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "REVIEW_TYPE_DOWNGRADE_NOT_ALLOWED", "인증 리뷰를 일반 리뷰로 변경할 수 없습니다."),
