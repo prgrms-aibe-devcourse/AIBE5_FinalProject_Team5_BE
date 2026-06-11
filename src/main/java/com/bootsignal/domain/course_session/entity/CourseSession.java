@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.util.List;
 
 @Entity
@@ -80,6 +81,9 @@ public class CourseSession extends BaseEntity {
     // 취업률 (%) (HTML 크롤링 - newEmpymnRt)
     private BigDecimal employmentRate;
 
+    // HTML 크롤링 수행 시각 (UTC)
+    private Instant crawledAt;
+
     // 과정
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id")
@@ -110,11 +114,12 @@ public class CourseSession extends BaseEntity {
     }
 
     public void updateFromCrawl(Integer selectedTraineeCount, Integer recruitmentCount,
-                                Integer confirmedTraineeCount, BigDecimal employmentRate) {
+                                Integer confirmedTraineeCount, BigDecimal employmentRate, Instant crawledAt) {
         this.selectedTraineeCount = selectedTraineeCount;
         this.recruitmentCount = recruitmentCount;
         this.confirmedTraineeCount = confirmedTraineeCount;
         this.employmentRate = employmentRate;
+        this.crawledAt = crawledAt;
     }
 
     public static CourseSession findRepresentativeSession(List<CourseSession> sessions, java.time.LocalDate today) {

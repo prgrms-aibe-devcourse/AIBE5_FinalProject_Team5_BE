@@ -87,7 +87,7 @@ public class HrdWebCrawlJobConfig {
     public RepositoryItemReader<CourseSession> courseSessionReaderForCrawl() {
         RepositoryItemReader<CourseSession> reader = new RepositoryItemReader<>();
         reader.setRepository(courseSessionRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findByTitleLinkIsNotNullAndCrawledAtIsNull");
         reader.setPageSize(10);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
@@ -155,7 +155,8 @@ public class HrdWebCrawlJobConfig {
                         overview.selectedTraineeCount(),
                         overview.recruitmentCount(),
                         overview.confirmedTraineeCount(),
-                        overview.employmentRate()
+                        overview.employmentRate(),
+                        overview.crawledAt()
                 );
                 courseSessionRepo.save(session);
 

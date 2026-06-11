@@ -92,7 +92,7 @@ public class HrdDataRefineJobConfig {
     public RepositoryItemReader<HrdCourseListRaw> listRawReaderForInstitution() {
         RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
         reader.setRepository(listRawRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findByIsRefinedFalse");
         reader.setPageSize(50);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
@@ -163,7 +163,7 @@ public class HrdDataRefineJobConfig {
     public RepositoryItemReader<HrdCourseListRaw> listRawReaderForCourse() {
         RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
         reader.setRepository(listRawRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findByIsRefinedFalse");
         reader.setPageSize(50);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
@@ -238,7 +238,7 @@ public class HrdDataRefineJobConfig {
     public RepositoryItemReader<HrdCourseListRaw> listRawReaderForSession() {
         RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
         reader.setRepository(listRawRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findByIsRefinedFalse");
         reader.setPageSize(50);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
@@ -282,9 +282,11 @@ public class HrdDataRefineJobConfig {
                         detail != null ? parseInteger(detail.getTrDcnt()) : null,
                         detail != null ? parseInteger(detail.getTrtm()) : null
                 );
+                listRaw.markAsRefined();
                 return existing; // null 대신 반환 → Writer의 save()로 명시적 UPDATE 보장
             }
 
+            listRaw.markAsRefined();
             return CourseSession.builder()
                     .trprId(listRaw.getTrprId())
                     .trprDegr(resolvedDegr)
