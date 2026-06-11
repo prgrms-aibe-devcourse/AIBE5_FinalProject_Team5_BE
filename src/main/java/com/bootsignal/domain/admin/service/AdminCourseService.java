@@ -6,11 +6,15 @@ import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course.entity.CourseVisibility;
 import com.bootsignal.domain.course.repository.CourseRepository;
 import com.bootsignal.domain.course.repository.CourseVisibilityRepository;
+import com.bootsignal.domain.course_session.entity.CourseSession;
+import com.bootsignal.domain.course_session.repository.CourseSessionRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +23,7 @@ public class AdminCourseService {
 
     private final CourseRepository courseRepository;
     private final CourseVisibilityRepository courseVisibilityRepository;
+    private final CourseSessionRepository courseSessionRepository;
 
     @Transactional
     public AdminCourseResponse changeStatus(Long courseId, AdminCourseStatusRequest request) {
@@ -36,7 +41,11 @@ public class AdminCourseService {
                     .reason(request.reason())
                     .build()));
 
-        return AdminCourseResponse.from(course, visibility);
+        List<CourseSession> sessions = courseSessionRepository.findByCourse_IdOrderByTraStartDateAsc(courseId);
+        java.time.LocalDate today = java.time.LocalDate.now();
+        CourseSession repSession = CourseSession.findRepresentativeSession(sessions, today);
+
+        return AdminCourseResponse.from(course, repSession, visibility);
     }
 
     private Course findCourse(Long courseId) {

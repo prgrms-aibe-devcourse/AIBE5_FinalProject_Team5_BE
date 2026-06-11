@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 @Table(
@@ -114,5 +115,45 @@ public class CourseSession extends BaseEntity {
         this.recruitmentCount = recruitmentCount;
         this.confirmedTraineeCount = confirmedTraineeCount;
         this.employmentRate = employmentRate;
+    }
+
+    public static CourseSession findRepresentativeSession(List<CourseSession> sessions, java.time.LocalDate today) {
+        if (sessions == null || sessions.isEmpty()) {
+            return null;
+        }
+
+        CourseSession closestFutureSession = null;
+        CourseSession latestPastSession = null;
+
+        for (CourseSession session : sessions) {
+            java.time.LocalDate startDate = session.getTraStartDate();
+            if (startDate == null) {
+                continue;
+            }
+
+            // 오늘을 포함한 미래 기수 일정
+            if (!startDate.isBefore(today)) {
+                if (closestFutureSession == null || startDate.isBefore(closestFutureSession.getTraStartDate())) {
+                    closestFutureSession = session;
+                }
+            } 
+            // 과거 기수 일정
+            else {
+                if (latestPastSession == null || startDate.isAfter(latestPastSession.getTraStartDate())) {
+                    latestPastSession = session;
+                }
+            }
+        }
+
+        // 미래 세션 우선 반환
+        if (closestFutureSession != null) {
+            return closestFutureSession;
+        }
+        // 과거 세션 반환
+        if (latestPastSession != null) {
+            return latestPastSession;
+        }
+        // 예외 상황 시 첫 번째 요소를 반환
+        return sessions.get(0);
     }
 }

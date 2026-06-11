@@ -72,7 +72,7 @@ public class CourseService {
 
         Page<CourseListResponse> responsePage = coursePage.map(course -> {
             List<CourseSession> sessions = sessionsByCourse.getOrDefault(course.getId(), List.of());
-            CourseSession repSession = findRepresentativeSession(sessions, today);
+            CourseSession repSession = CourseSession.findRepresentativeSession(sessions, today);
             return CourseListResponse.from(course, repSession);
         });
 
@@ -88,54 +88,8 @@ public class CourseService {
 
         List<CourseSession> sessions = courseSessionRepository.findByCourse_IdOrderByTraStartDateAsc(courseId);
         java.time.LocalDate today = java.time.LocalDate.now();
-        CourseSession repSession = findRepresentativeSession(sessions, today);
+        CourseSession repSession = CourseSession.findRepresentativeSession(sessions, today);
 
         return CourseDetailResponse.from(course, repSession);
-    }
-
-    /**
-     * 대표 기수 판별 메서드
-     * 1. 오늘 이후에 개강하는 미래 세션 중 가장 개강일이 빠른 것 선택
-     * 2. 미래 세션이 없다면, 과거 개강 세션 중 가장 최근에 개강한 것 선택
-     * 3. 둘 다 없을 경우 첫 번째 세션을 기본값으로 선택
-     */
-    private CourseSession findRepresentativeSession(List<CourseSession> sessions, java.time.LocalDate today) {
-        if (sessions == null || sessions.isEmpty()) {
-            return null;
-        }
-
-        CourseSession closestFutureSession = null;
-        CourseSession latestPastSession = null;
-
-        for (CourseSession session : sessions) {
-            java.time.LocalDate startDate = session.getTraStartDate();
-            if (startDate == null) {
-                continue;
-            }
-
-            // 오늘을 포함한 미래 기수 일정
-            if (!startDate.isBefore(today)) {
-                if (closestFutureSession == null || startDate.isBefore(closestFutureSession.getTraStartDate())) {
-                    closestFutureSession = session;
-                }
-            } 
-            // 과거 기수 일정
-            else {
-                if (latestPastSession == null || startDate.isAfter(latestPastSession.getTraStartDate())) {
-                    latestPastSession = session;
-                }
-            }
-        }
-
-        // 미래 세션 우선 반환
-        if (closestFutureSession != null) {
-            return closestFutureSession;
-        }
-        // 과거 세션 반환
-        if (latestPastSession != null) {
-            return latestPastSession;
-        }
-        // 날짜 정보가 모두 없는 등의 예외 상황 시 첫 번째 요소를 반환
-        return sessions.get(0);
     }
 }
