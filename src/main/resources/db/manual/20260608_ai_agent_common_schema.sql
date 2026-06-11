@@ -1,5 +1,6 @@
 -- AI Agent 공통 실행 로그 테이블
--- dev/prod는 ddl-auto: validate이므로 애플리케이션 배포 전 먼저 적용해야 한다.
+-- ddl-auto: update 설정에서는 애플리케이션 기동 시 자동 반영된다.
+-- 수동 반영이 필요한 환경에서만 참고용으로 사용한다.
 CREATE TABLE ai_agent_execution_log (
     id bigint NOT NULL AUTO_INCREMENT,
     execution_id varchar(36) NOT NULL,
