@@ -37,10 +37,11 @@ public class CourseService {
      * 과정 목록 조회 (검색 + 필터 + 페이징)
      */
     public PageResponse<CourseListResponse> getCourses(CourseListRequest request) {
-        Specification<Course> spec = Specification
-                .where(CourseSpecification.withKeyword(request.keyword()))
-                .and(CourseSpecification.withTrngAreaCd(request.trngAreaCd()))
-                .and(CourseSpecification.withNcsCd(request.ncsCd()));
+        Specification<Course> spec = Specification.allOf(
+                CourseSpecification.withKeyword(request.keyword()),
+                CourseSpecification.withTrngAreaCd(request.trngAreaCd()),
+                CourseSpecification.withNcsCd(request.ncsCd())
+        );
 
         Pageable pageable = PageRequest.of(
                 request.page(),
