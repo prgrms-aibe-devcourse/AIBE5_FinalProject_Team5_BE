@@ -3,10 +3,13 @@ package com.bootsignal.domain.ai.log;
 import com.bootsignal.domain.ai.harness.AgentExecutionContext;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AgentExecutionLogService {
 
+	// AI 실행 이력은 원문 대신 요약과 해시, 실행 메타데이터만 저장한다.
 	private final AgentExecutionLogRepository logRepository;
+	private final ObjectMapper objectMapper;
 
 	@Transactional
 	public AgentExecutionLog start(AgentExecutionContext context) {
@@ -26,7 +31,7 @@ public class AgentExecutionLogService {
 			context.agentType(),
 			context.userId(),
 			context.inputSummary(),
-			hashInput(context.inputSummary())
+			hashInput(context)
 		);
 		return logRepository.save(log);
 	}
@@ -64,14 +69,26 @@ public class AgentExecutionLogService {
 			));
 	}
 
-	private String hashInput(String inputSummary) {
+	private String hashInput(AgentExecutionContext context) {
 		try {
-			// 입력 원문 대신 요약 문자열의 SHA-256 해시만 저장한다.
+			// 입력 원문을 저장하지 않고, 요약과 상세 입력의 정규화 문자열만 해시에 반영한다.
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] hash = digest.digest(inputSummary.getBytes(StandardCharsets.UTF_8));
+			String hashSource = context.inputSummary() + "\n" + serializeInput(context.input());
+			byte[] hash = digest.digest(hashSource.getBytes(StandardCharsets.UTF_8));
 			return HexFormat.of().formatHex(hash);
 		} catch (NoSuchAlgorithmException exception) {
 			throw new BootSignalException(ErrorCode.AI_EXECUTION_FAILED, "AI 입력 해시 생성에 실패했습니다.");
+		}
+	}
+
+	private String serializeInput(Map<String, Object> input) {
+		if (input == null || input.isEmpty()) {
+			return "{}";
+		}
+		try {
+			return objectMapper.writeValueAsString(input);
+		} catch (JsonProcessingException exception) {
+			return input.toString();
 		}
 	}
 }

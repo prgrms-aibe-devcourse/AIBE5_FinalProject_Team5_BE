@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 class PromptTemplateTest {
 
+	// 프롬프트 변수 치환과 버전 선택 규칙이 Agent 실행 전에 깨지지 않는지 검증한다.
 	@Test
 	void renderReplacesVariablesAndKeepsPromptVersion() {
 		PromptTemplate template = new PromptTemplate(
@@ -51,5 +52,14 @@ class PromptTemplateTest {
 
 		assertThat(registry.latest("REVIEW_SUMMARY")).isEqualTo(newTemplate);
 		assertThat(registry.get("REVIEW_SUMMARY", "v1")).isEqualTo(oldTemplate);
+	}
+
+	@Test
+	void registryFindsLatestTemplateByNumericVersion() {
+		PromptTemplate v2Template = new PromptTemplate("PORTFOLIO_DRAFT", "v2", "", "v2 {{content}}");
+		PromptTemplate v10Template = new PromptTemplate("PORTFOLIO_DRAFT", "v10", "", "v10 {{content}}");
+		PromptTemplateRegistry registry = new PromptTemplateRegistry(List.of(v2Template, v10Template));
+
+		assertThat(registry.latest("PORTFOLIO_DRAFT")).isEqualTo(v10Template);
 	}
 }
