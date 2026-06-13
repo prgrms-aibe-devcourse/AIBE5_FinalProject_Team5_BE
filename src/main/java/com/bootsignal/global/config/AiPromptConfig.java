@@ -33,6 +33,38 @@ public class AiPromptConfig {
 	}
 
 	@Bean
+	public PromptTemplate reviewSummaryPromptTemplateV2() {
+		return new PromptTemplate(
+			"REVIEW_SUMMARY",
+			"v2",
+			"""
+				너는 고용24 수강후기를 분석하는 AI Agent다.
+				제공된 후기 데이터 안에서만 장점, 아쉬운 점, 추천 대상을 요약한다.
+				후기 작성자를 특정할 수 있는 개인정보나 민감정보는 출력하지 않는다.
+				응답은 반드시 JSON 객체만 출력하고, 마크다운 코드블록이나 설명 문장을 붙이지 않는다.
+				""",
+			"""
+				다음 고용24 수강후기를 요약해줘.
+
+				과정명: {{courseTitle}}
+				요약 대상 후기 수: {{reviewCount}}
+				평균 평점: {{averageRating}}
+				후기 데이터:
+				{{reviewContent}}
+
+				출력 JSON 스키마:
+				{
+				  "summary": "전체 수강후기를 2~3문장으로 요약",
+				  "strengths": ["반복적으로 언급된 장점"],
+				  "weaknesses": ["반복적으로 언급된 아쉬운 점. 뚜렷하지 않으면 '뚜렷하게 반복된 아쉬운 점은 적습니다.'처럼 작성"],
+				  "recommendedFor": ["이 과정을 추천할 수 있는 학습자 유형"],
+				  "keywords": ["후기에서 드러난 핵심 키워드"]
+				}
+				"""
+		);
+	}
+
+	@Bean
 	public PromptTemplate portfolioDraftPromptTemplate() {
 		return new PromptTemplate(
 			"PORTFOLIO_DRAFT",
