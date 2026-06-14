@@ -3,6 +3,7 @@ package com.bootsignal.domain.admin.dto;
 import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course.entity.CourseStatus;
 import com.bootsignal.domain.course.entity.CourseVisibility;
+import com.bootsignal.domain.course_session.entity.CourseSession;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -18,9 +19,8 @@ public record AdminCourseResponse(
     String ncsCd,
     String ncsName,
     String ncsYn,
-    BigDecimal courseMan,
-    BigDecimal realMan,
-    BigDecimal selfPaymentAmount,
+    Integer courseMan,
+    Integer selfPaymentAmount,
     BigDecimal stdgScor,
     Integer totalTrainingDays,
     Integer totalTrainingHours,
@@ -30,7 +30,7 @@ public record AdminCourseResponse(
     LocalDateTime createdAt,
     LocalDateTime updatedAt
 ) {
-    public static AdminCourseResponse from(Course course, CourseVisibility visibility) {
+    public static AdminCourseResponse from(Course course, CourseSession repSession, CourseVisibility visibility) {
         CourseStatus effectiveStatus = visibility != null ? visibility.getStatus() : CourseStatus.ACTIVE;
         String reason = visibility != null ? visibility.getReason() : null;
         return new AdminCourseResponse(
@@ -40,17 +40,16 @@ public record AdminCourseResponse(
             course.getTrprId(),
             course.getTitle(),
             course.getSubTitle(),
-            course.getTitleLink(),
+            repSession != null ? repSession.getTitleLink() : null,
             course.getSubTitleLink(),
             course.getNcsCd(),
             course.getNcsName(),
             course.getNcsYn(),
-            course.getCourseMan(),
-            course.getRealMan(),
-            course.getSelfPaymentAmount(),
+            repSession != null ? repSession.getCourseMan() : null,
+            repSession != null ? repSession.getSelfPaymentAmount() : null,
             course.getStdgScor(),
-            course.getTotalTrainingDays(),
-            course.getTotalTrainingHours(),
+            repSession != null ? repSession.getTotalTrainingDays() : null,
+            repSession != null ? repSession.getTotalTrainingHours() : null,
             course.getTrngAreaCd(),
             effectiveStatus,
             reason,

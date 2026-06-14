@@ -9,6 +9,8 @@ public enum ErrorCode {
 	FORBIDDEN(HttpStatus.FORBIDDEN, "FORBIDDEN", "접근 권한이 없습니다."),
 	NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."),
 	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."),
+	COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "COURSE_NOT_FOUND", "과정을 찾을 수 없습니다."),
+	INSTITUTION_NOT_FOUND(HttpStatus.NOT_FOUND, "INSTITUTION_NOT_FOUND", "훈련기관을 찾을 수 없습니다."),
 	POST_NOT_FOUND(HttpStatus.NOT_FOUND, "POST_NOT_FOUND", "게시글을 찾을 수 없습니다."),
 	COURSE_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "COURSE_SESSION_NOT_FOUND", "훈련과정 회차를 찾을 수 없습니다."),
 	REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "REVIEW_NOT_FOUND", "리뷰를 찾을 수 없습니다."),
@@ -28,6 +30,11 @@ public enum ErrorCode {
 	CALENDAR_OAUTH_EXCHANGE_FAILED(HttpStatus.BAD_REQUEST, "CALENDAR_OAUTH_EXCHANGE_FAILED", "Google Calendar 토큰 발급에 실패했습니다."),
 	CALENDAR_ALREADY_CONNECTED(HttpStatus.CONFLICT, "CALENDAR_ALREADY_CONNECTED", "이미 Google Calendar에 연결되어 있습니다."),
 	CALENDAR_NOT_CONNECTED(HttpStatus.BAD_REQUEST, "CALENDAR_NOT_CONNECTED", "Google Calendar 연동 상태가 아닙니다."),
+	AI_AGENT_NOT_FOUND(HttpStatus.BAD_REQUEST, "AI_AGENT_NOT_FOUND", "실행할 AI Agent를 찾을 수 없습니다."),
+	AI_INPUT_INVALID(HttpStatus.BAD_REQUEST, "AI_INPUT_INVALID", "AI Agent 입력 값이 올바르지 않습니다."),
+	AI_OUTPUT_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "AI_OUTPUT_INVALID", "AI Agent 출력 값이 올바르지 않습니다."),
+	AI_RETRY_EXHAUSTED(HttpStatus.INTERNAL_SERVER_ERROR, "AI_RETRY_EXHAUSTED", "AI Agent 재시도 횟수를 초과했습니다."),
+	AI_EXECUTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI_EXECUTION_FAILED", "AI Agent 실행 중 오류가 발생했습니다."),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.");
 
 	private final HttpStatus status;

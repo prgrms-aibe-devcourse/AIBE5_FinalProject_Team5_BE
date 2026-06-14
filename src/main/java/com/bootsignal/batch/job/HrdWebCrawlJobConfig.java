@@ -66,11 +66,11 @@ public class HrdWebCrawlJobConfig {
     @Bean
     public Step crawlCourseOverviewStep(JobRepository jobRepository,
                                         PlatformTransactionManager txManager,
-                                        ItemProcessor<Course, Work24TrainingCourseOverview> crawlProcessor,
+                                        ItemProcessor<CourseSession, Work24TrainingCourseOverview> crawlProcessor,
                                         ItemWriter<Work24TrainingCourseOverview> crawlWriter) {
         return new StepBuilder("crawlCourseOverviewStep", jobRepository)
-                .<Course, Work24TrainingCourseOverview>chunk(1, txManager)  // 크롤링은 1건씩 처리
-                .reader(courseReaderForCrawl())
+                .<CourseSession, Work24TrainingCourseOverview>chunk(1, txManager)  // 크롤링은 1건씩 처리
+                .reader(courseSessionReaderForCrawl())
                 .processor(crawlProcessor)
                 .writer(crawlWriter)
                 .faultTolerant()
@@ -80,33 +80,33 @@ public class HrdWebCrawlJobConfig {
     }
 
     /**
-     * titleLink 가 있는 Course 전체를 pageSize=10 으로 읽는 Reader.
+     * titleLink 가 있는 CourseSession 전체를 pageSize=10 으로 읽는 Reader.
      */
     @Bean
     @StepScope
-    public RepositoryItemReader<Course> courseReaderForCrawl() {
-        RepositoryItemReader<Course> reader = new RepositoryItemReader<>();
-        reader.setRepository(courseRepo);
-        reader.setMethodName("findAll");
+    public RepositoryItemReader<CourseSession> courseSessionReaderForCrawl() {
+        RepositoryItemReader<CourseSession> reader = new RepositoryItemReader<>();
+        reader.setRepository(courseSessionRepo);
+        reader.setMethodName("findByTitleLinkIsNotNullAndCrawledAtIsNull");
         reader.setPageSize(10);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
     }
 
     /**
-     * Course.titleLink → HTML 크롤링 → Work24TrainingCourseOverview DTO 반환.
+     * CourseSession.titleLink → HTML 크롤링 → Work24TrainingCourseOverview DTO 반환.
      *
      * @param delayMillis 과정 간 요청 딜레이(ms). Job Parameter 'delayMillis' 로 조정 가능. 기본 1500ms.
      */
     @Bean
     @StepScope
-    public ItemProcessor<Course, Work24TrainingCourseOverview> crawlProcessor(
+    public ItemProcessor<CourseSession, Work24TrainingCourseOverview> crawlProcessor(
             @Value("#{jobParameters['delayMillis'] ?: 1500L}") Long delayMillis) {
 
-        return course -> {
-            String titleLink = course.getTitleLink();
+        return session -> {
+            String titleLink = session.getTitleLink();
             if (titleLink == null || titleLink.isBlank()) {
-                log.debug("titleLink 없음 - 건너뜀 (trprId={})", course.getTrprId());
+                log.debug("titleLink 없음 - 건너뜀 (trprId={}, degr={})", session.getTrprId(), session.getTrprDegr());
                 return null;
             }
 
@@ -124,7 +124,7 @@ public class HrdWebCrawlJobConfig {
                 Work24TrainingCourseOverview overview =
                         crawlerService.parse(document, institutionDocument, titleLink, Instant.now());
 
-                log.info("크롤링 완료 (trprId={}, url={})", course.getTrprId(), titleLink);
+                log.info("크롤링 완료 (trprId={}, degr={}, url={})", session.getTrprId(), session.getTrprDegr(), titleLink);
 
                 // 4) 요청 간격 준수
                 Thread.sleep(delayMillis);
@@ -135,7 +135,7 @@ public class HrdWebCrawlJobConfig {
                 Thread.currentThread().interrupt();
                 return null;
             } catch (Exception e) {
-                log.warn("크롤링 실패 (trprId={}, url={}): {}", course.getTrprId(), titleLink, e.getMessage());
+                log.warn("크롤링 실패 (trprId={}, degr={}, url={}): {}", session.getTrprId(), session.getTrprDegr(), titleLink, e.getMessage());
                 return null;  // null 반환 → Writer 에 전달 안 됨 (해당 건 건너뜀)
             }
         };
@@ -143,79 +143,45 @@ public class HrdWebCrawlJobConfig {
 
     /**
      * 크롤링 결과(overview)를 Course / Institution / CourseSession 에 반영하는 Writer.
-     *
-     *   Course    : trainingTargetRequirements, trainingGoal, crawledAt
-     *   Institution: profileImageUrl, introduction
-     *   CourseSession: selectedTraineeCount, recruitmentCount,
-     *                                 confirmedTraineeCount, employmentRate
      */
     @Bean
     public ItemWriter<Work24TrainingCourseOverview> crawlWriter() {
         return items -> items.forEach(overview -> {
-            // Course 조회 (sourceUrl 에서 역추적)
-            courseRepo.findByTitleLink(overview.sourceUrl()).ifPresentOrElse(course -> {
+            // CourseSession 조회 (sourceUrl 에서 역추적)
+            courseSessionRepo.findByTitleLink(overview.sourceUrl()).ifPresentOrElse(session -> {
 
-                // ── Course 업데이트 ──────────────────────────────
-                course.updateFromCrawl(
-                        overview.trainingTargetRequirements(),
-                        overview.trainingGoal(),
+                // ── CourseSession 업데이트 ───────────────────────
+                session.updateFromCrawl(
+                        overview.selectedTraineeCount(),
+                        overview.recruitmentCount(),
+                        overview.confirmedTraineeCount(),
+                        overview.employmentRate(),
                         overview.crawledAt()
                 );
-                courseRepo.save(course);
+                courseSessionRepo.save(session);
 
-                // ── Institution 업데이트 ─────────────────────────
-                Institution institution = course.getInstitution();
-                if (institution != null) {
-                    institution.updateFromCrawl(
-                            overview.institutionProfileImageUrl(),
-                            overview.institutionIntroduction()
+                // ── Course 업데이트 ──────────────────────────────
+                Course course = session.getCourse();
+                if (course != null) {
+                    course.updateFromCrawl(
+                            overview.trainingTargetRequirements(),
+                            overview.trainingGoal(),
+                            overview.crawledAt()
                     );
-                    institutionRepo.save(institution);
+                    courseRepo.save(course);
+
+                    // ── Institution 업데이트 ─────────────────────────
+                    Institution institution = course.getInstitution();
+                    if (institution != null) {
+                        institution.updateFromCrawl(
+                                overview.institutionProfileImageUrl(),
+                                overview.institutionIntroduction()
+                        );
+                        institutionRepo.save(institution);
+                    }
                 }
 
-                // ── CourseSession 업데이트 (sourceUrl에서 실제 회차를 파싱하여 정확한 Session 매칭) ──
-                Integer resolvedDegr = parseActualDegr(overview.sourceUrl(), null);
-                CourseSession session = null;
-                if (resolvedDegr != null) {
-                    session = courseSessionRepo.findByTrprIdAndTrprDegr(course.getTrprId(), resolvedDegr).orElse(null);
-                }
-
-                // fallback: 파싱 실패 또는 매칭되는 세션이 없는 경우 가장 최신 회차 선택
-                if (session == null) {
-                    session = courseSessionRepo.findByCourse_Id(course.getId()).stream()
-                            .max(Comparator.comparingInt(s -> s.getTrprDegr() != null ? s.getTrprDegr() : 0))
-                            .orElse(null);
-                }
-
-                if (session != null) {
-                    session.updateFromCrawl(
-                            overview.selectedTraineeCount(),
-                            overview.recruitmentCount(),
-                            overview.confirmedTraineeCount(),
-                            overview.employmentRate()
-                    );
-                    courseSessionRepo.save(session);
-                }
-
-            }, () -> log.warn("Course 를 찾을 수 없음 (sourceUrl={})", overview.sourceUrl()));
+            }, () -> log.warn("CourseSession 을 찾을 수 없음 (sourceUrl={})", overview.sourceUrl()));
         });
-    }
-
-    private Integer parseActualDegr(String titleLink, Integer fallbackDegr) {
-        if (titleLink == null || titleLink.isBlank()) {
-            return fallbackDegr;
-        }
-        try {
-            int index = titleLink.indexOf("tracseTme=");
-            if (index != -1) {
-                int start = index + "tracseTme=".length();
-                int end = titleLink.indexOf("&", start);
-                String val = (end == -1) ? titleLink.substring(start) : titleLink.substring(start, end);
-                return Integer.parseInt(val.trim());
-            }
-        } catch (Exception e) {
-            // fallback
-        }
-        return fallbackDegr;
     }
 }

@@ -1,0 +1,30 @@
+-- AI Agent 공통 실행 로그 테이블
+-- ddl-auto: update 설정에서는 애플리케이션 기동 시 자동 반영된다.
+-- 수동 반영이 필요한 환경에서만 참고용으로 사용한다.
+CREATE TABLE ai_agent_execution_log (
+    id bigint NOT NULL AUTO_INCREMENT,
+    execution_id varchar(36) NOT NULL,
+    agent_type varchar(50) NOT NULL,
+    status varchar(20) NOT NULL,
+    user_id bigint NULL,
+    input_summary text NULL,
+    input_hash varchar(64) NOT NULL,
+    output_summary text NULL,
+    error_message text NULL,
+    error_code varchar(50) NULL,
+    retry_count int NOT NULL DEFAULT 0,
+    model varchar(100) NULL,
+    prompt_version varchar(100) NULL,
+    prompt_tokens int NULL,
+    completion_tokens int NULL,
+    total_tokens int NULL,
+    reasoning_tokens int NULL,
+    temperature double NULL,
+    started_at datetime(6) NOT NULL,
+    finished_at datetime(6) NULL,
+    elapsed_millis bigint NULL,
+    created_at datetime(6) NULL,
+    updated_at datetime(6) NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT uk_ai_agent_execution_log_execution_id UNIQUE (execution_id)
+);
