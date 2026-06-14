@@ -1,6 +1,7 @@
 package com.bootsignal.domain.bookmark.service;
 
 import com.bootsignal.domain.bookmark.dto.BookmarkCreateResponse;
+import com.bootsignal.domain.bookmark.dto.BookmarkDeleteResponse;
 import com.bootsignal.domain.bookmark.entity.Bookmark;
 import com.bootsignal.domain.bookmark.repository.BookmarkRepository;
 import com.bootsignal.domain.course_session.entity.CourseSession;
@@ -51,6 +52,22 @@ public class BookmarkService {
 			.build();
 
 		return BookmarkCreateResponse.from(bookmarkRepository.save(bookmark));
+	}
+
+	/* 북마크 삭제 */
+	@Transactional
+	public BookmarkDeleteResponse delete(Long courseSessionId) {
+		User user = getAuthenticatedUser();
+
+		// 북마크 조회
+		Bookmark bookmark = bookmarkRepository
+			.findByUserIdAndCourseSessionId(user.getId(), courseSessionId)
+			.orElseThrow(() -> new BootSignalException(ErrorCode.BOOKMARK_NOT_FOUND));
+
+		// 북마크 삭제
+		bookmarkRepository.delete(bookmark);
+
+		return new BookmarkDeleteResponse(courseSessionId);
 	}
 
 

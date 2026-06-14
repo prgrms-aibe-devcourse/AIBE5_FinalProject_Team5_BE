@@ -1,11 +1,13 @@
 package com.bootsignal.domain.bookmark.controller;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.bootsignal.domain.bookmark.dto.BookmarkCreateResponse;
+import com.bootsignal.domain.bookmark.dto.BookmarkDeleteResponse;
 import com.bootsignal.domain.bookmark.service.BookmarkService;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
@@ -73,5 +75,29 @@ class BookmarkControllerTest {
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("BOOKMARK_ALREADY_EXISTS"));
+	}
+
+	@Test
+	@DisplayName("DELETE /api/bookmarks/courses/{courseSessionId} — 북마크 삭제 성공 (200)")
+	void deleteReturnsBookmarkDeleteResponse() throws Exception {
+		given(bookmarkService.delete(10L)).willReturn(new BookmarkDeleteResponse(10L));
+
+		mockMvc.perform(delete("/api/bookmarks/courses/{courseSessionId}", 10L))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.courseSessionId").value(10))
+			.andExpect(jsonPath("$.error").doesNotExist());
+	}
+
+	@Test
+	@DisplayName("DELETE /api/bookmarks/courses/{courseSessionId} — 북마크 없음 (404)")
+	void deleteReturnsNotFoundWhenBookmarkDoesNotExist() throws Exception {
+		given(bookmarkService.delete(10L))
+			.willThrow(new BootSignalException(ErrorCode.BOOKMARK_NOT_FOUND));
+
+		mockMvc.perform(delete("/api/bookmarks/courses/{courseSessionId}", 10L))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.error.code").value("BOOKMARK_NOT_FOUND"));
 	}
 }

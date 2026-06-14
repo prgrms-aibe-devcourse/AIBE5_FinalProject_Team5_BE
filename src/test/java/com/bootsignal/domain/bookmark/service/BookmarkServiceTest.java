@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import com.bootsignal.domain.bookmark.dto.BookmarkCreateResponse;
+import com.bootsignal.domain.bookmark.dto.BookmarkDeleteResponse;
 import com.bootsignal.domain.bookmark.entity.Bookmark;
 import com.bootsignal.domain.bookmark.repository.BookmarkRepository;
 import com.bootsignal.domain.course_session.entity.CourseSession;
@@ -123,6 +125,52 @@ class BookmarkServiceTest {
 			.isInstanceOf(BootSignalException.class)
 			.extracting(exception -> ((BootSignalException) exception).errorCode())
 			.isEqualTo(ErrorCode.BOOKMARK_ALREADY_EXISTS);
+	}
+
+	@Test
+	@DisplayName("북마크 삭제 성공 — courseSessionId 반환")
+	void deleteReturnsBookmarkDeleteResponse() {
+		User user = localUser(1L, "user@example.com");
+		CourseSession courseSession = courseSession(10L);
+		Bookmark bookmark = Bookmark.builder()
+			.user(user)
+			.courseSession(courseSession)
+			.startDate(LocalDate.of(2026, 7, 1))
+			.endDate(LocalDate.of(2026, 12, 31))
+			.build();
+		setAuthentication("user@example.com");
+
+		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(bookmarkRepository.findByUserIdAndCourseSessionId(1L, 10L)).willReturn(Optional.of(bookmark));
+
+		BookmarkDeleteResponse response = bookmarkService.delete(10L);
+
+		assertThat(response.courseSessionId()).isEqualTo(10L);
+		verify(bookmarkRepository).delete(bookmark);
+	}
+
+	@Test
+	@DisplayName("북마크 삭제 실패 — 미인증 사용자 (401 UNAUTHORIZED)")
+	void deleteThrowsUnauthorizedWhenUserIsNotAuthenticated() {
+		assertThatThrownBy(() -> bookmarkService.delete(10L))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.UNAUTHORIZED);
+	}
+
+	@Test
+	@DisplayName("북마크 삭제 실패 — 북마크 없음 (404 BOOKMARK_NOT_FOUND)")
+	void deleteThrowsBookmarkNotFoundWhenBookmarkDoesNotExist() {
+		User user = localUser(1L, "user@example.com");
+		setAuthentication("user@example.com");
+
+		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(bookmarkRepository.findByUserIdAndCourseSessionId(1L, 10L)).willReturn(Optional.empty());
+
+		assertThatThrownBy(() -> bookmarkService.delete(10L))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.BOOKMARK_NOT_FOUND);
 	}
 
 	private void setAuthentication(String email) {
