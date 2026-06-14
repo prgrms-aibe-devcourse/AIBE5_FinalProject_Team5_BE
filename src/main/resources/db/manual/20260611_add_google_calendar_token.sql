@@ -1,6 +1,6 @@
 -- Google Calendar OAuth 토큰 저장 테이블 (사용자당 1 row, UPDATE 방식)
 -- 용도: 구글 캘린더 연동 access/refresh token 저장. revoked_at IS NULL 이면 활성 연동.
--- dev/prod는 ddl-auto: validate이므로 애플리케이션 배포 전 먼저 적용해야 함
+-- prod는 ddl-auto: validate이므로 애플리케이션 배포 전 먼저 적용해야 함
 -- dev/local은 ddl-auto: update이므로 관련 api 실행 시 테이블 자동 생성됨
 
 SET NAMES utf8mb4;

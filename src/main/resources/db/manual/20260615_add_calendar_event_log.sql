@@ -1,5 +1,6 @@
 -- Google Calendar 이벤트 동기화 로그 테이블
 -- 용도: 북마크 추가/삭제 시 Google Calendar 이벤트 생성/삭제 이력 저장
+-- prod는 ddl-auto: validate이므로 애플리케이션 배포 전 먼저 적용해야 함
 -- dev/local은 ddl-auto: update이므로 애플리케이션 기동 시 자동 생성됨
 
 SET NAMES utf8mb4;
