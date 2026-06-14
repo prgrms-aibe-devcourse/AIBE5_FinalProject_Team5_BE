@@ -2,6 +2,9 @@ package com.bootsignal.domain.bookmark.service;
 
 import com.bootsignal.domain.bookmark.dto.BookmarkCreateResponse;
 import com.bootsignal.domain.bookmark.dto.BookmarkDeleteResponse;
+import com.bootsignal.domain.bookmark.dto.BookmarkListResponse;
+import com.bootsignal.domain.bookmark.dto.BookmarkPageResponse;
+import com.bootsignal.domain.bookmark.dto.BookmarkSort;
 import com.bootsignal.domain.bookmark.entity.Bookmark;
 import com.bootsignal.domain.bookmark.repository.BookmarkRepository;
 import com.bootsignal.domain.course_session.entity.CourseSession;
@@ -13,6 +16,10 @@ import com.bootsignal.global.exception.ErrorCode;
 import com.bootsignal.global.security.SecurityUtil;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -68,6 +75,34 @@ public class BookmarkService {
 		bookmarkRepository.delete(bookmark);
 
 		return new BookmarkDeleteResponse(courseSessionId);
+	}
+
+	/* 내 북마크 목록 조회 */
+	public BookmarkPageResponse<BookmarkListResponse> getList(int page, int size, String sort) {
+		validatePageParameters(page, size);
+		BookmarkSort bookmarkSort = BookmarkSort.from(sort);
+		User user = getAuthenticatedUser();
+
+		// 북마크 목록 조회
+		Pageable pageable = PageRequest.of(page, size, toSort(bookmarkSort));
+		Page<Bookmark> bookmarkPage = bookmarkRepository.findAllByUserId(user.getId(), pageable);
+
+		return BookmarkPageResponse.from(bookmarkPage.map(BookmarkListResponse::from));
+	}
+
+	// 페이지 유효성 검증
+	private void validatePageParameters(int page, int size) {
+		if (page < 0 || size <= 0) {
+			throw new BootSignalException(ErrorCode.INVALID_PAGE_PARAMETER);
+		}
+	}
+
+	// 정렬 조건 변환
+	private Sort toSort(BookmarkSort bookmarkSort) {
+		return switch (bookmarkSort) {
+			case LATEST -> Sort.by(Sort.Direction.DESC, "startDate");
+			case RATING -> Sort.by(Sort.Direction.DESC, "courseSession.course.stdgScor");
+		};
 	}
 
 
