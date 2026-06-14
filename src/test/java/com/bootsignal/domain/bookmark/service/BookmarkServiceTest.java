@@ -13,6 +13,7 @@ import com.bootsignal.domain.bookmark.dto.BookmarkListResponse;
 import com.bootsignal.domain.bookmark.dto.BookmarkPageResponse;
 import com.bootsignal.domain.bookmark.entity.Bookmark;
 import com.bootsignal.domain.bookmark.repository.BookmarkRepository;
+import com.bootsignal.domain.calendar.service.CalendarEventSyncService;
 import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.course_session.repository.CourseSessionRepository;
@@ -55,6 +56,9 @@ class BookmarkServiceTest {
 	@Mock
 	private CourseSessionRepository courseSessionRepository;
 
+	@Mock
+	private CalendarEventSyncService calendarEventSyncService;
+
 	private BookmarkService bookmarkService;
 
 	@BeforeEach
@@ -62,7 +66,8 @@ class BookmarkServiceTest {
 		bookmarkService = new BookmarkService(
 			bookmarkRepository,
 			userRepository,
-			courseSessionRepository
+			courseSessionRepository,
+			calendarEventSyncService
 		);
 	}
 

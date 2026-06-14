@@ -15,6 +15,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+// Google Calendar OAuth 요청 처리
+
 @Component
 @RequiredArgsConstructor
 public class GoogleCalendarOAuthClient {
@@ -54,6 +56,27 @@ public class GoogleCalendarOAuthClient {
 		formData.add("grant_type", "authorization_code");
 
 		// 요청 시도
+		try {
+			return restClientBuilder.build()
+				.post()
+				.uri(TOKEN_URL)
+				.contentType(MediaType.APPLICATION_FORM_URLENCODED)
+				.body(formData)
+				.retrieve()
+				.body(GoogleOAuthTokenResponse.class);
+		} catch (RestClientException exception) {
+			throw new BootSignalException(ErrorCode.CALENDAR_OAUTH_EXCHANGE_FAILED);
+		}
+	}
+
+	/* 구글 캘린더 access token 갱신 */
+	public GoogleOAuthTokenResponse refreshAccessToken(String refreshToken) {
+		MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+		formData.add("client_id", resolveClientId());
+		formData.add("client_secret", resolveClientSecret());
+		formData.add("grant_type", "refresh_token");
+		formData.add("refresh_token", refreshToken);
+
 		try {
 			return restClientBuilder.build()
 				.post()

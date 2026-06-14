@@ -7,6 +7,7 @@ import com.bootsignal.domain.bookmark.dto.BookmarkPageResponse;
 import com.bootsignal.domain.bookmark.dto.BookmarkSort;
 import com.bootsignal.domain.bookmark.entity.Bookmark;
 import com.bootsignal.domain.bookmark.repository.BookmarkRepository;
+import com.bootsignal.domain.calendar.service.CalendarEventSyncService;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.course_session.repository.CourseSessionRepository;
 import com.bootsignal.domain.user.entity.User;
@@ -31,6 +32,7 @@ public class BookmarkService {
 	private final BookmarkRepository bookmarkRepository;
 	private final UserRepository userRepository;
 	private final CourseSessionRepository courseSessionRepository;
+	private final CalendarEventSyncService calendarEventSyncService;
 
 	/* 북마크 생성 */
 	@Transactional
@@ -51,14 +53,17 @@ public class BookmarkService {
 		}
 
 		// 북마크 생성
-		Bookmark bookmark = Bookmark.builder()
+		Bookmark bookmark = bookmarkRepository.save(Bookmark.builder()
 			.user(user)
 			.courseSession(courseSession)
 			.startDate(startDate)
 			.endDate(endDate)
-			.build();
+			.build());
 
-		return BookmarkCreateResponse.from(bookmarkRepository.save(bookmark));
+		// 구글 Calendar 북마크 생성 동기화
+		calendarEventSyncService.syncBookmarkCreated(user, bookmark);
+
+		return BookmarkCreateResponse.from(bookmark);
 	}
 
 	/* 북마크 삭제 */
@@ -73,6 +78,9 @@ public class BookmarkService {
 
 		// 북마크 삭제
 		bookmarkRepository.delete(bookmark);
+
+		// 구글 Calendar 북마크 삭제 동기화
+		calendarEventSyncService.syncBookmarkDeleted(user, courseSessionId);
 
 		return new BookmarkDeleteResponse(courseSessionId);
 	}
