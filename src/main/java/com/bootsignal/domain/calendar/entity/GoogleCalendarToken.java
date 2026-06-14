@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.springframework.util.StringUtils;
 
 @Entity
 @Getter
@@ -58,5 +59,48 @@ public class GoogleCalendarToken extends BaseEntity {
 	// 활성 상태 == revoked_at IS NULL
 	public boolean isActive() {
 		return revokedAt == null;
+	}
+
+	// 연결 생성 (최초 연결 시도)
+	public static GoogleCalendarToken connect(
+		User user,
+		String accessTokenEncrypted,
+		String refreshTokenEncrypted,
+		String scope,
+		LocalDateTime expiresAt,
+		LocalDateTime connectedAt
+	) {
+		GoogleCalendarToken token = new GoogleCalendarToken();
+		token.user = user;
+		token.accessTokenEncrypted = accessTokenEncrypted;
+		token.refreshTokenEncrypted = refreshTokenEncrypted;
+		token.scope = scope;
+		token.expiresAt = expiresAt;
+		token.connectedAt = connectedAt;
+		token.revokedAt = null;
+		return token;
+	}
+
+	// 연결 갱신 (최초 연결 해제 이후 연결)
+	public void reconnect(
+		String accessTokenEncrypted,
+		String refreshTokenEncrypted,
+		String scope,
+		LocalDateTime expiresAt,
+		LocalDateTime connectedAt
+	) {
+		this.accessTokenEncrypted = accessTokenEncrypted;
+		if (StringUtils.hasText(refreshTokenEncrypted)) {
+			this.refreshTokenEncrypted = refreshTokenEncrypted;
+		}
+		this.scope = scope;
+		this.expiresAt = expiresAt;
+		this.connectedAt = connectedAt;
+		this.revokedAt = null;
+	}
+
+	// 연결 해제
+	public void revoke(LocalDateTime revokedAt) {
+		this.revokedAt = revokedAt;
 	}
 }

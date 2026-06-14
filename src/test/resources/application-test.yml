@@ -17,6 +17,8 @@ app:
   security:
     jwt:
       secret: test-jwt-secret-change-before-deploy-32bytes
+    token-encryption:
+      secret: ${TOKEN_ENCRYPTION_SECRET}
   profile-image:
     storage-type: local
     local:

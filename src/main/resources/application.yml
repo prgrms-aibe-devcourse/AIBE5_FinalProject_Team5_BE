@@ -45,10 +45,13 @@ app:
       secret: ${JWT_SECRET:local-development-jwt-secret-change-before-deploy-32bytes}
       access-token-validity-seconds: ${JWT_ACCESS_TOKEN_VALIDITY_SECONDS:3600}
       refresh-token-validity-seconds: ${JWT_REFRESH_TOKEN_VALIDITY_SECONDS:1209600}
+    token-encryption:
+      secret: ${TOKEN_ENCRYPTION_SECRET}
   oauth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
       jwk-set-uri: ${GOOGLE_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}   
     kakao:
       client-id: ${KAKAO_CLIENT_ID:}
       jwk-set-uri: ${KAKAO_JWK_SET_URI:https://kauth.kakao.com/.well-known/jwks.json}
@@ -82,3 +85,9 @@ app:
       base-url: ${PROFILE_IMAGE_BASE_URL:http://localhost:8080}
     s3:
       # S3 저장 관련 설정 예정
+  calendar:
+    google:
+      redirect-uri: ${GOOGLE_CALENDAR_REDIRECT_URI:http://localhost:8080/api/calendar/connect/google/callback}
+      scope: ${GOOGLE_CALENDAR_SCOPE:openid email profile https://www.googleapis.com/auth/calendar.events}
+      connect-success-url: ${GOOGLE_CALENDAR_CONNECT_SUCCESS_URL:http://localhost:5173/dashboard/schedule}
+      connect-failure-url: ${GOOGLE_CALENDAR_CONNECT_FAILURE_URL:http://localhost:5173/dashboard/schedule}
