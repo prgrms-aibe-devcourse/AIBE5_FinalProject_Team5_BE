@@ -11,6 +11,7 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -23,11 +24,11 @@ import java.time.format.DateTimeFormatter;
 //   POST /api/admin/batch/collect — 고용24 데이터 수집 Job 실행
 //   POST /api/admin/batch/refine  — 수집 데이터 정제 Job 실행
 //
-//  TODO: 인증/인가 구현 후 @PreAuthorize("hasRole('ADMIN')") 추가
 //
 @Slf4j
 @RestController
 @RequestMapping("/api/admin/batch")
+@PreAuthorize("hasRole('ADMIN')")
 public class BatchJobController {
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");

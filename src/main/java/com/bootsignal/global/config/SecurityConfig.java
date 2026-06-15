@@ -1,6 +1,8 @@
 package com.bootsignal.global.config;
 
 import com.bootsignal.global.config.properties.CorsProperties;
+import com.bootsignal.global.exception.BootSignalException;
+import com.bootsignal.global.exception.ErrorCode;
 import com.bootsignal.global.security.jwt.JwtAuthenticationFilter;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
 import java.util.List;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -24,6 +27,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
+/**
+ * JWT 기반 인증, CORS, 공개/보호 API 경계를 설정하는 보안 구성입니다.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -35,7 +41,8 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(
 		HttpSecurity http,
-		JwtAuthenticationFilter jwtAuthenticationFilter
+		JwtAuthenticationFilter jwtAuthenticationFilter,
+		@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
 	) throws Exception {
 		return http
 			.csrf(AbstractHttpConfigurer::disable)
@@ -47,7 +54,39 @@ public class SecurityConfig {
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/api/health", "/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
 				.requestMatchers("/local-files/profile/**").permitAll()
-				.anyRequest().permitAll()
+				.requestMatchers(
+					"/api/auth/signup",
+					"/api/auth/login",
+					"/api/auth/google/login",
+					"/api/auth/kakao/login",
+					"/api/auth/refresh",
+					"/api/auth/logout"
+				).permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/**").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/institutions", "/api/institutions/**").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/**").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/reviews", "/api/reviews/**").permitAll()
+				.requestMatchers("/api/admin/**").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.POST, "/api/work24/**").hasRole("ADMIN")
+				.anyRequest().authenticated()
+			)
+			.exceptionHandling(exception -> exception
+				.authenticationEntryPoint((request, response, authException) ->
+					handlerExceptionResolver.resolveException(
+						request,
+						response,
+						null,
+						new BootSignalException(ErrorCode.UNAUTHORIZED)
+					)
+				)
+				.accessDeniedHandler((request, response, accessDeniedException) ->
+					handlerExceptionResolver.resolveException(
+						request,
+						response,
+						null,
+						new BootSignalException(ErrorCode.FORBIDDEN)
+					)
+				)
 			)
 			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 			.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))

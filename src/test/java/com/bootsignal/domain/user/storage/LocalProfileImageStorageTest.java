@@ -28,7 +28,7 @@ class LocalProfileImageStorageTest {
 			"file",
 			"profile.png",
 			"image/png",
-			"png-content".getBytes()
+			pngBytes()
 		);
 
 		// when
@@ -75,6 +75,44 @@ class LocalProfileImageStorageTest {
 			.isEqualTo(ErrorCode.BAD_REQUEST);
 	}
 
+	@Test
+	@DisplayName("원본 파일 확장자가 달라도 Content-Type 기준 확장자로 저장한다")
+	void storeUsesContentTypeExtensionInsteadOfOriginalFilename() {
+		// given
+		LocalProfileImageStorage storage = new LocalProfileImageStorage(properties(tempDir));
+		MockMultipartFile file = new MockMultipartFile(
+			"file",
+			"profile.html",
+			"image/png",
+			pngBytes()
+		);
+
+		// when
+		String profileImageUrl = storage.store(file, 1L);
+
+		// then
+		assertThat(profileImageUrl).endsWith(".png");
+	}
+
+	@Test
+	@DisplayName("Content-Type과 파일 내용이 일치하지 않으면 BAD_REQUEST 예외를 던진다")
+	void storeThrowsBadRequestWhenImageSignatureIsInvalid() {
+		// given
+		LocalProfileImageStorage storage = new LocalProfileImageStorage(properties(tempDir));
+		MockMultipartFile file = new MockMultipartFile(
+			"file",
+			"profile.png",
+			"image/png",
+			"not-an-image".getBytes()
+		);
+
+		// when & then
+		assertThatThrownBy(() -> storage.store(file, 1L))
+			.isInstanceOf(BootSignalException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.BAD_REQUEST);
+	}
+
 	private ProfileImageProperties properties(Path uploadDir) {
 		return new ProfileImageProperties(
 			"local",
@@ -84,5 +122,13 @@ class LocalProfileImageStorageTest {
 				"http://localhost:8080"
 			)
 		);
+	}
+
+	private byte[] pngBytes() {
+		return new byte[] {
+			(byte) 0x89, 0x50, 0x4E, 0x47,
+			0x0D, 0x0A, 0x1A, 0x0A,
+			0x00, 0x00, 0x00, 0x0D
+		};
 	}
 }

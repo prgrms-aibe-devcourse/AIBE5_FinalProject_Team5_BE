@@ -164,6 +164,51 @@ class AuthControllerTest {
 	}
 
 	@Test
+	void refreshReturnsOkResponse() throws Exception {
+		given(authService.refresh(any()))
+			.willReturn(new LoginResponse(
+				1L,
+				"user@example.com",
+				"tester",
+				UserRole.USER,
+				"Bearer",
+				"new-access-token",
+				3600L,
+				"new-refresh-token",
+				1209600L
+			));
+
+		mockMvc.perform(post("/api/auth/refresh")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"refreshToken": "refresh-token"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.userId").value(1))
+			.andExpect(jsonPath("$.data.accessToken").value("new-access-token"))
+			.andExpect(jsonPath("$.data.refreshToken").value("new-refresh-token"))
+			.andExpect(jsonPath("$.error").doesNotExist());
+	}
+
+	@Test
+	void logoutReturnsNoContent() throws Exception {
+		mockMvc.perform(post("/api/auth/logout")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"refreshToken": "refresh-token"
+					}
+					"""))
+			.andExpect(status().isNoContent())
+			.andReturn();
+
+		verify(authService).logout(any());
+	}
+
+	@Test
 	void signupReturnsValidationErrorWhenRequestIsInvalid() throws Exception {
 		mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -236,6 +281,42 @@ class AuthControllerTest {
 			.andExpect(jsonPath("$.error.fieldErrors").isArray());
 
 		verify(authService, never()).kakaoLogin(any());
+	}
+
+	@Test
+	void refreshReturnsValidationErrorWhenRequestIsInvalid() throws Exception {
+		mockMvc.perform(post("/api/auth/refresh")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"refreshToken": ""
+					}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.data").doesNotExist())
+			.andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
+			.andExpect(jsonPath("$.error.fieldErrors").isArray());
+
+		verify(authService, never()).refresh(any());
+	}
+
+	@Test
+	void logoutReturnsValidationErrorWhenRequestIsInvalid() throws Exception {
+		mockMvc.perform(post("/api/auth/logout")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"refreshToken": ""
+					}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.data").doesNotExist())
+			.andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
+			.andExpect(jsonPath("$.error.fieldErrors").isArray());
+
+		verify(authService, never()).logout(any());
 	}
 
 	@Test
