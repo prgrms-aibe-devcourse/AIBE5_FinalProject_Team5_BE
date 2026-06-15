@@ -36,6 +36,7 @@ public class BatchJobController {
     private final Job hrdDataCollectJob;
     private final Job hrdDataRefineJob;
     private final Job hrdWebCrawlJob;
+    private final Job reviewCrawlJob;
     private final HrdApiProperties properties;
 
     public BatchJobController(
@@ -43,11 +44,13 @@ public class BatchJobController {
             @Qualifier("hrdDataCollectJob") Job hrdDataCollectJob,
             @Qualifier("hrdDataRefineJob") Job hrdDataRefineJob,
             @Qualifier("hrdWebCrawlJob") Job hrdWebCrawlJob,
+            @Qualifier("reviewCrawlJob") Job reviewCrawlJob,
             HrdApiProperties properties) {
         this.jobLauncher = jobLauncher;
         this.hrdDataCollectJob = hrdDataCollectJob;
         this.hrdDataRefineJob = hrdDataRefineJob;
         this.hrdWebCrawlJob = hrdWebCrawlJob;
+        this.reviewCrawlJob = reviewCrawlJob;
         this.properties = properties;
     }
 
@@ -108,6 +111,23 @@ public class BatchJobController {
                 .toJobParameters();
 
         return runJob(hrdWebCrawlJob, "hrdWebCrawlJob", params);
+    }
+
+    /**
+     * 수강후기 크롤링 Job 실행 — 고용24 수강후기 페이지에서 리뷰를 크롤링하여 crawled_review 테이블에 저장.
+     * 웹 크롤링 Job이 완료된 뒤 실행 권장.
+     *
+     * @param delayMillis 페이지 간 요청 딜레이(ms). 기본 500ms.
+     */
+    @PostMapping("/review-crawl")
+    public BatchJobResponse runReviewCrawlJob(
+            @RequestParam(required = false) Long delayMillis) {
+        JobParameters params = new JobParametersBuilder()
+                .addLong("runAt", System.currentTimeMillis())
+                .addLong("delayMillis", delayMillis != null ? delayMillis : 500L)
+                .toJobParameters();
+
+        return runJob(reviewCrawlJob, "reviewCrawlJob", params);
     }
 
     /**

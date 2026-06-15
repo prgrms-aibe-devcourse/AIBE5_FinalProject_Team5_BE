@@ -22,4 +22,6 @@ public interface CourseSessionRepository extends JpaRepository<CourseSession, Lo
     List<CourseSession> findByCourse_IdIn(List<Long> courseIds);
 
     Page<CourseSession> findByTitleLinkIsNotNullAndCrawledAtIsNull(Pageable pageable);
+
+    Optional<CourseSession> findFirstByCourse_IdAndTitleLinkIsNotNull(Long courseId);
 }
