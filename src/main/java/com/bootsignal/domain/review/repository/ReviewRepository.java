@@ -9,9 +9,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * 리뷰 조회, 중복 작성 검증, 활성 리뷰 존재 여부를 처리하는 JPA 저장소입니다.
+ */
 public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     boolean existsByUserIdAndCourseSessionId(Long userId, Long courseSessionId);
+
+    boolean existsByIdAndDeletedAtIsNull(Long id);
 
     Optional<Review> findByIdAndDeletedAtIsNull(Long id);
 

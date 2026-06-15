@@ -78,6 +78,34 @@ class JwtTokenProviderTest {
 			.isEqualTo(ErrorCode.UNAUTHORIZED);
 	}
 
+	@Test
+	void getRefreshTokenClaimsReturnsUserIdAndExpiration() {
+		JwtProperties properties = new JwtProperties("bootsignal-test", SECRET, 3600L, 1209600L);
+		JwtTokenProvider tokenProvider = new JwtTokenProvider(properties);
+		User user = User.signupLocal("user@example.com", "encoded-password", "tester");
+		ReflectionTestUtils.setField(user, "id", 1L);
+		JwtTokenPair tokenPair = tokenProvider.createTokenPair(user);
+
+		JwtRefreshTokenClaims claims = tokenProvider.getRefreshTokenClaims(tokenPair.refreshToken());
+
+		assertThat(claims.userId()).isEqualTo(1L);
+		assertThat(claims.expiresAt()).isNotNull();
+	}
+
+	@Test
+	void getRefreshTokenClaimsRejectsAccessToken() {
+		JwtProperties properties = new JwtProperties("bootsignal-test", SECRET, 3600L, 1209600L);
+		JwtTokenProvider tokenProvider = new JwtTokenProvider(properties);
+		User user = User.signupLocal("user@example.com", "encoded-password", "tester");
+		ReflectionTestUtils.setField(user, "id", 1L);
+		JwtTokenPair tokenPair = tokenProvider.createTokenPair(user);
+
+		assertThatThrownBy(() -> tokenProvider.getRefreshTokenClaims(tokenPair.accessToken()))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.INVALID_REFRESH_TOKEN);
+	}
+
 	private Claims parseClaims(String token) {
 		SecretKey key = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
 		return Jwts.parser()

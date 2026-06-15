@@ -11,20 +11,27 @@ import com.bootsignal.domain.auth.dto.GoogleLoginRequest;
 import com.bootsignal.domain.auth.dto.KakaoLoginRequest;
 import com.bootsignal.domain.auth.dto.LoginRequest;
 import com.bootsignal.domain.auth.dto.LoginResponse;
+import com.bootsignal.domain.auth.dto.RefreshTokenRequest;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
+import com.bootsignal.domain.auth.entity.RefreshToken;
 import com.bootsignal.domain.auth.oauth.GoogleTokenVerifier;
 import com.bootsignal.domain.auth.oauth.GoogleUserInfo;
 import com.bootsignal.domain.auth.oauth.KakaoTokenVerifier;
 import com.bootsignal.domain.auth.oauth.KakaoUserInfo;
+import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
 import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import com.bootsignal.global.security.jwt.JwtRefreshTokenClaims;
 import com.bootsignal.global.security.jwt.JwtTokenPair;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
+import com.bootsignal.global.security.jwt.RefreshTokenHasher;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,10 +49,16 @@ class AuthServiceTest {
 	private UserRepository userRepository;
 
 	@Mock
+	private RefreshTokenRepository refreshTokenRepository;
+
+	@Mock
 	private PasswordEncoder passwordEncoder;
 
 	@Mock
 	private JwtTokenProvider jwtTokenProvider;
+
+	@Mock
+	private RefreshTokenHasher refreshTokenHasher;
 
 	@Mock
 	private GoogleTokenVerifier googleTokenVerifier;
@@ -59,8 +72,10 @@ class AuthServiceTest {
 	void setUp() {
 		authService = new AuthService(
 			userRepository,
+			refreshTokenRepository,
 			passwordEncoder,
 			jwtTokenProvider,
+			refreshTokenHasher,
 			googleTokenVerifier,
 			kakaoTokenVerifier
 		);
@@ -128,9 +143,18 @@ class AuthServiceTest {
 		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
 		given(passwordEncoder.matches("password123", "encoded-password")).willReturn(true);
 		given(jwtTokenProvider.createTokenPair(user)).willReturn(tokenPair);
+		given(refreshTokenHasher.hash("refresh-token")).willReturn("hashed-refresh-token");
 
 		LoginResponse response = authService.login(request);
 
+		ArgumentCaptor<RefreshToken> refreshTokenCaptor = ArgumentCaptor.forClass(RefreshToken.class);
+		verify(refreshTokenRepository).save(refreshTokenCaptor.capture());
+		RefreshToken savedRefreshToken = refreshTokenCaptor.getValue();
+		assertThat(savedRefreshToken.getUser()).isEqualTo(user);
+		assertThat(savedRefreshToken.getTokenHash()).isEqualTo("hashed-refresh-token");
+		assertThat(savedRefreshToken.getTokenHash()).isNotEqualTo("refresh-token");
+		assertThat(savedRefreshToken.isRevoked()).isFalse();
+		assertThat(savedRefreshToken.isReplaced()).isFalse();
 		assertThat(response.userId()).isEqualTo(1L);
 		assertThat(response.email()).isEqualTo("user@example.com");
 		assertThat(response.nickname()).isEqualTo("tester");
@@ -202,6 +226,72 @@ class AuthServiceTest {
 
 		verify(passwordEncoder, never()).matches(any(), any());
 		verify(jwtTokenProvider, never()).createTokenPair(any());
+	}
+
+	@Test
+	void refreshRotatesRefreshTokenAndReturnsNewTokenResponse() {
+		RefreshTokenRequest request = new RefreshTokenRequest("old-refresh-token");
+		User user = localUser(1L);
+		RefreshToken storedToken = RefreshToken.issue(user, "old-refresh-hash", Instant.now().plusSeconds(600));
+		JwtTokenPair newTokenPair = new JwtTokenPair("Bearer", "new-access-token", 3600L, "new-refresh-token", 1209600L);
+		given(jwtTokenProvider.getRefreshTokenClaims("old-refresh-token"))
+			.willReturn(new JwtRefreshTokenClaims(1L, Instant.now().plusSeconds(600)));
+		given(refreshTokenHasher.hash("old-refresh-token")).willReturn("old-refresh-hash");
+		given(refreshTokenRepository.findByTokenHash("old-refresh-hash")).willReturn(Optional.of(storedToken));
+		given(jwtTokenProvider.createTokenPair(user)).willReturn(newTokenPair);
+		given(refreshTokenHasher.hash("new-refresh-token")).willReturn("new-refresh-hash");
+
+		LoginResponse response = authService.refresh(request);
+
+		assertThat(storedToken.isRevoked()).isTrue();
+		assertThat(storedToken.isReplaced()).isTrue();
+		assertThat(response.accessToken()).isEqualTo("new-access-token");
+		assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
+
+		ArgumentCaptor<RefreshToken> captor = ArgumentCaptor.forClass(RefreshToken.class);
+		verify(refreshTokenRepository).save(captor.capture());
+		assertThat(captor.getValue().getTokenHash()).isEqualTo("new-refresh-hash");
+		assertThat(captor.getValue().getTokenHash()).isNotEqualTo("new-refresh-token");
+	}
+
+	@Test
+	void refreshRejectsReusedTokenAndRevokesActiveTokens() {
+		RefreshTokenRequest request = new RefreshTokenRequest("old-refresh-token");
+		User user = localUser(1L);
+		Instant now = Instant.now();
+		RefreshToken reusedToken = RefreshToken.issue(user, "old-refresh-hash", now.plusSeconds(600));
+		reusedToken.replace(now.minusSeconds(10));
+		RefreshToken activeToken = RefreshToken.issue(user, "active-refresh-hash", now.plusSeconds(600));
+		given(jwtTokenProvider.getRefreshTokenClaims("old-refresh-token"))
+			.willReturn(new JwtRefreshTokenClaims(1L, now.plusSeconds(600)));
+		given(refreshTokenHasher.hash("old-refresh-token")).willReturn("old-refresh-hash");
+		given(refreshTokenRepository.findByTokenHash("old-refresh-hash")).willReturn(Optional.of(reusedToken));
+		given(refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user))
+			.willReturn(List.of(activeToken));
+
+		assertThatThrownBy(() -> authService.refresh(request))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.REFRESH_TOKEN_REUSED);
+
+		assertThat(activeToken.isRevoked()).isTrue();
+		verify(jwtTokenProvider, never()).createTokenPair(any());
+	}
+
+	@Test
+	void logoutRevokesRefreshToken() {
+		RefreshTokenRequest request = new RefreshTokenRequest("refresh-token");
+		User user = localUser(1L);
+		RefreshToken storedToken = RefreshToken.issue(user, "refresh-hash", Instant.now().plusSeconds(600));
+		given(jwtTokenProvider.getRefreshTokenClaims("refresh-token"))
+			.willReturn(new JwtRefreshTokenClaims(1L, Instant.now().plusSeconds(600)));
+		given(refreshTokenHasher.hash("refresh-token")).willReturn("refresh-hash");
+		given(refreshTokenRepository.findByTokenHash("refresh-hash")).willReturn(Optional.of(storedToken));
+
+		authService.logout(request);
+
+		assertThat(storedToken.isRevoked()).isTrue();
+		assertThat(storedToken.getRevokedAt()).isNotNull();
 	}
 
 	@Test

@@ -8,7 +8,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+/**
+ * 게시글 조회, 검색, 활성 게시글 존재 여부를 처리하는 JPA 저장소입니다.
+ */
 public interface PostRepository extends JpaRepository<Post, Long> {
+
+	boolean existsByIdAndDeletedAtIsNullAndIsValidTrue(Long id);
 
 	@Query(
 		value = """

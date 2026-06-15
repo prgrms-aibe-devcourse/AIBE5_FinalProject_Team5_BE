@@ -4,18 +4,25 @@ import com.bootsignal.domain.auth.dto.GoogleLoginRequest;
 import com.bootsignal.domain.auth.dto.KakaoLoginRequest;
 import com.bootsignal.domain.auth.dto.LoginRequest;
 import com.bootsignal.domain.auth.dto.LoginResponse;
+import com.bootsignal.domain.auth.dto.RefreshTokenRequest;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
+import com.bootsignal.domain.auth.entity.RefreshToken;
 import com.bootsignal.domain.auth.oauth.GoogleTokenVerifier;
 import com.bootsignal.domain.auth.oauth.GoogleUserInfo;
 import com.bootsignal.domain.auth.oauth.KakaoTokenVerifier;
 import com.bootsignal.domain.auth.oauth.KakaoUserInfo;
+import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
 import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import com.bootsignal.global.security.jwt.JwtRefreshTokenClaims;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
+import com.bootsignal.global.security.jwt.JwtTokenPair;
+import com.bootsignal.global.security.jwt.RefreshTokenHasher;
+import java.time.Instant;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,6 +31,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+/**
+ * 회원가입, 로그인, 소셜 로그인과 Refresh Token 회전/폐기를 담당하는 인증 서비스입니다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -33,8 +43,10 @@ public class AuthService {
 	private static final int MAX_NICKNAME_RETRY_COUNT = 100;
 
 	private final UserRepository userRepository;
+	private final RefreshTokenRepository refreshTokenRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final RefreshTokenHasher refreshTokenHasher;
 	private final GoogleTokenVerifier googleTokenVerifier;
 	private final KakaoTokenVerifier kakaoTokenVerifier;
 
@@ -62,6 +74,7 @@ public class AuthService {
 		}
 	}
 
+	@Transactional
 	public LoginResponse login(LoginRequest request) {
 		String email = normalizeEmail(request.email());
 		User user = userRepository.findByEmail(email)
@@ -72,7 +85,7 @@ public class AuthService {
 			throw invalidLoginCredentials();
 		}
 
-		return LoginResponse.of(user, jwtTokenProvider.createTokenPair(user));
+		return issueLoginResponse(user);
 	}
 
 	@Transactional
@@ -82,7 +95,7 @@ public class AuthService {
 			.map(this::validateGoogleLoginUser)
 			.orElseGet(() -> signupGoogleUser(googleUserInfo));
 
-		return LoginResponse.of(user, jwtTokenProvider.createTokenPair(user));
+		return issueLoginResponse(user);
 	}
 
 	@Transactional
@@ -92,7 +105,85 @@ public class AuthService {
 			.map(this::validateKakaoLoginUser)
 			.orElseGet(() -> signupKakaoUser(kakaoUserInfo));
 
-		return LoginResponse.of(user, jwtTokenProvider.createTokenPair(user));
+		return issueLoginResponse(user);
+	}
+
+	@Transactional
+	public LoginResponse refresh(RefreshTokenRequest request) {
+		Instant now = Instant.now();
+		JwtRefreshTokenClaims claims = jwtTokenProvider.getRefreshTokenClaims(request.refreshToken());
+		RefreshToken storedToken = findStoredRefreshToken(request.refreshToken());
+		User user = validateRefreshTokenOwner(storedToken, claims);
+
+		if (!storedToken.isReusable(now)) {
+			handleRefreshTokenReuse(storedToken, now);
+			throw new BootSignalException(resolveRefreshTokenStatus(storedToken, now));
+		}
+
+		storedToken.replace(now);
+		return issueLoginResponse(user);
+	}
+
+	@Transactional
+	public void logout(RefreshTokenRequest request) {
+		Instant now = Instant.now();
+		JwtRefreshTokenClaims claims = jwtTokenProvider.getRefreshTokenClaims(request.refreshToken());
+		RefreshToken storedToken = findStoredRefreshToken(request.refreshToken());
+		validateRefreshTokenOwner(storedToken, claims);
+
+		if (storedToken.isExpired(now)) {
+			storedToken.revoke(now);
+			throw new BootSignalException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+		}
+		if (storedToken.isRevoked() || storedToken.isReplaced()) {
+			throw new BootSignalException(ErrorCode.REFRESH_TOKEN_REVOKED);
+		}
+
+		storedToken.revoke(now);
+	}
+
+	private LoginResponse issueLoginResponse(User user) {
+		JwtTokenPair tokenPair = jwtTokenProvider.createTokenPair(user);
+		storeRefreshToken(user, tokenPair);
+		return LoginResponse.of(user, tokenPair);
+	}
+
+	private void storeRefreshToken(User user, JwtTokenPair tokenPair) {
+		String refreshTokenHash = refreshTokenHasher.hash(tokenPair.refreshToken());
+		Instant expiresAt = Instant.now().plusSeconds(tokenPair.refreshTokenExpiresIn());
+		refreshTokenRepository.save(RefreshToken.issue(user, refreshTokenHash, expiresAt));
+	}
+
+	private RefreshToken findStoredRefreshToken(String refreshToken) {
+		String refreshTokenHash = refreshTokenHasher.hash(refreshToken);
+		return refreshTokenRepository.findByTokenHash(refreshTokenHash)
+			.orElseThrow(() -> new BootSignalException(ErrorCode.INVALID_REFRESH_TOKEN));
+	}
+
+	private User validateRefreshTokenOwner(RefreshToken storedToken, JwtRefreshTokenClaims claims) {
+		User user = storedToken.getUser();
+		if (!user.getId().equals(claims.userId()) || user.isDeleted()) {
+			throw new BootSignalException(ErrorCode.INVALID_REFRESH_TOKEN);
+		}
+		return user;
+	}
+
+	private void handleRefreshTokenReuse(RefreshToken storedToken, Instant now) {
+		if (!storedToken.isExpired(now) && (storedToken.isRevoked() || storedToken.isReplaced())) {
+			refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(storedToken.getUser())
+				.forEach(activeToken -> activeToken.revoke(now));
+		}
+	}
+
+	private ErrorCode resolveRefreshTokenStatus(RefreshToken storedToken, Instant now) {
+		if (storedToken.isExpired(now)) {
+			storedToken.revoke(now);
+			return ErrorCode.REFRESH_TOKEN_EXPIRED;
+		}
+		if (storedToken.isRevoked() || storedToken.isReplaced()) {
+			return ErrorCode.REFRESH_TOKEN_REUSED;
+		}
+		return ErrorCode.INVALID_REFRESH_TOKEN;
 	}
 
 	private User signupGoogleUser(GoogleUserInfo googleUserInfo) {

@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 관리자 API 인가 통합 테스트.
  * <p>
  * 1) JWT가 부여하는 권한(ROLE_ADMIN)과 컨트롤러의 @PreAuthorize("hasRole('ADMIN')") 표현식이 일치하는지,
- * 2) 권한이 없는 사용자의 요청이 500이 아닌 403으로 응답되는지를 검증한다.
+ * 2) 인증되지 않은 요청은 401, 권한이 없는 사용자의 요청은 500이 아닌 403으로 응답되는지를 검증한다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -80,12 +80,12 @@ class AdminAuthorizationIntegrationTest {
 	}
 
 	@Test
-	void requestWithoutTokenReceivesForbidden() throws Exception {
-		// 인증되지 않은(익명) 요청도 메서드 보안에서 인가 거부 → 403.
+	void requestWithoutTokenReceivesUnauthorized() throws Exception {
+		// 인증되지 않은 요청은 Security 필터 단계에서 인증 실패로 처리되어 401을 반환한다.
 		mockMvc.perform(get(ADMIN_REPORTS_URL))
-			.andExpect(status().isForbidden())
+			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
-			.andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+			.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
 	}
 
 	private void signup(String email, String password, String nickname) throws Exception {

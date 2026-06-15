@@ -12,8 +12,9 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.List;
 import java.util.Date;
+import java.util.List;
+import java.util.UUID;
 import javax.crypto.SecretKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,6 +23,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+/**
+ * JWT access/refresh token을 발급하고 용도별 검증 결과를 제공합니다.
+ */
 @Component
 @RequiredArgsConstructor
 public class JwtTokenProvider {
@@ -64,6 +68,19 @@ public class JwtTokenProvider {
 		);
 	}
 
+	public JwtRefreshTokenClaims getRefreshTokenClaims(String token) {
+		Claims claims = parseRefreshClaims(token);
+		if (!REFRESH_TOKEN_USE.equals(claims.get("token_use", String.class))) {
+			throw new BootSignalException(ErrorCode.INVALID_REFRESH_TOKEN);
+		}
+		Date expiration = claims.getExpiration();
+		if (expiration == null) {
+			throw new BootSignalException(ErrorCode.INVALID_REFRESH_TOKEN);
+		}
+
+		return new JwtRefreshTokenClaims(resolveUserId(claims), expiration.toInstant());
+	}
+
 	private String createToken(User user, long validitySeconds, String tokenUse) {
 		Instant now = Instant.now();
 		Instant expiresAt = now.plusSeconds(validitySeconds);
@@ -71,6 +88,7 @@ public class JwtTokenProvider {
 		return Jwts.builder()
 			.issuer(jwtProperties.issuer())
 			.subject(String.valueOf(user.getId()))
+			.id(UUID.randomUUID().toString())
 			.issuedAt(Date.from(now))
 			.expiration(Date.from(expiresAt))
 			.claim("email", user.getEmail())
@@ -102,11 +120,34 @@ public class JwtTokenProvider {
 		}
 	}
 
+	private Claims parseRefreshClaims(String token) {
+		try {
+			return Jwts.parser()
+				.verifyWith(signingKey())
+				.requireIssuer(jwtProperties.issuer())
+				.build()
+				.parseSignedClaims(token)
+				.getPayload();
+		} catch (ExpiredJwtException exception) {
+			throw new BootSignalException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+		} catch (JwtException | IllegalArgumentException exception) {
+			throw new BootSignalException(ErrorCode.INVALID_REFRESH_TOKEN);
+		}
+	}
+
 	private String resolveEmail(Claims claims) {
 		String email = EmailFormatValidator.normalize(claims.get("email", String.class));
 		if (!EmailFormatValidator.isValid(email)) {
 			throw new BootSignalException(ErrorCode.UNAUTHORIZED, "토큰 이메일 정보가 올바르지 않습니다.");
 		}
 		return email;
+	}
+
+	private Long resolveUserId(Claims claims) {
+		try {
+			return Long.valueOf(claims.getSubject());
+		} catch (NumberFormatException exception) {
+			throw new BootSignalException(ErrorCode.INVALID_REFRESH_TOKEN);
+		}
 	}
 }
