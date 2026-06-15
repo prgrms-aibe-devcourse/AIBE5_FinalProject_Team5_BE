@@ -70,7 +70,7 @@ public class Verification extends BaseEntity {
 
     @Lob
     @Basic(fetch = FetchType.LAZY)
-    @Column(name = "evidence_data")
+    @Column(name = "evidence_data", columnDefinition = "LONGBLOB")
     private byte[] evidenceData;
 
     @Column(name = "reject_reason", columnDefinition = "TEXT")

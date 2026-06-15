@@ -12,8 +12,9 @@ spring:
         format_sql: true
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      # 인증 증빙과 프로필 이미지 등 큰 이미지 파일 업로드를 허용하되, 운영 환경에서는 환경변수로 조정할 수 있게 둔다.
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:100MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:120MB}
 
   # ── Spring Batch 설정 ──
   batch:
