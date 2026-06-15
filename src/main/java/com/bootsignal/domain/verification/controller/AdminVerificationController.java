@@ -3,6 +3,7 @@ package com.bootsignal.domain.verification.controller;
 import com.bootsignal.domain.verification.dto.AdminVerificationApproveRequest;
 import com.bootsignal.domain.verification.dto.AdminVerificationRejectRequest;
 import com.bootsignal.domain.verification.dto.VerificationResponse;
+import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.service.AdminVerificationService;
 import com.bootsignal.global.dto.PageResponse;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 관리자가 인증 신청 목록과 상세를 조회하고 승인 또는 반려하는 API 컨트롤러입니다.
+ * 관리자가 인증 신청 목록/상세와 제출 자료를 조회하고 승인 또는 반려하는 API 컨트롤러입니다.
  */
 @RestController
 @RequestMapping("/api/admin/verifications")
@@ -51,9 +52,15 @@ public class AdminVerificationController {
         return adminVerificationService.get(verificationId);
     }
 
-    @GetMapping("/{verificationId}/evidence")
-    public ResponseEntity<ByteArrayResource> downloadEvidence(@PathVariable Long verificationId) {
-        return VerificationEvidenceResponseFactory.toResponse(adminVerificationService.getEvidenceFile(verificationId));
+    @GetMapping("/{verificationId}/evidence/{evidenceType}")
+    public ResponseEntity<ByteArrayResource> downloadEvidence(
+        @PathVariable Long verificationId,
+        @PathVariable String evidenceType
+    ) {
+        return VerificationEvidenceResponseFactory.toResponse(adminVerificationService.getEvidenceFile(
+            verificationId,
+            VerificationEvidenceType.fromPathSegment(evidenceType)
+        ));
     }
 
     @PatchMapping("/{verificationId}/approve")

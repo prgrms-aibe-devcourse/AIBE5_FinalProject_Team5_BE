@@ -1,6 +1,7 @@
 package com.bootsignal.domain.verification.controller;
 
 import com.bootsignal.domain.verification.dto.VerificationResponse;
+import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.service.VerificationService;
 import com.bootsignal.global.dto.PageResponse;
@@ -25,7 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 로그인 사용자가 과정 회차 인증을 신청하고 본인 신청과 증빙 파일을 조회하는 API 컨트롤러입니다.
+ * 로그인 사용자가 과정 수료/수강 인증을 신청하고 본인 신청과 제출 자료를 조회하는 API 컨트롤러입니다.
  */
 @Validated
 @RestController
@@ -40,10 +41,15 @@ public class VerificationController {
     public VerificationResponse create(
         @RequestParam @NotNull(message = "과정 ID는 필수입니다.") Long courseId,
         @RequestParam @NotNull(message = "과정 회차 ID는 필수입니다.") Long courseSessionId,
-        @RequestPart(value = "evidenceFile", required = false) MultipartFile evidenceFile,
-        @RequestPart(value = "file", required = false) MultipartFile fallbackFile
+        @RequestPart(value = "jobTrainingHistoryFile", required = false) MultipartFile jobTrainingHistoryFile,
+        @RequestPart(value = "onlineCourseApplicationFile", required = false) MultipartFile onlineCourseApplicationFile
     ) {
-        return verificationService.create(courseId, courseSessionId, resolveEvidenceFile(evidenceFile, fallbackFile));
+        return verificationService.create(
+            courseId,
+            courseSessionId,
+            jobTrainingHistoryFile,
+            onlineCourseApplicationFile
+        );
     }
 
     @GetMapping("/my")
@@ -64,12 +70,14 @@ public class VerificationController {
         return verificationService.getMyVerification(verificationId);
     }
 
-    @GetMapping("/{verificationId}/evidence")
-    public ResponseEntity<ByteArrayResource> downloadMyEvidence(@PathVariable Long verificationId) {
-        return VerificationEvidenceResponseFactory.toResponse(verificationService.getMyEvidenceFile(verificationId));
-    }
-
-    private MultipartFile resolveEvidenceFile(MultipartFile evidenceFile, MultipartFile fallbackFile) {
-        return evidenceFile != null ? evidenceFile : fallbackFile;
+    @GetMapping("/{verificationId}/evidence/{evidenceType}")
+    public ResponseEntity<ByteArrayResource> downloadMyEvidence(
+        @PathVariable Long verificationId,
+        @PathVariable String evidenceType
+    ) {
+        return VerificationEvidenceResponseFactory.toResponse(verificationService.getMyEvidenceFile(
+            verificationId,
+            VerificationEvidenceType.fromPathSegment(evidenceType)
+        ));
     }
 }

@@ -9,12 +9,15 @@ import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.domain.user.repository.UserRepository;
+import com.bootsignal.domain.verification.dto.VerificationEvidenceFile;
 import com.bootsignal.domain.verification.dto.VerificationResponse;
 import com.bootsignal.domain.verification.entity.Verification;
+import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.repository.VerificationRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +34,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * 관리자 인증 처리 서비스의 승인/반려 상태 전이 규칙을 검증합니다.
+ * 관리자 인증 처리 서비스의 승인/반려 상태 전이와 자료 유형별 다운로드를 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AdminVerificationService 테스트")
@@ -74,7 +77,7 @@ class AdminVerificationServiceTest {
     }
 
     @Test
-    @DisplayName("이미 처리된 인증 신청은 다시 승인할 수 없음")
+    @DisplayName("이미 처리된 인증 신청은 다시 승인할 수 없다")
     void approveThrowsAlreadyProcessedWhenStatusIsNotPending() {
         User admin = admin();
         Verification verification = verification(100L);
@@ -105,6 +108,23 @@ class AdminVerificationServiceTest {
         assertThat(response.status()).isEqualTo(VerificationStatus.REJECTED);
         assertThat(response.rejectReason()).isEqualTo("자료 식별 불가");
         assertThat(response.processedById()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("관리자가 인증 신청의 자료 유형별 파일을 다운로드 DTO로 조회한다")
+    void getEvidenceFileReturnsRequestedEvidenceType() {
+        Verification verification = verification(100L);
+
+        given(verificationRepository.findWithDetailsById(100L)).willReturn(Optional.of(verification));
+
+        VerificationEvidenceFile evidenceFile = adminVerificationService.getEvidenceFile(
+            100L,
+            VerificationEvidenceType.JOB_TRAINING_HISTORY
+        );
+
+        assertThat(evidenceFile.fileName()).isEqualTo("job-training-history.txt");
+        assertThat(evidenceFile.contentType()).isEqualTo("text/plain");
+        assertThat(evidenceFile.data()).isEqualTo("job-training-content".getBytes(StandardCharsets.UTF_8));
     }
 
     private void setAdminAuthentication() {
@@ -156,10 +176,14 @@ class AdminVerificationServiceTest {
             .user(user())
             .course(course)
             .courseSession(courseSession(course))
-            .evidenceFileName("evidence.txt")
-            .evidenceContentType("text/plain")
-            .evidenceFileSize(13L)
-            .evidenceData("proof-content".getBytes())
+            .jobTrainingHistoryFileName("job-training-history.txt")
+            .jobTrainingHistoryContentType("text/plain")
+            .jobTrainingHistoryFileSize(20L)
+            .jobTrainingHistoryData("job-training-content".getBytes(StandardCharsets.UTF_8))
+            .onlineCourseApplicationFileName("online-course-application.txt")
+            .onlineCourseApplicationContentType("text/plain")
+            .onlineCourseApplicationFileSize(26L)
+            .onlineCourseApplicationData("online-application-content".getBytes(StandardCharsets.UTF_8))
             .build();
         ReflectionTestUtils.setField(verification, "id", id);
         return verification;

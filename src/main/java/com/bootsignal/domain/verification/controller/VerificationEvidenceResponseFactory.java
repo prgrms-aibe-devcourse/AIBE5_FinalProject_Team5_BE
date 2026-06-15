@@ -9,7 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 /**
- * DB에서 읽은 인증 증빙 파일을 HTTP 다운로드 응답으로 변환하는 컨트롤러 전용 헬퍼입니다.
+ * DB에서 읽은 인증 자료 파일을 HTTP 다운로드 응답으로 변환하는 컨트롤러 전용 헬퍼입니다.
  */
 final class VerificationEvidenceResponseFactory {
 

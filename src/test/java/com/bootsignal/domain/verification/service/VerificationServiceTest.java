@@ -11,12 +11,15 @@ import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.course_session.repository.CourseSessionRepository;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
+import com.bootsignal.domain.verification.dto.VerificationEvidenceFile;
 import com.bootsignal.domain.verification.dto.VerificationResponse;
 import com.bootsignal.domain.verification.entity.Verification;
+import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.repository.VerificationRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,7 +38,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * 사용자 인증 신청 서비스의 중복 신청, 과정/회차 검증, 증빙 파일 저장 규칙을 검증합니다.
+ * 사용자 인증 신청 서비스의 중복 신청, 과정/회차 검증, 자료별 파일 저장 규칙을 검증합니다.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("VerificationService 테스트")
@@ -71,12 +74,11 @@ class VerificationServiceTest {
     }
 
     @Test
-    @DisplayName("인증 신청 생성 성공")
-    void createReturnsPendingVerification() {
+    @DisplayName("직업훈련 이력 자료와 온라인 수강 신청 이력 자료를 구분해 인증 신청을 생성한다")
+    void createReturnsPendingVerificationWithSeparatedEvidenceFiles() {
         User user = user(1L, "user@example.com");
         Course course = course(10L);
         CourseSession courseSession = courseSession(20L, course);
-        MockMultipartFile evidenceFile = evidenceFile();
         setAuthentication("user@example.com");
 
         given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
@@ -90,16 +92,23 @@ class VerificationServiceTest {
             return verification;
         });
 
-        VerificationResponse response = verificationService.create(10L, 20L, evidenceFile);
+        VerificationResponse response = verificationService.create(
+            10L,
+            20L,
+            jobTrainingHistoryFile(),
+            onlineCourseApplicationFile()
+        );
 
         assertThat(response.verificationId()).isEqualTo(100L);
         assertThat(response.status()).isEqualTo(VerificationStatus.PENDING);
-        assertThat(response.evidenceFileName()).isEqualTo("evidence.txt");
-        assertThat(response.evidenceFileSize()).isEqualTo(13L);
+        assertThat(response.jobTrainingHistoryFile().fileName()).isEqualTo("job-training-history.txt");
+        assertThat(response.jobTrainingHistoryFile().fileSize()).isEqualTo(20L);
+        assertThat(response.onlineCourseApplicationFile().fileName()).isEqualTo("online-course-application.txt");
+        assertThat(response.onlineCourseApplicationFile().fileSize()).isEqualTo(26L);
     }
 
     @Test
-    @DisplayName("동일 사용자와 동일 과정 회차의 중복 신청은 차단")
+    @DisplayName("동일 사용자의 동일 과정 회차 중복 신청을 차단한다")
     void createThrowsAlreadyExistsWhenDuplicated() {
         User user = user(1L, "user@example.com");
         Course course = course(10L);
@@ -111,14 +120,19 @@ class VerificationServiceTest {
         given(courseSessionRepository.findById(20L)).willReturn(Optional.of(courseSession));
         given(verificationRepository.existsByUserIdAndCourseSessionId(1L, 20L)).willReturn(true);
 
-        assertThatThrownBy(() -> verificationService.create(10L, 20L, evidenceFile()))
+        assertThatThrownBy(() -> verificationService.create(
+            10L,
+            20L,
+            jobTrainingHistoryFile(),
+            onlineCourseApplicationFile()
+        ))
             .isInstanceOf(BootSignalException.class)
             .extracting(exception -> ((BootSignalException) exception).errorCode())
             .isEqualTo(ErrorCode.VERIFICATION_ALREADY_EXISTS);
     }
 
     @Test
-    @DisplayName("요청한 과정과 회차가 일치하지 않으면 차단")
+    @DisplayName("요청한 과정과 회차가 일치하지 않으면 차단한다")
     void createThrowsBadRequestWhenCourseSessionMismatch() {
         User user = user(1L, "user@example.com");
         Course requestedCourse = course(10L);
@@ -130,19 +144,29 @@ class VerificationServiceTest {
         given(courseRepository.findById(10L)).willReturn(Optional.of(requestedCourse));
         given(courseSessionRepository.findById(20L)).willReturn(Optional.of(courseSession));
 
-        assertThatThrownBy(() -> verificationService.create(10L, 20L, evidenceFile()))
+        assertThatThrownBy(() -> verificationService.create(
+            10L,
+            20L,
+            jobTrainingHistoryFile(),
+            onlineCourseApplicationFile()
+        ))
             .isInstanceOf(BootSignalException.class)
             .extracting(exception -> ((BootSignalException) exception).errorCode())
             .isEqualTo(ErrorCode.BAD_REQUEST);
     }
 
     @Test
-    @DisplayName("증빙 파일이 비어 있으면 차단")
-    void createThrowsEvidenceRequiredWhenFileIsEmpty() {
+    @DisplayName("직업훈련 이력 자료가 비어 있으면 차단한다")
+    void createThrowsEvidenceRequiredWhenJobTrainingHistoryFileIsEmpty() {
         User user = user(1L, "user@example.com");
         Course course = course(10L);
         CourseSession courseSession = courseSession(20L, course);
-        MockMultipartFile emptyFile = new MockMultipartFile("evidenceFile", "empty.txt", "text/plain", new byte[0]);
+        MockMultipartFile emptyFile = new MockMultipartFile(
+            "jobTrainingHistoryFile",
+            "empty.txt",
+            "text/plain",
+            new byte[0]
+        );
         setAuthentication("user@example.com");
 
         given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
@@ -150,10 +174,66 @@ class VerificationServiceTest {
         given(courseSessionRepository.findById(20L)).willReturn(Optional.of(courseSession));
         given(verificationRepository.existsByUserIdAndCourseSessionId(1L, 20L)).willReturn(false);
 
-        assertThatThrownBy(() -> verificationService.create(10L, 20L, emptyFile))
+        assertThatThrownBy(() -> verificationService.create(
+            10L,
+            20L,
+            emptyFile,
+            onlineCourseApplicationFile()
+        ))
             .isInstanceOf(BootSignalException.class)
             .extracting(exception -> ((BootSignalException) exception).errorCode())
             .isEqualTo(ErrorCode.VERIFICATION_EVIDENCE_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("온라인 수강 신청 이력 자료가 비어 있으면 차단한다")
+    void createThrowsEvidenceRequiredWhenOnlineCourseApplicationFileIsEmpty() {
+        User user = user(1L, "user@example.com");
+        Course course = course(10L);
+        CourseSession courseSession = courseSession(20L, course);
+        MockMultipartFile emptyFile = new MockMultipartFile(
+            "onlineCourseApplicationFile",
+            "empty.txt",
+            "text/plain",
+            new byte[0]
+        );
+        setAuthentication("user@example.com");
+
+        given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+        given(courseRepository.findById(10L)).willReturn(Optional.of(course));
+        given(courseSessionRepository.findById(20L)).willReturn(Optional.of(courseSession));
+        given(verificationRepository.existsByUserIdAndCourseSessionId(1L, 20L)).willReturn(false);
+
+        assertThatThrownBy(() -> verificationService.create(
+            10L,
+            20L,
+            jobTrainingHistoryFile(),
+            emptyFile
+        ))
+            .isInstanceOf(BootSignalException.class)
+            .extracting(exception -> ((BootSignalException) exception).errorCode())
+            .isEqualTo(ErrorCode.VERIFICATION_EVIDENCE_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("본인 인증 신청의 자료 유형별 파일을 다운로드 DTO로 반환한다")
+    void getMyEvidenceFileReturnsRequestedEvidenceType() {
+        User user = user(1L, "user@example.com");
+        Course course = course(10L);
+        Verification verification = verification(100L, user, course, courseSession(20L, course));
+        setAuthentication("user@example.com");
+
+        given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+        given(verificationRepository.findByIdAndUserId(100L, 1L)).willReturn(Optional.of(verification));
+
+        VerificationEvidenceFile evidenceFile = verificationService.getMyEvidenceFile(
+            100L,
+            VerificationEvidenceType.ONLINE_COURSE_APPLICATION
+        );
+
+        assertThat(evidenceFile.fileName()).isEqualTo("online-course-application.txt");
+        assertThat(evidenceFile.contentType()).isEqualTo("text/plain");
+        assertThat(evidenceFile.data()).isEqualTo("online-application-content".getBytes(StandardCharsets.UTF_8));
     }
 
     private void setAuthentication(String email) {
@@ -192,12 +272,39 @@ class VerificationServiceTest {
         return courseSession;
     }
 
-    private MockMultipartFile evidenceFile() {
+    private Verification verification(Long id, User user, Course course, CourseSession courseSession) {
+        Verification verification = Verification.builder()
+            .user(user)
+            .course(course)
+            .courseSession(courseSession)
+            .jobTrainingHistoryFileName("job-training-history.txt")
+            .jobTrainingHistoryContentType("text/plain")
+            .jobTrainingHistoryFileSize(20L)
+            .jobTrainingHistoryData("job-training-content".getBytes(StandardCharsets.UTF_8))
+            .onlineCourseApplicationFileName("online-course-application.txt")
+            .onlineCourseApplicationContentType("text/plain")
+            .onlineCourseApplicationFileSize(26L)
+            .onlineCourseApplicationData("online-application-content".getBytes(StandardCharsets.UTF_8))
+            .build();
+        ReflectionTestUtils.setField(verification, "id", id);
+        return verification;
+    }
+
+    private MockMultipartFile jobTrainingHistoryFile() {
         return new MockMultipartFile(
-            "evidenceFile",
-            "evidence.txt",
+            "jobTrainingHistoryFile",
+            "job-training-history.txt",
             "text/plain",
-            "proof-content".getBytes()
+            "job-training-content".getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    private MockMultipartFile onlineCourseApplicationFile() {
+        return new MockMultipartFile(
+            "onlineCourseApplicationFile",
+            "online-course-application.txt",
+            "text/plain",
+            "online-application-content".getBytes(StandardCharsets.UTF_8)
         );
     }
 }

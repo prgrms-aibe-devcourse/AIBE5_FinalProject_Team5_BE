@@ -33,7 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 인증 신청 API의 실제 JWT 인증, 관리자 권한, 승인 후 인증 리뷰 연동을 검증하는 통합 테스트입니다.
+ * 인증 신청 API의 JWT 인증, 관리자 권한, 자료 유형별 업로드/다운로드, 인증 리뷰 연동을 검증하는 통합 테스트입니다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,6 +42,8 @@ import org.springframework.transaction.annotation.Transactional;
 class VerificationControllerIntegrationTest {
 
     private static final String PASSWORD = "password123";
+    private static final String JOB_TRAINING_CONTENT = "job-training-content";
+    private static final String ONLINE_APPLICATION_CONTENT = "online-application-content";
 
     @Autowired
     private MockMvc mockMvc;
@@ -62,7 +64,7 @@ class VerificationControllerIntegrationTest {
     private CourseSessionRepository courseSessionRepository;
 
     @Test
-    void userCanCreateAndReadOwnVerificationWithEvidenceFile() throws Exception {
+    void userCanCreateAndReadOwnVerificationWithSeparatedEvidenceFiles() throws Exception {
         CourseSessionFixture fixture = createCourseSessionFixture();
         String userToken = createUserAndLogin("verify-user@example.com", "인증사용자", UserRole.USER);
 
@@ -74,13 +76,22 @@ class VerificationControllerIntegrationTest {
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.content[0].verificationId").value(verificationId))
             .andExpect(jsonPath("$.data.content[0].status").value("PENDING"))
-            .andExpect(jsonPath("$.data.content[0].evidenceFileName").value("evidence.txt"));
+            .andExpect(jsonPath("$.data.content[0].jobTrainingHistoryFile.fileName")
+                .value("job-training-history.txt"))
+            .andExpect(jsonPath("$.data.content[0].onlineCourseApplicationFile.fileName")
+                .value("online-course-application.txt"));
 
-        mockMvc.perform(get("/api/verifications/{verificationId}/evidence", verificationId)
+        mockMvc.perform(get("/api/verifications/{verificationId}/evidence/job-training-history", verificationId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
-            .andExpect(content().string("proof-content"));
+            .andExpect(content().string(JOB_TRAINING_CONTENT));
+
+        mockMvc.perform(get("/api/verifications/{verificationId}/evidence/online-course-application", verificationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+            .andExpect(content().string(ONLINE_APPLICATION_CONTENT));
     }
 
     @Test
@@ -106,7 +117,16 @@ class VerificationControllerIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.content[0].verificationId").value(verificationId));
+            .andExpect(jsonPath("$.data.content[0].verificationId").value(verificationId))
+            .andExpect(jsonPath("$.data.content[0].jobTrainingHistoryFile.fileName")
+                .value("job-training-history.txt"));
+
+        mockMvc.perform(get("/api/admin/verifications/{verificationId}/evidence/online-course-application",
+                verificationId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+            .andExpect(content().string(ONLINE_APPLICATION_CONTENT));
 
         mockMvc.perform(patch("/api/admin/verifications/{verificationId}/approve", verificationId)
                 .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
@@ -167,22 +187,31 @@ class VerificationControllerIntegrationTest {
     }
 
     private Long createVerification(String userToken, Long courseId, Long courseSessionId) throws Exception {
-        MockMultipartFile evidenceFile = new MockMultipartFile(
-            "evidenceFile",
-            "evidence.txt",
+        MockMultipartFile jobTrainingHistoryFile = new MockMultipartFile(
+            "jobTrainingHistoryFile",
+            "job-training-history.txt",
             "text/plain",
-            "proof-content".getBytes(StandardCharsets.UTF_8)
+            JOB_TRAINING_CONTENT.getBytes(StandardCharsets.UTF_8)
+        );
+        MockMultipartFile onlineCourseApplicationFile = new MockMultipartFile(
+            "onlineCourseApplicationFile",
+            "online-course-application.txt",
+            "text/plain",
+            ONLINE_APPLICATION_CONTENT.getBytes(StandardCharsets.UTF_8)
         );
 
         String response = mockMvc.perform(multipart("/api/verifications")
-                .file(evidenceFile)
+                .file(jobTrainingHistoryFile)
+                .file(onlineCourseApplicationFile)
                 .param("courseId", String.valueOf(courseId))
                 .param("courseSessionId", String.valueOf(courseSessionId))
                 .header(HttpHeaders.AUTHORIZATION, bearer(userToken)))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.status").value("PENDING"))
-            .andExpect(jsonPath("$.data.evidenceFileName").value("evidence.txt"))
+            .andExpect(jsonPath("$.data.jobTrainingHistoryFile.fileName").value("job-training-history.txt"))
+            .andExpect(jsonPath("$.data.onlineCourseApplicationFile.fileName")
+                .value("online-course-application.txt"))
             .andReturn()
             .getResponse()
             .getContentAsString(StandardCharsets.UTF_8);

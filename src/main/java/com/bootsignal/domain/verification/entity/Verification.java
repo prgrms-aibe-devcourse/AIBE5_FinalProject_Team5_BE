@@ -25,7 +25,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 사용자의 과정 회차 인증 신청과 관리자 처리 결과, 업로드 증빙 파일을 저장하는 엔티티입니다.
+ * 사용자의 과정 수료/수강 인증 신청, 관리자 처리 결과, 제출 자료를 저장하는 엔티티입니다.
  */
 @Entity
 @Getter
@@ -59,19 +59,33 @@ public class Verification extends BaseEntity {
     @Column(nullable = false)
     private VerificationStatus status;
 
-    @Column(name = "evidence_file_name", length = 255)
-    private String evidenceFileName;
+    @Column(name = "job_training_history_file_name", length = 255)
+    private String jobTrainingHistoryFileName;
 
-    @Column(name = "evidence_content_type", length = 100)
-    private String evidenceContentType;
+    @Column(name = "job_training_history_content_type", length = 100)
+    private String jobTrainingHistoryContentType;
 
-    @Column(name = "evidence_file_size")
-    private Long evidenceFileSize;
+    @Column(name = "job_training_history_file_size")
+    private Long jobTrainingHistoryFileSize;
 
     @Lob
     @Basic(fetch = FetchType.LAZY)
-    @Column(name = "evidence_data", columnDefinition = "LONGBLOB")
-    private byte[] evidenceData;
+    @Column(name = "job_training_history_data", columnDefinition = "LONGBLOB")
+    private byte[] jobTrainingHistoryData;
+
+    @Column(name = "online_course_application_file_name", length = 255)
+    private String onlineCourseApplicationFileName;
+
+    @Column(name = "online_course_application_content_type", length = 100)
+    private String onlineCourseApplicationContentType;
+
+    @Column(name = "online_course_application_file_size")
+    private Long onlineCourseApplicationFileSize;
+
+    @Lob
+    @Basic(fetch = FetchType.LAZY)
+    @Column(name = "online_course_application_data", columnDefinition = "LONGBLOB")
+    private byte[] onlineCourseApplicationData;
 
     @Column(name = "reject_reason", columnDefinition = "TEXT")
     private String rejectReason;
@@ -91,19 +105,27 @@ public class Verification extends BaseEntity {
         User user,
         Course course,
         CourseSession courseSession,
-        String evidenceFileName,
-        String evidenceContentType,
-        Long evidenceFileSize,
-        byte[] evidenceData
+        String jobTrainingHistoryFileName,
+        String jobTrainingHistoryContentType,
+        Long jobTrainingHistoryFileSize,
+        byte[] jobTrainingHistoryData,
+        String onlineCourseApplicationFileName,
+        String onlineCourseApplicationContentType,
+        Long onlineCourseApplicationFileSize,
+        byte[] onlineCourseApplicationData
     ) {
         this.user = user;
         this.course = course;
         this.courseSession = courseSession;
         this.status = VerificationStatus.PENDING;
-        this.evidenceFileName = evidenceFileName;
-        this.evidenceContentType = evidenceContentType;
-        this.evidenceFileSize = evidenceFileSize;
-        this.evidenceData = evidenceData;
+        this.jobTrainingHistoryFileName = jobTrainingHistoryFileName;
+        this.jobTrainingHistoryContentType = jobTrainingHistoryContentType;
+        this.jobTrainingHistoryFileSize = jobTrainingHistoryFileSize;
+        this.jobTrainingHistoryData = jobTrainingHistoryData;
+        this.onlineCourseApplicationFileName = onlineCourseApplicationFileName;
+        this.onlineCourseApplicationContentType = onlineCourseApplicationContentType;
+        this.onlineCourseApplicationFileSize = onlineCourseApplicationFileSize;
+        this.onlineCourseApplicationData = onlineCourseApplicationData;
     }
 
     public void approve(User admin, String adminMemo) {

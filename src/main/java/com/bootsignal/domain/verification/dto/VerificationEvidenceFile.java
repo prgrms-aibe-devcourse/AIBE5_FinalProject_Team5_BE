@@ -4,7 +4,7 @@ import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
 
 /**
- * DB에 저장된 인증 증빙 파일을 다운로드 응답으로 변환하기 위한 내부 DTO입니다.
+ * DB에 저장된 인증 자료 파일을 다운로드 응답으로 변환하기 위한 내부 DTO입니다.
  */
 public record VerificationEvidenceFile(
     String fileName,

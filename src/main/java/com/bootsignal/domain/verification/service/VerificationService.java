@@ -9,6 +9,7 @@ import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.domain.verification.dto.VerificationEvidenceFile;
 import com.bootsignal.domain.verification.dto.VerificationResponse;
 import com.bootsignal.domain.verification.entity.Verification;
+import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.repository.VerificationRepository;
 import com.bootsignal.global.exception.BootSignalException;
@@ -24,13 +25,12 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 로그인 사용자의 인증 신청 생성과 본인 신청 조회, 증빙 파일 조회를 처리하는 서비스입니다.
+ * 로그인 사용자의 인증 신청 생성, 본인 신청 조회, 자료 다운로드를 처리하는 서비스입니다.
  */
 @Service
 @Transactional(readOnly = true)
 public class VerificationService {
 
-    private static final String DEFAULT_EVIDENCE_FILE_NAME = "verification-evidence";
     private static final String DEFAULT_EVIDENCE_CONTENT_TYPE = MediaType.APPLICATION_OCTET_STREAM_VALUE;
 
     private final VerificationRepository verificationRepository;
@@ -51,23 +51,40 @@ public class VerificationService {
     }
 
     @Transactional
-    public VerificationResponse create(Long courseId, Long courseSessionId, MultipartFile evidenceFile) {
+    public VerificationResponse create(
+        Long courseId,
+        Long courseSessionId,
+        MultipartFile jobTrainingHistoryFile,
+        MultipartFile onlineCourseApplicationFile
+    ) {
         User user = getAuthenticatedUser();
         Course course = getCourse(courseId);
         CourseSession courseSession = getCourseSession(courseSessionId);
 
         validateCourseSessionBelongsToCourse(courseSession, course);
         validateNotDuplicated(user.getId(), courseSession.getId());
-        validateEvidenceFile(evidenceFile);
+
+        EvidencePayload jobTrainingHistory = toEvidencePayload(
+            jobTrainingHistoryFile,
+            VerificationEvidenceType.JOB_TRAINING_HISTORY
+        );
+        EvidencePayload onlineCourseApplication = toEvidencePayload(
+            onlineCourseApplicationFile,
+            VerificationEvidenceType.ONLINE_COURSE_APPLICATION
+        );
 
         Verification verification = Verification.builder()
             .user(user)
             .course(course)
             .courseSession(courseSession)
-            .evidenceFileName(resolveFileName(evidenceFile))
-            .evidenceContentType(resolveContentType(evidenceFile))
-            .evidenceFileSize(evidenceFile.getSize())
-            .evidenceData(readEvidenceBytes(evidenceFile))
+            .jobTrainingHistoryFileName(jobTrainingHistory.fileName())
+            .jobTrainingHistoryContentType(jobTrainingHistory.contentType())
+            .jobTrainingHistoryFileSize(jobTrainingHistory.fileSize())
+            .jobTrainingHistoryData(jobTrainingHistory.data())
+            .onlineCourseApplicationFileName(onlineCourseApplication.fileName())
+            .onlineCourseApplicationContentType(onlineCourseApplication.contentType())
+            .onlineCourseApplicationFileSize(onlineCourseApplication.fileSize())
+            .onlineCourseApplicationData(onlineCourseApplication.data())
             .build();
 
         return VerificationResponse.from(verificationRepository.save(verification));
@@ -84,10 +101,13 @@ public class VerificationService {
         return VerificationResponse.from(findMyVerification(verificationId, user.getId()));
     }
 
-    public VerificationEvidenceFile getMyEvidenceFile(Long verificationId) {
+    public VerificationEvidenceFile getMyEvidenceFile(
+        Long verificationId,
+        VerificationEvidenceType evidenceType
+    ) {
         User user = getAuthenticatedUser();
         Verification verification = findMyVerification(verificationId, user.getId());
-        return toEvidenceFile(verification);
+        return VerificationEvidenceFileResolver.toEvidenceFile(verification, evidenceType);
     }
 
     private Verification findMyVerification(Long verificationId, Long userId) {
@@ -107,28 +127,41 @@ public class VerificationService {
         }
     }
 
-    private void validateEvidenceFile(MultipartFile evidenceFile) {
+    private EvidencePayload toEvidencePayload(MultipartFile evidenceFile, VerificationEvidenceType evidenceType) {
+        validateEvidenceFile(evidenceFile, evidenceType);
+        return new EvidencePayload(
+            resolveFileName(evidenceFile, evidenceType),
+            resolveContentType(evidenceFile),
+            evidenceFile.getSize(),
+            readEvidenceBytes(evidenceFile, evidenceType)
+        );
+    }
+
+    private void validateEvidenceFile(MultipartFile evidenceFile, VerificationEvidenceType evidenceType) {
         if (evidenceFile == null || evidenceFile.isEmpty()) {
-            throw new BootSignalException(ErrorCode.VERIFICATION_EVIDENCE_REQUIRED);
+            throw new BootSignalException(
+                ErrorCode.VERIFICATION_EVIDENCE_REQUIRED,
+                evidenceType.displayName() + "는 필수입니다."
+            );
         }
     }
 
-    private byte[] readEvidenceBytes(MultipartFile evidenceFile) {
+    private byte[] readEvidenceBytes(MultipartFile evidenceFile, VerificationEvidenceType evidenceType) {
         try {
             return evidenceFile.getBytes();
         } catch (IOException exception) {
             throw new BootSignalException(
                 ErrorCode.INTERNAL_SERVER_ERROR,
-                "증빙 파일 저장 중 오류가 발생했습니다.",
+                evidenceType.displayName() + " 저장 중 오류가 발생했습니다.",
                 exception
             );
         }
     }
 
-    private String resolveFileName(MultipartFile evidenceFile) {
+    private String resolveFileName(MultipartFile evidenceFile, VerificationEvidenceType evidenceType) {
         String originalFileName = evidenceFile.getOriginalFilename();
         if (!StringUtils.hasText(originalFileName)) {
-            return DEFAULT_EVIDENCE_FILE_NAME;
+            return evidenceType.defaultFileName();
         }
         return StringUtils.cleanPath(originalFileName);
     }
@@ -136,18 +169,6 @@ public class VerificationService {
     private String resolveContentType(MultipartFile evidenceFile) {
         String contentType = evidenceFile.getContentType();
         return StringUtils.hasText(contentType) ? contentType : DEFAULT_EVIDENCE_CONTENT_TYPE;
-    }
-
-    private VerificationEvidenceFile toEvidenceFile(Verification verification) {
-        byte[] evidenceData = verification.getEvidenceData();
-        if (evidenceData == null || evidenceData.length == 0) {
-            throw new BootSignalException(ErrorCode.VERIFICATION_EVIDENCE_INVALID);
-        }
-        return new VerificationEvidenceFile(
-            verification.getEvidenceFileName(),
-            verification.getEvidenceContentType(),
-            evidenceData
-        );
     }
 
     private User getAuthenticatedUser() {
@@ -165,5 +186,13 @@ public class VerificationService {
     private CourseSession getCourseSession(Long courseSessionId) {
         return courseSessionRepository.findById(courseSessionId)
             .orElseThrow(() -> new BootSignalException(ErrorCode.COURSE_SESSION_NOT_FOUND));
+    }
+
+    private record EvidencePayload(
+        String fileName,
+        String contentType,
+        Long fileSize,
+        byte[] data
+    ) {
     }
 }

@@ -17,9 +17,8 @@ public record VerificationResponse(
     Long courseSessionId,
     Integer courseSessionRound,
     VerificationStatus status,
-    String evidenceFileName,
-    String evidenceContentType,
-    Long evidenceFileSize,
+    VerificationEvidenceMetadata jobTrainingHistoryFile,
+    VerificationEvidenceMetadata onlineCourseApplicationFile,
     String rejectReason,
     String adminMemo,
     Long processedById,
@@ -40,9 +39,16 @@ public record VerificationResponse(
             verification.getCourseSession().getId(),
             verification.getCourseSession().getTrprDegr(),
             verification.getStatus(),
-            verification.getEvidenceFileName(),
-            verification.getEvidenceContentType(),
-            verification.getEvidenceFileSize(),
+            VerificationEvidenceMetadata.from(
+                verification.getJobTrainingHistoryFileName(),
+                verification.getJobTrainingHistoryContentType(),
+                verification.getJobTrainingHistoryFileSize()
+            ),
+            VerificationEvidenceMetadata.from(
+                verification.getOnlineCourseApplicationFileName(),
+                verification.getOnlineCourseApplicationContentType(),
+                verification.getOnlineCourseApplicationFileSize()
+            ),
             verification.getRejectReason(),
             verification.getAdminMemo(),
             processedBy == null ? null : processedBy.getId(),
