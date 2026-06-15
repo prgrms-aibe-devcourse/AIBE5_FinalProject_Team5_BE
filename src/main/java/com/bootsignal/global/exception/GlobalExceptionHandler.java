@@ -57,9 +57,16 @@ public class GlobalExceptionHandler {
 		return toResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.VALIDATION_ERROR.message(), fieldErrors);
 	}
 
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMissingServletRequestParameterException(
+		MissingServletRequestParameterException exception
+	) {
+		String message = String.format("필수 요청 파라미터 '%s'가 없습니다.", exception.getParameterName());
+		return toResponse(ErrorCode.BAD_REQUEST, message);
+	}
+
 	@ExceptionHandler({
 		HttpMessageNotReadableException.class,
-		MissingServletRequestParameterException.class,
 		MethodArgumentTypeMismatchException.class,
 		IllegalArgumentException.class
 	})

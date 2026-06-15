@@ -45,7 +45,7 @@ public class CalendarEventQueryService {
 	private static final String COURSE_START_TITLE_PREFIX = "[과정 시작] ";
 	private static final String COURSE_END_TITLE_PREFIX = "[과정 종료] ";
 	private static final ZoneId ZONE_ID = ZoneId.of("Asia/Seoul");
-	private static final int MIN_YEAR = 1970;
+	private static final int MIN_YEAR = 2000;
 	private static final int MAX_YEAR = 2100;
 
 	private final UserRepository userRepository;

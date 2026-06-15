@@ -151,7 +151,8 @@ class CalendarControllerTest {
 				.param("year", "2026"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.success").value(false))
-			.andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+			.andExpect(jsonPath("$.error.code").value("BAD_REQUEST"))
+			.andExpect(jsonPath("$.error.message").value("필수 요청 파라미터 'month'가 없습니다."));
 	}
 
 	@Test
