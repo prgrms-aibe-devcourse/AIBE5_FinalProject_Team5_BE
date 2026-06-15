@@ -61,6 +61,9 @@ public class Course extends BaseEntity {
     // HTML 크롤링 수행 시각 (UTC)
     private Instant crawledAt;
 
+    // 수강후기 크롤링 수행 시각 (UTC)
+    private Instant reviewCrawledAt;
+
     // 소속 기관
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "institution_id")
@@ -84,5 +87,9 @@ public class Course extends BaseEntity {
         this.trainingTargetRequirements = trainingTargetRequirements;
         this.trainingGoal = trainingGoal;
         this.crawledAt = crawledAt;
+    }
+
+    public void markReviewCrawled(Instant reviewCrawledAt) {
+        this.reviewCrawledAt = reviewCrawledAt;
     }
 }
