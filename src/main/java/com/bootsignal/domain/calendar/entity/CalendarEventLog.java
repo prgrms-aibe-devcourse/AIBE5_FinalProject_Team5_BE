@@ -26,8 +26,8 @@ import lombok.NoArgsConstructor;
 @Table(
 	name = "calendar_event_log",
 	uniqueConstraints = @UniqueConstraint(
-		name = "uk_calendar_event_log_user_course_session",
-		columnNames = {"user_id", "course_session_id"}
+		name = "uk_calendar_event_log_course_type",
+		columnNames = {"user_id", "course_session_id", "event_type"}
 	)
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -41,12 +41,12 @@ public class CalendarEventLog extends BaseEntity {
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "course_id", nullable = false)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "course_id")
 	private Course course;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "course_session_id", nullable = false)
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "course_session_id")
 	private CourseSession courseSession;
 
 	@Column(name = "google_event_id", length = 255)
@@ -65,17 +65,22 @@ public class CalendarEventLog extends BaseEntity {
 	private LocalDateTime eventEndAt;
 
 	@Enumerated(EnumType.STRING)
+	@Column(name = "event_type", nullable = false, length = 30)
+	private CalendarEventType eventType; // 이벤트 타입
+
+	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 30)
-	private CalendarEventLogStatus status; // 이벤트 상태
+	private CalendarEventLogStatus status;
 
 	@Column(name = "error_message", columnDefinition = "TEXT")
 	private String errorMessage;
 
-	// 구글 Calendar 이벤트 로그 초기화
-	public static CalendarEventLog init(
+	// 구글 Calendar 이벤트 생성 로그 초기화
+	public static CalendarEventLog initCourseEvent(
 		User user,
 		Course course,
 		CourseSession courseSession,
+		CalendarEventType eventType,
 		String eventTitle,
 		LocalDateTime eventStartAt,
 		LocalDateTime eventEndAt
@@ -84,6 +89,7 @@ public class CalendarEventLog extends BaseEntity {
 		log.user = user;
 		log.course = course;
 		log.courseSession = courseSession;
+		log.eventType = eventType;
 		log.eventTitle = eventTitle;
 		log.eventStartAt = eventStartAt;
 		log.eventEndAt = eventEndAt;
@@ -106,7 +112,7 @@ public class CalendarEventLog extends BaseEntity {
 		this.errorMessage = null;
 	}
 
-	// 구글 Calendar 이벤트 생성 실패 로그 동기화
+	// 구글 Calendar 이벤트 생성 로그 실패 동기화
 	public void syncFailed(
 		String eventTitle,
 		LocalDateTime eventStartAt,
@@ -128,13 +134,13 @@ public class CalendarEventLog extends BaseEntity {
 		this.errorMessage = null;
 	}
 
-	// 구글 Calendar 이벤트 삭제 실패 로그 동기화
+	// 구글 Calendar 이벤트 삭제 로그 실패 동기화
 	public void markDeleteFailed(String errorMessage) {
 		this.status = CalendarEventLogStatus.FAILED;
 		this.errorMessage = errorMessage;
 	}
 
-	// 구글 Calendar 이벤트 생성 여부 확인
+	// 구글 Calendar 이벤트 생성 로그 조회
 	public boolean isCreated() {
 		return status == CalendarEventLogStatus.CREATED;
 	}
