@@ -1,5 +1,6 @@
 package com.bootsignal.domain.course.service;
 
+import com.bootsignal.domain.code.service.FieldCategoryService;
 import com.bootsignal.domain.course.dto.CourseDetailResponse;
 import com.bootsignal.domain.course.dto.CourseListRequest;
 import com.bootsignal.domain.course.dto.CourseListResponse;
@@ -20,7 +21,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -32,6 +32,7 @@ public class CourseService {
 
     private final CourseRepository courseRepository;
     private final CourseSessionRepository courseSessionRepository;
+    private final FieldCategoryService fieldCategoryService;
 
     /**
      * 과정 목록 조회 (검색 + 필터 + 페이징)
@@ -40,7 +41,9 @@ public class CourseService {
         Specification<Course> spec = Specification.allOf(
                 CourseSpecification.withKeyword(request.keyword()),
                 CourseSpecification.withTrngAreaCd(request.trngAreaCd()),
-                CourseSpecification.withNcsCd(request.ncsCd())
+                CourseSpecification.withFieldCategory(request.fieldCategory(), fieldCategoryService),
+                CourseSpecification.withIsFree(request.isFree()),
+                CourseSpecification.withDurationFilter(request.durationFilter())
         );
 
         Pageable pageable = PageRequest.of(
