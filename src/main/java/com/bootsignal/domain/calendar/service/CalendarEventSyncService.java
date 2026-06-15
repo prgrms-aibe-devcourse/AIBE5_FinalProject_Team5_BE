@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-// 북마크 & 구글 캘린더 동기화 처리
+// 북마크 & 구글 캘린더 동기화 
 @Slf4j
 @Service
 @RequiredArgsConstructor

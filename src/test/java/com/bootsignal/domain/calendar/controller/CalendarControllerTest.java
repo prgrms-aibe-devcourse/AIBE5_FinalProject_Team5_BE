@@ -8,11 +8,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.bootsignal.domain.calendar.dto.CalendarEventItemResponse;
+import com.bootsignal.domain.calendar.dto.CalendarEventListResponse;
 import com.bootsignal.domain.calendar.dto.CalendarStatusResponse;
+import com.bootsignal.domain.calendar.entity.CalendarEventType;
+import com.bootsignal.domain.calendar.service.CalendarEventQueryService;
 import com.bootsignal.domain.calendar.service.CalendarService;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +36,137 @@ class CalendarControllerTest {
 
 	@MockitoBean
 	private CalendarService calendarService;
+
+	@MockitoBean
+	private CalendarEventQueryService calendarEventQueryService;
+
+	@Test
+	@DisplayName("GET /api/calendar/events — 연동 사용자 일정 목록 (200)")
+	void getEventsReturnsMonthlyEvents() throws Exception {
+		given(calendarEventQueryService.getMonthlyEvents(2026, 6))
+			.willReturn(new CalendarEventListResponse(
+				2026,
+				6,
+				true,
+				true,
+				2,
+				List.of(
+					new CalendarEventItemResponse(
+						101L,
+						"abc123google",
+						"[과정 시작] Spring Boot 실무",
+						"BootSignal에서 자동 등록된 과정 시작 일정",
+						LocalDateTime.of(2026, 6, 1, 0, 0),
+						LocalDateTime.of(2026, 6, 1, 23, 59, 59),
+						CalendarEventType.COURSE_START,
+						34L
+					),
+					new CalendarEventItemResponse(
+						null,
+						"xyz789google",
+						"팀 미팅",
+						"주간 스탠드업",
+						LocalDateTime.of(2026, 6, 10, 14, 0),
+						LocalDateTime.of(2026, 6, 10, 15, 0),
+						CalendarEventType.CUSTOM,
+						null
+					)
+				)
+			));
+
+		mockMvc.perform(get("/api/calendar/events")
+				.param("year", "2026")
+				.param("month", "6"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.year").value(2026))
+			.andExpect(jsonPath("$.data.month").value(6))
+			.andExpect(jsonPath("$.data.googleUser").value(true))
+			.andExpect(jsonPath("$.data.calendarConnected").value(true))
+			.andExpect(jsonPath("$.data.totalCount").value(2))
+			.andExpect(jsonPath("$.data.events[0].id").value(101))
+			.andExpect(jsonPath("$.data.events[0].eventType").value("COURSE_START"))
+			.andExpect(jsonPath("$.data.events[0].courseSessionId").value(34))
+			.andExpect(jsonPath("$.data.events[1].id").doesNotExist())
+			.andExpect(jsonPath("$.data.events[1].eventType").value("CUSTOM"))
+			.andExpect(jsonPath("$.data.events[1].courseSessionId").doesNotExist());
+	}
+
+	@Test
+	@DisplayName("GET /api/calendar/events — 미연동 사용자 북마크 일정 (200)")
+	void getEventsReturnsBookmarkEventsWhenNotConnected() throws Exception {
+		given(calendarEventQueryService.getMonthlyEvents(2026, 9))
+			.willReturn(new CalendarEventListResponse(
+				2026,
+				9,
+				true,
+				false,
+				1,
+				List.of(
+					new CalendarEventItemResponse(
+						3L,
+						"66erb1l4lfkbhk05th02s7idtc",
+						"[과정 시작] Spring Boot 실무",
+						null,
+						LocalDateTime.of(2026, 9, 11, 0, 0),
+						LocalDateTime.of(2026, 9, 11, 23, 59, 59),
+						CalendarEventType.COURSE_START,
+						1L
+					)
+				)
+			));
+
+		mockMvc.perform(get("/api/calendar/events")
+				.param("year", "2026")
+				.param("month", "9"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.calendarConnected").value(false))
+			.andExpect(jsonPath("$.data.totalCount").value(1))
+			.andExpect(jsonPath("$.data.events[0].eventType").value("COURSE_START"))
+			.andExpect(jsonPath("$.data.events[0].id").value(3))
+			.andExpect(jsonPath("$.data.events[0].googleEventId").value("66erb1l4lfkbhk05th02s7idtc"));
+	}
+
+	@Test
+	@DisplayName("GET /api/calendar/events — 미연동 사용자 빈 목록 (200)")
+	void getEventsReturnsEmptyListWhenNotConnected() throws Exception {
+		given(calendarEventQueryService.getMonthlyEvents(2026, 6))
+			.willReturn(CalendarEventListResponse.empty(2026, 6, true, false));
+
+		mockMvc.perform(get("/api/calendar/events")
+				.param("year", "2026")
+				.param("month", "6"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.calendarConnected").value(false))
+			.andExpect(jsonPath("$.data.totalCount").value(0))
+			.andExpect(jsonPath("$.data.events").isEmpty());
+	}
+
+	@Test
+	@DisplayName("GET /api/calendar/events — month 파라미터 누락 (400)")
+	void getEventsReturnsBadRequestWhenMonthMissing() throws Exception {
+		mockMvc.perform(get("/api/calendar/events")
+				.param("year", "2026"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.error.code").value("BAD_REQUEST"));
+	}
+
+	@Test
+	@DisplayName("GET /api/calendar/events — Google 조회 실패 (502)")
+	void getEventsReturnsBadGatewayWhenGoogleFetchFails() throws Exception {
+		given(calendarEventQueryService.getMonthlyEvents(2026, 6))
+			.willThrow(new BootSignalException(ErrorCode.CALENDAR_FETCH_FAILED));
+
+		mockMvc.perform(get("/api/calendar/events")
+				.param("year", "2026")
+				.param("month", "6"))
+			.andExpect(status().isBadGateway())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.error.code").value("CALENDAR_FETCH_FAILED"));
+	}
 
 	@Test
 	@DisplayName("GET /api/calendar/status — 연동됨 (200)")
