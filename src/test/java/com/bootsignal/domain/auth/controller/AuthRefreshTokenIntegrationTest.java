@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -27,7 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Refresh Token 저장/회전/폐기 보안 흐름을 실제 API와 DB 상태로 검증하는 통합 테스트입니다.
+ * Refresh Token 회전, 재사용 차단, 로그아웃 무효화를 실제 API와 DB 상태로 검증하는 통합 테스트입니다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -97,6 +98,32 @@ class AuthRefreshTokenIntegrationTest {
 		assertThat(refreshTokenRepository.findAll())
 			.extracting(RefreshToken::getTokenHash)
 			.doesNotContain(firstRefreshToken, rotatedRefreshToken, logoutRefreshToken);
+	}
+
+	@Test
+	void refreshAndLogoutUseRefreshTokenEvenWhenAuthorizationHeaderIsStale() throws Exception {
+		signup("stale-authorization@example.com", "password123", "staleAuthUser");
+		JsonNode loginData = login("stale-authorization@example.com", "password123");
+		String firstRefreshToken = loginData.path("refreshToken").asText();
+
+		String refreshResponse = mockMvc.perform(post("/api/auth/refresh")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer stale-or-invalid-access-token")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(refreshTokenJson(firstRefreshToken)))
+			.andExpect(status().isOk())
+			.andReturn()
+			.getResponse()
+			.getContentAsString(StandardCharsets.UTF_8);
+
+		JsonNode refreshData = objectMapper.readTree(refreshResponse).path("data");
+		String rotatedRefreshToken = refreshData.path("refreshToken").asText();
+		assertThat(rotatedRefreshToken).isNotEqualTo(firstRefreshToken);
+
+		mockMvc.perform(post("/api/auth/logout")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer stale-or-invalid-access-token")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(refreshTokenJson(rotatedRefreshToken)))
+			.andExpect(status().isNoContent());
 	}
 
 	@Test

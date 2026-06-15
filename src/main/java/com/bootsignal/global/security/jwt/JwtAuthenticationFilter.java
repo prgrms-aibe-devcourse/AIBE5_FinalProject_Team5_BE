@@ -14,8 +14,13 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
+/**
+ * Authorization 헤더의 Access Token을 검증해 SecurityContext에 인증 정보를 설정하는 필터입니다.
+ * 인증 API는 Refresh Token 본문 검증 흐름과 충돌하지 않도록 필터 대상에서 제외합니다.
+ */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+	private static final String AUTH_API_PREFIX = "/api/auth/";
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final JwtTokenProvider jwtTokenProvider;
@@ -27,6 +32,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	) {
 		this.jwtTokenProvider = jwtTokenProvider;
 		this.handlerExceptionResolver = handlerExceptionResolver;
+	}
+
+	@Override
+	protected boolean shouldNotFilter(HttpServletRequest request) {
+		String requestPath = request.getRequestURI();
+		String contextPath = request.getContextPath();
+		if (StringUtils.hasText(contextPath) && requestPath.startsWith(contextPath)) {
+			requestPath = requestPath.substring(contextPath.length());
+		}
+		return requestPath.startsWith(AUTH_API_PREFIX);
 	}
 
 	@Override

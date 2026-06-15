@@ -30,6 +30,8 @@ import com.bootsignal.global.security.jwt.JwtRefreshTokenClaims;
 import com.bootsignal.global.security.jwt.JwtTokenPair;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
 import com.bootsignal.global.security.jwt.RefreshTokenHasher;
+import jakarta.persistence.LockModeType;
+import java.lang.reflect.Method;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -39,9 +41,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+/**
+ * AuthService의 회원가입, 로그인, 소셜 로그인, Refresh Token 회전 및 로그아웃 로직을 검증하는 단위 테스트입니다.
+ */
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
@@ -276,6 +282,16 @@ class AuthServiceTest {
 
 		assertThat(activeToken.isRevoked()).isTrue();
 		verify(jwtTokenProvider, never()).createTokenPair(any());
+	}
+
+	@Test
+	void refreshTokenLookupUsesPessimisticWriteLock() throws Exception {
+		Method method = RefreshTokenRepository.class.getMethod("findByTokenHash", String.class);
+
+		Lock lock = method.getAnnotation(Lock.class);
+
+		assertThat(lock).isNotNull();
+		assertThat(lock.value()).isEqualTo(LockModeType.PESSIMISTIC_WRITE);
 	}
 
 	@Test
