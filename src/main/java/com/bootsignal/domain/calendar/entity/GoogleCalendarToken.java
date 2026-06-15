@@ -103,4 +103,10 @@ public class GoogleCalendarToken extends BaseEntity {
 	public void revoke(LocalDateTime revokedAt) {
 		this.revokedAt = revokedAt;
 	}
+
+	// 엑세스 토큰 갱신
+	public void refreshAccessToken(String accessTokenEncrypted, LocalDateTime expiresAt) {
+		this.accessTokenEncrypted = accessTokenEncrypted;
+		this.expiresAt = expiresAt;
+	}
 }

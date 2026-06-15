@@ -16,6 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+// 구글 캘린더 최초 연동 처리
+
 @Service
 @RequiredArgsConstructor
 public class GoogleCalendarOAuthStateService {
