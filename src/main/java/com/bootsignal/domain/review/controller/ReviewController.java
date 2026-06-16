@@ -4,7 +4,6 @@ import com.bootsignal.domain.review.dto.ReviewCreateRequest;
 import com.bootsignal.domain.review.dto.ReviewResponse;
 import com.bootsignal.domain.review.dto.ReviewStatisticsResponse;
 import com.bootsignal.domain.review.dto.ReviewUpdateRequest;
-import com.bootsignal.domain.review.dto.VerifiedReviewDetailRequest;
 import com.bootsignal.domain.review.entity.ReviewType;
 import com.bootsignal.domain.review.service.ReviewService;
 import jakarta.validation.Valid;
@@ -67,14 +66,6 @@ public class ReviewController {
         @RequestBody @Valid ReviewUpdateRequest request
     ) {
         return reviewService.update(reviewId, request);
-    }
-
-    @PatchMapping("/api/reviews/{reviewId}/verify")
-    public ReviewResponse upgrade(
-        @PathVariable Long reviewId,
-        @RequestBody @Valid VerifiedReviewDetailRequest request
-    ) {
-        return reviewService.upgrade(reviewId, request);
     }
 
     @DeleteMapping("/api/reviews/{reviewId}")

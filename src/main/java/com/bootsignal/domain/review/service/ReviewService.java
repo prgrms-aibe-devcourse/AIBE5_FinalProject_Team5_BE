@@ -116,28 +116,6 @@ public class ReviewService {
     }
 
     @Transactional
-    public ReviewResponse upgrade(Long reviewId, VerifiedReviewDetailRequest request) {
-        User user = getAuthenticatedUser();
-        Review review = findActiveReview(reviewId);
-
-        validateAuthor(review, user);
-
-        if (review.getReviewType() == ReviewType.VERIFIED) {
-            throw new BootSignalException(ErrorCode.BAD_REQUEST, "이미 인증 리뷰입니다.");
-        }
-
-        validateApprovedVerification(user.getId(), review.getCourseSession().getId());
-
-        ReviewVerifiedDetail verifiedDetail = buildVerifiedDetail(request);
-        Integer rating = calculateVerifiedRating(request);
-
-        review.upgradeToVerified();
-        review.updateVerifiedDetail(verifiedDetail);
-        review.update(rating, null);
-        return ReviewResponse.from(review);
-    }
-
-    @Transactional
     public void delete(Long reviewId) {
         User user = getAuthenticatedUser();
         Review review = findActiveReview(reviewId);

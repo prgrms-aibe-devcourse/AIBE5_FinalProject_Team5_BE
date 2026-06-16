@@ -88,10 +88,6 @@ public class Review extends BaseEntity {
         verifiedDetail.assignReview(this);
     }
 
-    public void upgradeToVerified() {
-        this.reviewType = ReviewType.VERIFIED;
-    }
-
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
     }

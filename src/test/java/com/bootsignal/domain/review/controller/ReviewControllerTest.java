@@ -15,7 +15,6 @@ import com.bootsignal.domain.review.dto.ReviewCreateRequest;
 import com.bootsignal.domain.review.dto.ReviewResponse;
 import com.bootsignal.domain.review.dto.ReviewStatisticsResponse;
 import com.bootsignal.domain.review.dto.ReviewUpdateRequest;
-import com.bootsignal.domain.review.dto.VerifiedReviewDetailRequest;
 import com.bootsignal.domain.review.dto.VerifiedReviewDetailResponse;
 import com.bootsignal.domain.review.entity.ReviewType;
 import com.bootsignal.domain.review.service.ReviewService;
@@ -97,31 +96,6 @@ class ReviewControllerTest {
         assertThat(captor.getValue().rating()).isNull();
         assertThat(captor.getValue().verifiedDetail().age()).isEqualTo(29);
         assertThat(captor.getValue().verifiedDetail().instructorDeliveryRating()).isEqualTo(2);
-    }
-
-    @Test
-    @DisplayName("PATCH /api/reviews/{reviewId}/verify - 인증 리뷰 승격 요청을 상세 설문 DTO로 매핑한다")
-    void upgradeMapsVerifiedDetailRequest() throws Exception {
-        given(reviewService.upgrade(eq(100L), any(VerifiedReviewDetailRequest.class)))
-            .willReturn(reviewResponse(100L, ReviewType.VERIFIED, 1, "기존 일반 리뷰", verifiedDetailResponse(1)));
-
-        mockMvc.perform(patch("/api/reviews/{reviewId}/verify", 100L)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(verifiedDetailJson(1)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.reviewType").value("VERIFIED"))
-            .andExpect(jsonPath("$.data.rating").value(1))
-            .andExpect(jsonPath("$.data.content").value("기존 일반 리뷰"))
-            .andExpect(jsonPath("$.data.verifiedDetail.instructorDeliveryRating").value(1))
-            .andExpect(jsonPath("$.error").doesNotExist());
-
-        ArgumentCaptor<VerifiedReviewDetailRequest> captor =
-            ArgumentCaptor.forClass(VerifiedReviewDetailRequest.class);
-        verify(reviewService).upgrade(eq(100L), captor.capture());
-        assertThat(captor.getValue().age()).isEqualTo(29);
-        assertThat(captor.getValue().instructorDeliveryRating()).isEqualTo(1);
-        assertThat(captor.getValue().collaborationComment()).isEqualTo("수정된 인증 리뷰");
     }
 
     @Test
@@ -225,29 +199,4 @@ class ReviewControllerTest {
             """.formatted(score, score, score, score, score, score);
     }
 
-    private String verifiedDetailJson(Integer score) {
-        return """
-            {
-              "priorKnowledgeLevel": "non_major",
-              "age": "29",
-              "learningGoal": "employment",
-              "attendanceType": "online",
-              "cohort": "1",
-              "courseDifficulty": "medium",
-              "progressSpeed": "moderate",
-              "teamProjectDifficulty": "medium",
-              "avgSelfStudyHours": "3",
-              "instructorDeliveryRating": %d,
-              "curriculumRating": %d,
-              "employmentSupportRating": %d,
-              "projectCount": "3",
-              "projectAchievementRating": %d,
-              "toolSupportRating": %d,
-              "mentoringSatisfactionRating": %d,
-              "completionStatus": "completed",
-              "employmentStatus": "preparing",
-              "collaborationComment": "수정된 인증 리뷰"
-            }
-            """.formatted(score, score, score, score, score, score);
-    }
 }
