@@ -128,8 +128,12 @@ public class ReviewService {
 
         validateApprovedVerification(user.getId(), review.getCourseSession().getId());
 
+        ReviewVerifiedDetail verifiedDetail = buildVerifiedDetail(request);
+        Integer rating = calculateVerifiedRating(request);
+
         review.upgradeToVerified();
-        review.updateVerifiedDetail(buildVerifiedDetail(request));
+        review.updateVerifiedDetail(verifiedDetail);
+        review.update(rating, null);
         return ReviewResponse.from(review);
     }
 

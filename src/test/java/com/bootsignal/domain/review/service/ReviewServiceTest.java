@@ -13,6 +13,7 @@ import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.course_session.repository.CourseSessionRepository;
 import com.bootsignal.domain.review.dto.ReviewCreateRequest;
 import com.bootsignal.domain.review.dto.ReviewResponse;
+import com.bootsignal.domain.review.dto.ReviewStatisticsResponse;
 import com.bootsignal.domain.review.dto.ReviewUpdateRequest;
 import com.bootsignal.domain.review.dto.VerifiedReviewDetailRequest;
 import com.bootsignal.domain.review.entity.Review;
@@ -202,6 +203,39 @@ class ReviewServiceTest {
         assertThat(response.content()).isEqualTo("수정된 인증 리뷰");
         assertThat(response.verifiedDetail().instructorDeliveryRating()).isEqualTo(2);
         assertThat(response.verifiedDetail().mentoringSatisfactionRating()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("일반 리뷰를 인증 리뷰로 승격하면 상세 설문 평균으로 평점을 갱신하고 통계에 반영한다")
+    void upgradeGeneralReviewRecalculatesRatingAndStatistics() {
+        User user = user(1L, "user@example.com");
+        Course course = course(10L);
+        CourseSession courseSession = courseSession(20L, course);
+        Review review = review(100L, user, course, courseSession, ReviewType.GENERAL, 4, "기존 일반 리뷰");
+        setAuthentication("user@example.com");
+
+        given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+        given(reviewRepository.findActiveByIdWithDetail(100L)).willReturn(Optional.of(review));
+        given(verificationRepository.existsByUserIdAndCourseSessionIdAndStatus(
+            1L,
+            20L,
+            VerificationStatus.APPROVED
+        )).willReturn(true);
+
+        ReviewResponse response = reviewService.upgrade(100L, verifiedDetailRequest(1));
+        ReviewStatisticsResponse statistics = ReviewStatisticsResponse.from(List.of(review));
+
+        assertThat(response.reviewType()).isEqualTo(ReviewType.VERIFIED);
+        assertThat(response.rating()).isEqualTo(1);
+        assertThat(response.content()).isEqualTo("기존 일반 리뷰");
+        assertThat(response.verifiedDetail().instructorDeliveryRating()).isEqualTo(1);
+        assertThat(statistics.reviewCount()).isEqualTo(1);
+        assertThat(statistics.averageRating()).isEqualByComparingTo("1.0");
+        assertThat(statistics.ratingBars())
+            .filteredOn(item -> item.score() == 1)
+            .singleElement()
+            .extracting(ReviewStatisticsResponse.RatingBarItem::count)
+            .isEqualTo(1L);
     }
 
     @Test
