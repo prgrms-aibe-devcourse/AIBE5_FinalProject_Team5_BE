@@ -14,6 +14,9 @@ spring:
       port: 6379
 
 app:
+  auth:
+    password-reset:
+      response-token-enabled: true
   security:
     jwt:
       secret: test-jwt-secret-change-before-deploy-32bytes
@@ -25,4 +28,3 @@ app:
       upload-dir: temp-storage/profile-images
       public-path-prefix: /local-files/profile
       base-url: http://localhost:8080
-

@@ -11,14 +11,19 @@ import com.bootsignal.domain.auth.dto.GoogleLoginRequest;
 import com.bootsignal.domain.auth.dto.KakaoLoginRequest;
 import com.bootsignal.domain.auth.dto.LoginRequest;
 import com.bootsignal.domain.auth.dto.LoginResponse;
+import com.bootsignal.domain.auth.dto.PasswordForgotRequest;
+import com.bootsignal.domain.auth.dto.PasswordForgotResponse;
+import com.bootsignal.domain.auth.dto.PasswordResetRequest;
 import com.bootsignal.domain.auth.dto.RefreshTokenRequest;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
+import com.bootsignal.domain.auth.entity.PasswordResetToken;
 import com.bootsignal.domain.auth.entity.RefreshToken;
 import com.bootsignal.domain.auth.oauth.GoogleTokenVerifier;
 import com.bootsignal.domain.auth.oauth.GoogleUserInfo;
 import com.bootsignal.domain.auth.oauth.KakaoTokenVerifier;
 import com.bootsignal.domain.auth.oauth.KakaoUserInfo;
+import com.bootsignal.domain.auth.repository.PasswordResetTokenRepository;
 import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
 import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
@@ -26,6 +31,7 @@ import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import com.bootsignal.global.config.properties.PasswordResetProperties;
 import com.bootsignal.global.security.jwt.JwtRefreshTokenClaims;
 import com.bootsignal.global.security.jwt.JwtTokenPair;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
@@ -58,6 +64,9 @@ class AuthServiceTest {
 	private RefreshTokenRepository refreshTokenRepository;
 
 	@Mock
+	private PasswordResetTokenRepository passwordResetTokenRepository;
+
+	@Mock
 	private PasswordEncoder passwordEncoder;
 
 	@Mock
@@ -72,6 +81,9 @@ class AuthServiceTest {
 	@Mock
 	private KakaoTokenVerifier kakaoTokenVerifier;
 
+	@Mock
+	private PasswordResetTokenNotifier passwordResetTokenNotifier;
+
 	private AuthService authService;
 
 	@BeforeEach
@@ -79,17 +91,20 @@ class AuthServiceTest {
 		authService = new AuthService(
 			userRepository,
 			refreshTokenRepository,
+			passwordResetTokenRepository,
 			passwordEncoder,
 			jwtTokenProvider,
 			refreshTokenHasher,
 			googleTokenVerifier,
-			kakaoTokenVerifier
+			kakaoTokenVerifier,
+			passwordResetTokenNotifier,
+			passwordResetProperties(true)
 		);
 	}
 
 	@Test
 	void signupSavesUserWithEncodedPassword() {
-		SignupRequest request = new SignupRequest(" User@Example.COM ", "password123", " tester ");
+		SignupRequest request = new SignupRequest(" User@Example.COM ", "password123", " 홍길동 ", " tester ");
 		given(userRepository.existsByEmail("user@example.com")).willReturn(false);
 		given(userRepository.existsByNickname("tester")).willReturn(false);
 		given(passwordEncoder.encode("password123")).willReturn("encoded-password");
@@ -102,13 +117,14 @@ class AuthServiceTest {
 		User savedUser = captor.getValue();
 		assertThat(savedUser.getEmail()).isEqualTo("user@example.com");
 		assertThat(savedUser.getPasswordHash()).isEqualTo("encoded-password");
-		assertThat(savedUser.getName()).isEqualTo("tester");
+		assertThat(savedUser.getName()).isEqualTo("홍길동");
 		assertThat(savedUser.getNickname()).isEqualTo("tester");
 		assertThat(savedUser.getRole()).isEqualTo(UserRole.USER);
 		assertThat(savedUser.getProvider()).isEqualTo(AuthProvider.LOCAL);
 		assertThat(savedUser.getProviderUserId()).isNull();
 		assertThat(savedUser.isDeleted()).isFalse();
 		assertThat(response.email()).isEqualTo("user@example.com");
+		assertThat(response.name()).isEqualTo("홍길동");
 		assertThat(response.nickname()).isEqualTo("tester");
 	}
 
@@ -139,6 +155,189 @@ class AuthServiceTest {
 
 		verify(passwordEncoder, never()).encode(any());
 		verify(userRepository, never()).save(any());
+	}
+
+	@Test
+	void checkEmailAvailabilityReturnsAvailableFlag() {
+		given(userRepository.existsByEmail("user@example.com")).willReturn(false);
+		given(userRepository.existsByEmail("used@example.com")).willReturn(true);
+
+		assertThat(authService.checkEmailAvailability(" User@Example.COM ").available()).isTrue();
+		assertThat(authService.checkEmailAvailability("used@example.com").available()).isFalse();
+	}
+
+	@Test
+	void requestPasswordResetIssuesTokenForLocalUser() {
+		User user = localUser(1L);
+		PasswordResetToken oldToken = PasswordResetToken.issue(
+			user,
+			"old-hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
+		given(userRepository.findByEmailForUpdate("user@example.com")).willReturn(Optional.of(user));
+		given(passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user)).willReturn(List.of(oldToken));
+		given(refreshTokenHasher.hash(any())).willReturn("hashed-reset-token");
+		given(passwordResetTokenRepository.save(any(PasswordResetToken.class)))
+			.willAnswer(invocation -> invocation.getArgument(0));
+
+		PasswordForgotResponse response = authService.requestPasswordReset(
+			new PasswordForgotRequest(" User@Example.COM ")
+		);
+
+		ArgumentCaptor<PasswordResetToken> captor = ArgumentCaptor.forClass(PasswordResetToken.class);
+		ArgumentCaptor<String> rawTokenCaptor = ArgumentCaptor.forClass(String.class);
+		verify(passwordResetTokenRepository).save(captor.capture());
+		verify(passwordResetTokenNotifier).send(any(User.class), rawTokenCaptor.capture(), any(), any(Instant.class));
+		assertThat(response.accepted()).isTrue();
+		assertThat(response.expiresInSeconds()).isEqualTo(1800L);
+		assertThat(response.resetToken()).isEqualTo(rawTokenCaptor.getValue());
+		assertThat(response.resetUrl()).contains(rawTokenCaptor.getValue());
+		assertThat(rawTokenCaptor.getValue()).isNotBlank();
+		assertThat(oldToken.getUsedAt()).isNotNull();
+		assertThat(captor.getValue().getUser()).isEqualTo(user);
+		assertThat(captor.getValue().getTokenHash()).isEqualTo("hashed-reset-token");
+		assertThat(captor.getValue().getTokenHash()).isNotEqualTo(rawTokenCaptor.getValue());
+	}
+
+	@Test
+	void requestPasswordResetSilentlyAcceptsMissingUser() {
+		given(userRepository.findByEmailForUpdate("missing@example.com")).willReturn(Optional.empty());
+
+		PasswordForgotResponse response = authService.requestPasswordReset(new PasswordForgotRequest("missing@example.com"));
+
+		assertThat(response.accepted()).isTrue();
+		assertThat(response.expiresInSeconds()).isEqualTo(1800L);
+		assertThat(response.resetToken()).isNull();
+		verify(passwordResetTokenRepository, never()).save(any());
+		verify(passwordResetTokenNotifier, never()).send(any(), any(), any(), any());
+	}
+
+	@Test
+	void requestPasswordResetThrowsSocialLoginRequiredForSocialUser() {
+		User googleUser = googleUser(2L);
+		given(userRepository.findByEmailForUpdate("user@example.com")).willReturn(Optional.of(googleUser));
+
+		assertThatThrownBy(() -> authService.requestPasswordReset(new PasswordForgotRequest("user@example.com")))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.SOCIAL_LOGIN_REQUIRED);
+
+		verify(passwordResetTokenRepository, never()).save(any());
+	}
+
+	@Test
+	void requestPasswordResetDoesNotExposeTokenWhenResponseTokenIsDisabled() {
+		AuthService service = new AuthService(
+			userRepository,
+			refreshTokenRepository,
+			passwordResetTokenRepository,
+			passwordEncoder,
+			jwtTokenProvider,
+			refreshTokenHasher,
+			googleTokenVerifier,
+			kakaoTokenVerifier,
+			passwordResetTokenNotifier,
+			passwordResetProperties(false)
+		);
+		User user = localUser(1L);
+		given(userRepository.findByEmailForUpdate("user@example.com")).willReturn(Optional.of(user));
+		given(passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user)).willReturn(List.of());
+		given(refreshTokenHasher.hash(any())).willReturn("hashed-reset-token");
+
+		PasswordForgotResponse response = service.requestPasswordReset(new PasswordForgotRequest("user@example.com"));
+
+		assertThat(response.accepted()).isTrue();
+		assertThat(response.resetToken()).isNull();
+		assertThat(response.resetUrl()).isNull();
+		verify(passwordResetTokenNotifier).send(any(User.class), any(), any(), any(Instant.class));
+	}
+
+	@Test
+	void resetPasswordChangesPasswordAndConsumesToken() {
+		User user = localUser(1L);
+		PasswordResetToken resetToken = PasswordResetToken.issue(
+			user,
+			"hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
+		PasswordResetToken otherResetToken = PasswordResetToken.issue(
+			user,
+			"other-hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
+		given(refreshTokenHasher.hash("reset-token")).willReturn("hashed-reset-token");
+		given(passwordResetTokenRepository.findByTokenHash("hashed-reset-token")).willReturn(Optional.of(resetToken));
+		given(passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user)).willReturn(List.of(otherResetToken));
+		given(passwordEncoder.matches("newPassword123", "encoded-password")).willReturn(false);
+		given(passwordEncoder.encode("newPassword123")).willReturn("new-encoded-password");
+		given(refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user)).willReturn(List.of());
+
+		authService.resetPassword(new PasswordResetRequest("reset-token", "newPassword123"));
+
+		assertThat(user.getPasswordHash()).isEqualTo("new-encoded-password");
+		assertThat(resetToken.getUsedAt()).isNotNull();
+		assertThat(otherResetToken.getUsedAt()).isNotNull();
+		verify(refreshTokenRepository).findAllByUserAndRevokedFalseAndReplacedFalse(user);
+	}
+
+	@Test
+	void resetPasswordRejectsExpiredToken() {
+		User user = localUser(1L);
+		PasswordResetToken resetToken = PasswordResetToken.issue(
+			user,
+			"hashed-reset-token",
+			Instant.now().minusSeconds(1)
+		);
+		given(refreshTokenHasher.hash("reset-token")).willReturn("hashed-reset-token");
+		given(passwordResetTokenRepository.findByTokenHash("hashed-reset-token")).willReturn(Optional.of(resetToken));
+
+		assertThatThrownBy(() -> authService.resetPassword(new PasswordResetRequest("reset-token", "newPassword123")))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.PASSWORD_RESET_TOKEN_EXPIRED);
+
+		verify(passwordEncoder, never()).encode(any());
+	}
+
+	@Test
+	void resetPasswordRejectsUsedToken() {
+		User user = localUser(1L);
+		PasswordResetToken resetToken = PasswordResetToken.issue(
+			user,
+			"hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
+		resetToken.use(Instant.now().minusSeconds(10));
+		given(refreshTokenHasher.hash("reset-token")).willReturn("hashed-reset-token");
+		given(passwordResetTokenRepository.findByTokenHash("hashed-reset-token")).willReturn(Optional.of(resetToken));
+
+		assertThatThrownBy(() -> authService.resetPassword(new PasswordResetRequest("reset-token", "newPassword123")))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+
+		verify(passwordEncoder, never()).encode(any());
+	}
+
+	@Test
+	void resetPasswordRejectsSocialUserAndGuidesSocialLogin() {
+		User user = googleUser(2L);
+		PasswordResetToken resetToken = PasswordResetToken.issue(
+			user,
+			"hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
+		given(refreshTokenHasher.hash("reset-token")).willReturn("hashed-reset-token");
+		given(passwordResetTokenRepository.findByTokenHash("hashed-reset-token")).willReturn(Optional.of(resetToken));
+
+		assertThatThrownBy(() -> authService.resetPassword(new PasswordResetRequest("reset-token", "newPassword123")))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.SOCIAL_LOGIN_REQUIRED);
+
+		assertThat(resetToken.getUsedAt()).isNull();
+		verify(passwordEncoder, never()).matches(any(), any());
+		verify(passwordEncoder, never()).encode(any());
 	}
 
 	@Test
@@ -219,6 +418,22 @@ class AuthServiceTest {
 	}
 
 	@Test
+	void loginRejectsSocialUserEvenWhenPasswordHashExists() {
+		LoginRequest request = new LoginRequest("user@example.com", "password123");
+		User user = googleUser(3L);
+		ReflectionTestUtils.setField(user, "passwordHash", "encoded-social-password");
+		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+
+		assertThatThrownBy(() -> authService.login(request))
+			.isInstanceOf(BootSignalException.class)
+			.extracting(exception -> ((BootSignalException) exception).errorCode())
+			.isEqualTo(ErrorCode.INVALID_LOGIN_CREDENTIALS);
+
+		verify(passwordEncoder, never()).matches(any(), any());
+		verify(jwtTokenProvider, never()).createTokenPair(any());
+	}
+
+	@Test
 	void loginThrowsInvalidCredentialsWhenUserIsDeleted() {
 		LoginRequest request = new LoginRequest("user@example.com", "password123");
 		User user = localUser(1L);
@@ -287,6 +502,26 @@ class AuthServiceTest {
 	@Test
 	void refreshTokenLookupUsesPessimisticWriteLock() throws Exception {
 		Method method = RefreshTokenRepository.class.getMethod("findByTokenHash", String.class);
+
+		Lock lock = method.getAnnotation(Lock.class);
+
+		assertThat(lock).isNotNull();
+		assertThat(lock.value()).isEqualTo(LockModeType.PESSIMISTIC_WRITE);
+	}
+
+	@Test
+	void userLookupForPasswordResetUsesPessimisticWriteLock() throws Exception {
+		Method method = UserRepository.class.getMethod("findByEmailForUpdate", String.class);
+
+		Lock lock = method.getAnnotation(Lock.class);
+
+		assertThat(lock).isNotNull();
+		assertThat(lock.value()).isEqualTo(LockModeType.PESSIMISTIC_WRITE);
+	}
+
+	@Test
+	void passwordResetTokenCleanupLookupUsesPessimisticWriteLock() throws Exception {
+		Method method = PasswordResetTokenRepository.class.getMethod("findAllByUserAndUsedAtIsNull", User.class);
 
 		Lock lock = method.getAnnotation(Lock.class);
 
@@ -620,5 +855,14 @@ class AuthServiceTest {
 		);
 		ReflectionTestUtils.setField(user, "id", id);
 		return user;
+	}
+
+	private PasswordResetProperties passwordResetProperties(boolean responseTokenEnabled) {
+		return new PasswordResetProperties(
+			1800L,
+			responseTokenEnabled,
+			"http://localhost:5173/reset-password?token={token}",
+			new PasswordResetProperties.Mail(false, "no-reply@bootsignal.com", "비밀번호 재설정")
+		);
 	}
 }

@@ -55,12 +55,15 @@ public class SecurityConfig {
 				.requestMatchers("/api/health", "/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
 				.requestMatchers("/local-files/profile/**").permitAll()
 				.requestMatchers(
+					"/api/auth/check-email",
 					"/api/auth/signup",
 					"/api/auth/login",
 					"/api/auth/google/login",
 					"/api/auth/kakao/login",
 					"/api/auth/refresh",
-					"/api/auth/logout"
+					"/api/auth/logout",
+					"/api/auth/password/forgot",
+					"/api/auth/password/reset"
 				).permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/institutions", "/api/institutions/**").permitAll()

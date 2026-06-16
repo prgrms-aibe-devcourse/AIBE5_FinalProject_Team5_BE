@@ -22,3 +22,8 @@ spring:
 logging:
   level:
     org.hibernate.SQL: debug
+
+app:
+  auth:
+    password-reset:
+      response-token-enabled: ${PASSWORD_RESET_RESPONSE_TOKEN_ENABLED:true}
