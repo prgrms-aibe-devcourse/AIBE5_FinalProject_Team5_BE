@@ -106,10 +106,11 @@ public class ReviewService {
 
         validateAuthor(review, user);
 
-        review.update(request.rating(), request.content());
+        Integer rating = resolveRating(review, request);
         if (request.verifiedDetail() != null) {
             updateVerifiedDetail(review, request.verifiedDetail());
         }
+        review.update(rating, request.content());
 
         return ReviewResponse.from(review);
     }
@@ -194,17 +195,33 @@ public class ReviewService {
         }
 
         if (request.reviewType() == ReviewType.VERIFIED) {
-            return Math.round((float) (
-                request.verifiedDetail().instructorDeliveryRating()
-                    + request.verifiedDetail().curriculumRating()
-                    + request.verifiedDetail().employmentSupportRating()
-                    + request.verifiedDetail().projectAchievementRating()
-                    + request.verifiedDetail().toolSupportRating()
-                    + request.verifiedDetail().mentoringSatisfactionRating()
-            ) / 6);
+            return calculateVerifiedRating(request.verifiedDetail());
         }
 
         throw new BootSignalException(ErrorCode.BAD_REQUEST, "리뷰 평점은 필수입니다.");
+    }
+
+    private Integer resolveRating(Review review, ReviewUpdateRequest request) {
+        if (request.rating() != null) {
+            return request.rating();
+        }
+
+        if (request.verifiedDetail() != null && review.getReviewType() == ReviewType.VERIFIED) {
+            return calculateVerifiedRating(request.verifiedDetail());
+        }
+
+        return null;
+    }
+
+    private Integer calculateVerifiedRating(VerifiedReviewDetailRequest request) {
+        return Math.round((float) (
+            request.instructorDeliveryRating()
+                + request.curriculumRating()
+                + request.employmentSupportRating()
+                + request.projectAchievementRating()
+                + request.toolSupportRating()
+                + request.mentoringSatisfactionRating()
+        ) / 6);
     }
 
     private String resolveContent(ReviewCreateRequest request) {
