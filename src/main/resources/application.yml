@@ -75,6 +75,13 @@ app:
       auth-key: ${HRD_API_AUTH_KEY:}
       base-url: ${HRD_API_BASE_URL:https://www.work24.go.kr/cm/openApi/call/hr}
       return-type: ${HRD_API_RETURN_TYPE:JSON}
+  tech-article:
+    rss:
+      yozm-feed-url: ${YOZM_RSS_FEED_URL:https://yozm.wishket.com/magazine/feed/}
+      kakao-tech-feed-url: ${KAKAO_TECH_RSS_FEED_URL:https://tech.kakao.com/feed/}
+      collect-limit: ${TECH_ARTICLE_COLLECT_LIMIT:30}
+      timeout-millis: ${TECH_ARTICLE_RSS_TIMEOUT_MILLIS:15000}
+      user-agent: ${TECH_ARTICLE_RSS_USER_AGENT:Mozilla/5.0 BootSignalRssCollector/1.0}
   work24:
     crawler:
       default-course-url: "${WORK24_CRAWLER_DEFAULT_COURSE_URL:https://www.work24.go.kr/hr/a/a/3100/selectTracseDetl.do?tracseId=AIG20240000498288&tracseTme=7&crseTracseSe=C0061&trainstCstmrId=500036172479}"
