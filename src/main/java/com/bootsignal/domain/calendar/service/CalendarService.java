@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+// Google Calendar 연동 서비스
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

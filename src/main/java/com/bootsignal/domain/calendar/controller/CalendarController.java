@@ -1,6 +1,8 @@
 package com.bootsignal.domain.calendar.controller;
 
+import com.bootsignal.domain.calendar.dto.CalendarEventListResponse;
 import com.bootsignal.domain.calendar.dto.CalendarStatusResponse;
+import com.bootsignal.domain.calendar.service.CalendarEventQueryService;
 import com.bootsignal.domain.calendar.service.CalendarService;
 import com.bootsignal.global.exception.BootSignalException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CalendarController {
 
 	private final CalendarService calendarService;
+	private final CalendarEventQueryService calendarEventQueryService;
 
 	/* 구글 캘린더 연동 상태 조회 */
 	@GetMapping("/status")
@@ -69,13 +72,24 @@ public class CalendarController {
 		return calendarService.disconnectGoogle();
 	}
 
+	/* 월별 일정 목록 조회 */
+	@GetMapping("/events")
+	public CalendarEventListResponse getEvents(
+		@RequestParam int year,
+		@RequestParam int month
+	) {
+		return calendarEventQueryService.getMonthlyEvents(year, month);
+	}
 
+
+	// 구글 캘린더 연동 성공 프론트 리다이렉트 
 	private ResponseEntity<Void> redirectToSuccess() {
 		return ResponseEntity.status(HttpStatus.FOUND)
 			.location(URI.create(calendarService.connectSuccessRedirectUrl()))
 			.build();
 	}
 
+	// 구글 캘린더 연동 실패 프론트 리다이렉트
 	private ResponseEntity<Void> redirectToFailure(String message) {
 		String failureUrl = calendarService.connectFailureRedirectUrl()
 			+ "?error=" + URLEncoder.encode(message, StandardCharsets.UTF_8);

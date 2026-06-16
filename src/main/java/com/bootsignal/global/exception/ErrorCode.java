@@ -46,6 +46,7 @@ public enum ErrorCode {
 	CALENDAR_OAUTH_EXCHANGE_FAILED(HttpStatus.BAD_REQUEST, "CALENDAR_OAUTH_EXCHANGE_FAILED", "Google Calendar 토큰 발급에 실패했습니다."),
 	CALENDAR_ALREADY_CONNECTED(HttpStatus.CONFLICT, "CALENDAR_ALREADY_CONNECTED", "이미 Google Calendar에 연결되어 있습니다."),
 	CALENDAR_NOT_CONNECTED(HttpStatus.BAD_REQUEST, "CALENDAR_NOT_CONNECTED", "Google Calendar 연동 상태가 아닙니다."),
+	CALENDAR_FETCH_FAILED(HttpStatus.BAD_GATEWAY, "CALENDAR_FETCH_FAILED", "Google Calendar 일정 조회에 실패했습니다."),
 	AI_AGENT_NOT_FOUND(HttpStatus.BAD_REQUEST, "AI_AGENT_NOT_FOUND", "실행할 AI Agent를 찾을 수 없습니다."),
 	AI_INPUT_INVALID(HttpStatus.BAD_REQUEST, "AI_INPUT_INVALID", "AI Agent 입력 값이 올바르지 않습니다."),
 	AI_OUTPUT_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "AI_OUTPUT_INVALID", "AI Agent 출력 값이 올바르지 않습니다."),
