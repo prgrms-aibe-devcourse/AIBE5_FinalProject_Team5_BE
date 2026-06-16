@@ -16,6 +16,17 @@ spring:
       # 인증 증빙과 프로필 이미지 업로드를 허용하며, 운영 환경에서는 .env로 조정한다.
       max-file-size: ${MULTIPART_MAX_FILE_SIZE:100MB}
       max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:120MB}
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS_ENABLE:true}
 
   # Spring Batch 공통 설정이다. 배치 작업은 API 또는 명시적 실행으로만 시작한다.
   batch:
