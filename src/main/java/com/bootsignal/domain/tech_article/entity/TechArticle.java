@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -19,7 +20,11 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(
 	name = "tech_article",
-	uniqueConstraints = @UniqueConstraint(columnNames = {"source", "rss_guid"})
+	uniqueConstraints = @UniqueConstraint(columnNames = {"source", "rss_guid"}),
+	indexes = {
+		@Index(name = "idx_tech_article_source_published_at", columnList = "source, published_at"),
+		@Index(name = "idx_tech_article_updated_at", columnList = "updated_at")
+	}
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
