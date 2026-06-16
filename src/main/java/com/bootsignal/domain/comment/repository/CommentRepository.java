@@ -39,4 +39,29 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 		  AND c.valid = true
 		""")
 	Optional<Comment> findActiveById(@Param("commentId") Long commentId);
+
+	/**
+	 * 현재 사용자가 작성한 활성 댓글을 페이지 단위로 조회합니다.
+	 */
+	@Query(
+		value = """
+			SELECT c FROM Comment c
+			JOIN FETCH c.post p
+			JOIN FETCH c.user u
+			WHERE c.user.id = :userId
+			  AND c.deletedAt IS NULL
+			  AND c.valid = true
+			""",
+		countQuery = """
+			SELECT count(c) FROM Comment c
+			WHERE c.user.id = :userId
+			  AND c.deletedAt IS NULL
+			  AND c.valid = true
+			"""
+	)
+	Page<Comment> findAllByUser(
+		@Param("userId") Long userId,
+		Pageable pageable
+	);
 }
+

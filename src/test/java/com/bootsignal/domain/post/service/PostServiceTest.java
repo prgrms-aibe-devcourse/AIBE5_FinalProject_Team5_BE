@@ -69,7 +69,6 @@ class PostServiceTest {
 		PostResponse response = postService.create(new PostCreateRequest(
 			null,
 			PostType.BOARD,
-			"자유",
 			"게시글 제목",
 			"게시글 내용"
 		));
@@ -88,7 +87,6 @@ class PostServiceTest {
 		assertThatThrownBy(() -> postService.create(new PostCreateRequest(
 			null,
 			PostType.BOARD,
-			null,
 			"게시글 제목",
 			"게시글 내용"
 		)))
@@ -106,7 +104,7 @@ class PostServiceTest {
 		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(currentUser));
 		given(postRepository.findById(10L)).willReturn(Optional.of(post));
 
-		assertThatThrownBy(() -> postService.update(10L, new PostUpdateRequest("수정 제목", null, null)))
+		assertThatThrownBy(() -> postService.update(10L, new PostUpdateRequest("수정 제목", null)))
 			.isInstanceOf(BootSignalException.class)
 			.extracting(exception -> ((BootSignalException) exception).errorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
@@ -146,7 +144,6 @@ class PostServiceTest {
 		Post post = Post.builder()
 			.user(author)
 			.postType(PostType.BOARD)
-			.category("자유")
 			.title("게시글 제목")
 			.content("게시글 내용")
 			.build();

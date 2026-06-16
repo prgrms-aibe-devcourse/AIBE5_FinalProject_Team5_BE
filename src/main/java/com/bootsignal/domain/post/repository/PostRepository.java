@@ -41,4 +41,33 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 		@Param("keyword") String keyword,
 		Pageable pageable
 	);
+
+	/**
+	 * 현재 사용자가 작성한 게시글을 타입 필터와 함께 페이지 단위로 조회합니다.
+	 * type 이 null 이면 전체 유형을 반환합니다.
+	 */
+	@Query(
+		value = """
+			SELECT p FROM Post p
+			JOIN FETCH p.user u
+			LEFT JOIN FETCH p.course c
+			WHERE p.user.id = :userId
+			  AND p.deletedAt IS NULL
+			  AND p.isValid = true
+			  AND (:postType IS NULL OR p.postType = :postType)
+			""",
+		countQuery = """
+			SELECT count(p) FROM Post p
+			WHERE p.user.id = :userId
+			  AND p.deletedAt IS NULL
+			  AND p.isValid = true
+			  AND (:postType IS NULL OR p.postType = :postType)
+			"""
+	)
+	Page<Post> findAllByUser(
+		@Param("userId") Long userId,
+		@Param("postType") PostType postType,
+		Pageable pageable
+	);
 }
+

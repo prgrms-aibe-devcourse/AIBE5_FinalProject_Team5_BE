@@ -54,6 +54,31 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
         Pageable pageable
     );
 
+    /**
+     * 현재 사용자가 작성한 활성 리뷰를 페이지 단위로 조회합니다.
+     */
+    @Query(
+        value = """
+            SELECT r FROM Review r
+            JOIN FETCH r.user u
+            JOIN FETCH r.course c
+            JOIN FETCH r.courseSession cs
+            WHERE r.user.id = :userId
+              AND r.deletedAt IS NULL
+            """,
+        countQuery = """
+            SELECT count(r) FROM Review r
+            WHERE r.user.id = :userId
+              AND r.deletedAt IS NULL
+            """
+    )
+    Page<Review> findAllByUser(
+        @Param("userId") Long userId,
+        Pageable pageable
+    );
+
+
+
     @Query("""
         SELECT r FROM Review r
         JOIN FETCH r.verifiedDetail vd
