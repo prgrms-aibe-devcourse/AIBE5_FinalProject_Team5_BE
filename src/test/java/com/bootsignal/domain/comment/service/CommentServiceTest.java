@@ -171,7 +171,6 @@ class CommentServiceTest {
 		Post post = Post.builder()
 			.user(author)
 			.postType(PostType.BOARD)
-			.category("자유")
 			.title("게시글 제목")
 			.content("게시글 내용")
 			.build();

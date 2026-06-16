@@ -104,7 +104,7 @@ class PostServiceTest {
 		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(currentUser));
 		given(postRepository.findById(10L)).willReturn(Optional.of(post));
 
-		assertThatThrownBy(() -> postService.update(10L, new PostUpdateRequest("수정 제목", null, null)))
+		assertThatThrownBy(() -> postService.update(10L, new PostUpdateRequest("수정 제목", null)))
 			.isInstanceOf(BootSignalException.class)
 			.extracting(exception -> ((BootSignalException) exception).errorCode())
 			.isEqualTo(ErrorCode.FORBIDDEN);
