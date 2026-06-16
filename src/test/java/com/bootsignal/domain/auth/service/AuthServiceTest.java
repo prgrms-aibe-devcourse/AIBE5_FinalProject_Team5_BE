@@ -80,6 +80,9 @@ class AuthServiceTest {
 	@Mock
 	private KakaoTokenVerifier kakaoTokenVerifier;
 
+	@Mock
+	private PasswordResetTokenNotifier passwordResetTokenNotifier;
+
 	private AuthService authService;
 
 	@BeforeEach
@@ -92,7 +95,8 @@ class AuthServiceTest {
 			jwtTokenProvider,
 			refreshTokenHasher,
 			googleTokenVerifier,
-			kakaoTokenVerifier
+			kakaoTokenVerifier,
+			passwordResetTokenNotifier
 		);
 	}
 
@@ -163,7 +167,13 @@ class AuthServiceTest {
 	@Test
 	void requestPasswordResetIssuesTokenForLocalUser() {
 		User user = localUser(1L);
+		PasswordResetToken oldToken = PasswordResetToken.issue(
+			user,
+			"old-hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
 		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user)).willReturn(List.of(oldToken));
 		given(refreshTokenHasher.hash(any())).willReturn("hashed-reset-token");
 		given(passwordResetTokenRepository.save(any(PasswordResetToken.class)))
 			.willAnswer(invocation -> invocation.getArgument(0));
@@ -173,23 +183,28 @@ class AuthServiceTest {
 		);
 
 		ArgumentCaptor<PasswordResetToken> captor = ArgumentCaptor.forClass(PasswordResetToken.class);
+		ArgumentCaptor<String> rawTokenCaptor = ArgumentCaptor.forClass(String.class);
 		verify(passwordResetTokenRepository).save(captor.capture());
+		verify(passwordResetTokenNotifier).send(any(User.class), rawTokenCaptor.capture(), any(Instant.class));
 		assertThat(response.accepted()).isTrue();
-		assertThat(response.resetToken()).isNotBlank();
 		assertThat(response.expiresInSeconds()).isEqualTo(1800L);
+		assertThat(rawTokenCaptor.getValue()).isNotBlank();
+		assertThat(oldToken.getUsedAt()).isNotNull();
 		assertThat(captor.getValue().getUser()).isEqualTo(user);
 		assertThat(captor.getValue().getTokenHash()).isEqualTo("hashed-reset-token");
-		assertThat(captor.getValue().getTokenHash()).isNotEqualTo(response.resetToken());
+		assertThat(captor.getValue().getTokenHash()).isNotEqualTo(rawTokenCaptor.getValue());
 	}
 
 	@Test
 	void requestPasswordResetSilentlyAcceptsMissingUser() {
 		given(userRepository.findByEmail("missing@example.com")).willReturn(Optional.empty());
 
-		assertThat(authService.requestPasswordReset(new PasswordForgotRequest("missing@example.com")).resetToken())
-			.isNull();
+		PasswordForgotResponse response = authService.requestPasswordReset(new PasswordForgotRequest("missing@example.com"));
 
+		assertThat(response.accepted()).isTrue();
+		assertThat(response.expiresInSeconds()).isEqualTo(1800L);
 		verify(passwordResetTokenRepository, never()).save(any());
+		verify(passwordResetTokenNotifier, never()).send(any(), any(), any());
 	}
 
 	@Test
@@ -213,8 +228,14 @@ class AuthServiceTest {
 			"hashed-reset-token",
 			Instant.now().plusSeconds(600)
 		);
+		PasswordResetToken otherResetToken = PasswordResetToken.issue(
+			user,
+			"other-hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
 		given(refreshTokenHasher.hash("reset-token")).willReturn("hashed-reset-token");
 		given(passwordResetTokenRepository.findByTokenHash("hashed-reset-token")).willReturn(Optional.of(resetToken));
+		given(passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user)).willReturn(List.of(otherResetToken));
 		given(passwordEncoder.matches("newPassword123", "encoded-password")).willReturn(false);
 		given(passwordEncoder.encode("newPassword123")).willReturn("new-encoded-password");
 		given(refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user)).willReturn(List.of());
@@ -223,6 +244,7 @@ class AuthServiceTest {
 
 		assertThat(user.getPasswordHash()).isEqualTo("new-encoded-password");
 		assertThat(resetToken.getUsedAt()).isNotNull();
+		assertThat(otherResetToken.getUsedAt()).isNotNull();
 		verify(refreshTokenRepository).findAllByUserAndRevokedFalseAndReplacedFalse(user);
 	}
 
@@ -448,6 +470,16 @@ class AuthServiceTest {
 	@Test
 	void refreshTokenLookupUsesPessimisticWriteLock() throws Exception {
 		Method method = RefreshTokenRepository.class.getMethod("findByTokenHash", String.class);
+
+		Lock lock = method.getAnnotation(Lock.class);
+
+		assertThat(lock).isNotNull();
+		assertThat(lock.value()).isEqualTo(LockModeType.PESSIMISTIC_WRITE);
+	}
+
+	@Test
+	void passwordResetTokenCleanupLookupUsesPessimisticWriteLock() throws Exception {
+		Method method = PasswordResetTokenRepository.class.getMethod("findAllByUserAndUsedAtIsNull", User.class);
 
 		Lock lock = method.getAnnotation(Lock.class);
 

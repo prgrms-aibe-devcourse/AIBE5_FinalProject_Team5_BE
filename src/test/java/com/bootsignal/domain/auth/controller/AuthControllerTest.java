@@ -18,7 +18,6 @@ import com.bootsignal.domain.auth.service.AuthService;
 import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
-import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -76,9 +75,8 @@ class AuthControllerTest {
 
 	@Test
 	void forgotPasswordReturnsAcceptedResponse() throws Exception {
-		Instant expiresAt = Instant.parse("2026-06-16T03:00:00Z");
 		given(authService.requestPasswordReset(any()))
-			.willReturn(new PasswordForgotResponse(true, "reset-token", expiresAt, 1800L));
+			.willReturn(PasswordForgotResponse.accepted(1800L));
 
 		mockMvc.perform(post("/api/auth/password/forgot")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -90,7 +88,7 @@ class AuthControllerTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.accepted").value(true))
-			.andExpect(jsonPath("$.data.resetToken").value("reset-token"))
+			.andExpect(jsonPath("$.data.resetToken").doesNotExist())
 			.andExpect(jsonPath("$.data.expiresInSeconds").value(1800))
 			.andExpect(jsonPath("$.error").doesNotExist());
 	}

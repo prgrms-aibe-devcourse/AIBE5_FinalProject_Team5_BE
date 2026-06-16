@@ -8,7 +8,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.bootsignal.domain.auth.entity.PasswordResetToken;
 import com.bootsignal.domain.auth.entity.RefreshToken;
+import com.bootsignal.domain.auth.repository.PasswordResetTokenRepository;
 import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
 import com.bootsignal.domain.user.dto.PasswordChangeRequest;
 import com.bootsignal.domain.user.dto.UserInfoResponse;
@@ -54,13 +56,22 @@ class UserServiceTest {
 	private RefreshTokenRepository refreshTokenRepository;
 
 	@Mock
+	private PasswordResetTokenRepository passwordResetTokenRepository;
+
+	@Mock
 	private MultipartFile multipartFile;
 
 	private UserService userService;
 
 	@BeforeEach
 	void setUp() {
-		userService = new UserService(userRepository, profileImageStorage, passwordEncoder, refreshTokenRepository);
+		userService = new UserService(
+			userRepository,
+			profileImageStorage,
+			passwordEncoder,
+			refreshTokenRepository,
+			passwordResetTokenRepository
+		);
 	}
 
 	@AfterEach
@@ -248,6 +259,11 @@ class UserServiceTest {
 		// given
 		User user = localUser(1L, "user@example.com", "홍길동", "tester");
 		RefreshToken activeToken = RefreshToken.issue(user, "refresh-hash", Instant.now().plusSeconds(600));
+		PasswordResetToken resetToken = PasswordResetToken.issue(
+			user,
+			"hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
 		setAuthentication("user@example.com", UserRole.USER);
 		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
 		given(passwordEncoder.matches("password123", "encoded-password")).willReturn(true);
@@ -255,6 +271,8 @@ class UserServiceTest {
 		given(passwordEncoder.encode("newPassword123")).willReturn("new-encoded-password");
 		given(refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user))
 			.willReturn(List.of(activeToken));
+		given(passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user))
+			.willReturn(List.of(resetToken));
 
 		// when
 		userService.changePassword(new PasswordChangeRequest("password123", "newPassword123"));
@@ -262,6 +280,7 @@ class UserServiceTest {
 		// then
 		assertThat(user.getPasswordHash()).isEqualTo("new-encoded-password");
 		assertThat(activeToken.isRevoked()).isTrue();
+		assertThat(resetToken.getUsedAt()).isNotNull();
 	}
 
 	@Test
@@ -305,10 +324,17 @@ class UserServiceTest {
 		// given
 		User user = googleUser(1L, "user@example.com", "길동");
 		RefreshToken activeToken = RefreshToken.issue(user, "refresh-hash", Instant.now().plusSeconds(600));
+		PasswordResetToken resetToken = PasswordResetToken.issue(
+			user,
+			"hashed-reset-token",
+			Instant.now().plusSeconds(600)
+		);
 		setAuthentication("user@example.com", UserRole.USER);
 		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
 		given(refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user))
 			.willReturn(List.of(activeToken));
+		given(passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user))
+			.willReturn(List.of(resetToken));
 
 		// when
 		userService.deleteMyAccount();
@@ -317,6 +343,7 @@ class UserServiceTest {
 		assertThat(user.isDeleted()).isTrue();
 		assertThat(user.getDeletedAt()).isNotNull();
 		assertThat(activeToken.isRevoked()).isTrue();
+		assertThat(resetToken.getUsedAt()).isNotNull();
 	}
 
 	// SecurityContext에 JWT 인증 상태를 직접 주입한다

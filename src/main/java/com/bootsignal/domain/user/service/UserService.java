@@ -1,5 +1,6 @@
 package com.bootsignal.domain.user.service;
 
+import com.bootsignal.domain.auth.repository.PasswordResetTokenRepository;
 import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
 import com.bootsignal.domain.user.dto.MemberActionResponse;
 import com.bootsignal.domain.user.dto.PasswordChangeRequest;
@@ -35,6 +36,7 @@ public class UserService {
 	private final ProfileImageStorage profileImageStorage;
 	private final PasswordEncoder passwordEncoder;
 	private final RefreshTokenRepository refreshTokenRepository;
+	private final PasswordResetTokenRepository passwordResetTokenRepository;
 
 	public UserInfoResponse getMyInfo() {
 		return UserInfoResponse.from(findActiveUser());
@@ -81,16 +83,20 @@ public class UserService {
 			throw new BootSignalException(ErrorCode.PASSWORD_REUSE_NOT_ALLOWED);
 		}
 
+		Instant now = Instant.now();
 		user.changePassword(passwordEncoder.encode(request.newPassword()));
-		revokeActiveRefreshTokens(user, Instant.now());
+		revokeActiveRefreshTokens(user, now);
+		invalidateUnusedPasswordResetTokens(user, now);
 		return MemberActionResponse.success();
 	}
 
 	@Transactional
 	public void deleteMyAccount() {
 		User user = findActiveUser();
+		Instant now = Instant.now();
 		user.softDelete(LocalDateTime.now());
-		revokeActiveRefreshTokens(user, Instant.now());
+		revokeActiveRefreshTokens(user, now);
+		invalidateUnusedPasswordResetTokens(user, now);
 	}
 
 	private User findActiveUser() {
@@ -135,5 +141,10 @@ public class UserService {
 	private void revokeActiveRefreshTokens(User user, Instant now) {
 		refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user)
 			.forEach(activeToken -> activeToken.revoke(now));
+	}
+
+	private void invalidateUnusedPasswordResetTokens(User user, Instant now) {
+		passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user)
+			.forEach(resetToken -> resetToken.use(now));
 	}
 }

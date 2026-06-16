@@ -1,7 +1,9 @@
 package com.bootsignal.domain.auth.repository;
 
 import com.bootsignal.domain.auth.entity.PasswordResetToken;
+import com.bootsignal.domain.user.entity.User;
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -13,4 +15,10 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
 
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<PasswordResetToken> findByTokenHash(String tokenHash);
+
+	/**
+	 * 새 토큰 발급이나 비밀번호 변경 시 기존 미사용 토큰을 한 번에 폐기하기 위해 잠금을 적용합니다.
+	 */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	List<PasswordResetToken> findAllByUserAndUsedAtIsNull(User user);
 }

@@ -80,6 +80,8 @@ public class PasswordResetToken extends BaseEntity {
 	}
 
 	public void use(Instant usedAt) {
-		this.usedAt = usedAt;
+		if (this.usedAt == null) {
+			this.usedAt = usedAt;
+		}
 	}
 }

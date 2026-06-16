@@ -61,6 +61,7 @@ public class AuthService {
 	private final RefreshTokenHasher refreshTokenHasher;
 	private final GoogleTokenVerifier googleTokenVerifier;
 	private final KakaoTokenVerifier kakaoTokenVerifier;
+	private final PasswordResetTokenNotifier passwordResetTokenNotifier;
 	private final SecureRandom secureRandom = new SecureRandom();
 
 	@Transactional
@@ -97,13 +98,13 @@ public class AuthService {
 	@Transactional
 	public PasswordForgotResponse requestPasswordReset(PasswordForgotRequest request) {
 		String email = normalizeEmail(request.email());
-		return userRepository.findByEmail(email)
+		userRepository.findByEmail(email)
 			.filter(this::isActiveUser)
-			.map(user -> {
+			.ifPresent(user -> {
 				validateLocalPasswordAccount(user);
-				return issuePasswordResetToken(user);
-			})
-			.orElseGet(PasswordForgotResponse::acceptedWithoutToken);
+				issuePasswordResetToken(user);
+			});
+		return PasswordForgotResponse.accepted(PASSWORD_RESET_TOKEN_VALIDITY_SECONDS);
 	}
 
 	@Transactional
@@ -129,6 +130,7 @@ public class AuthService {
 
 		user.changePassword(passwordEncoder.encode(request.newPassword()));
 		resetToken.use(now);
+		invalidateUnusedPasswordResetTokens(user, now);
 		revokeActiveRefreshTokens(user, now);
 		return AuthActionResponse.success();
 	}
@@ -233,13 +235,14 @@ public class AuthService {
 		}
 	}
 
-	private PasswordForgotResponse issuePasswordResetToken(User user) {
+	private void issuePasswordResetToken(User user) {
 		Instant now = Instant.now();
+		invalidateUnusedPasswordResetTokens(user, now);
 		String rawToken = generatePasswordResetToken();
 		String tokenHash = refreshTokenHasher.hash(rawToken);
 		Instant expiresAt = now.plusSeconds(PASSWORD_RESET_TOKEN_VALIDITY_SECONDS);
 		passwordResetTokenRepository.save(PasswordResetToken.issue(user, tokenHash, expiresAt));
-		return new PasswordForgotResponse(true, rawToken, expiresAt, PASSWORD_RESET_TOKEN_VALIDITY_SECONDS);
+		passwordResetTokenNotifier.send(user, rawToken, expiresAt);
 	}
 
 	private PasswordResetToken findPasswordResetToken(String rawToken) {
@@ -257,6 +260,11 @@ public class AuthService {
 	private void revokeActiveRefreshTokens(User user, Instant now) {
 		refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user)
 			.forEach(activeToken -> activeToken.revoke(now));
+	}
+
+	private void invalidateUnusedPasswordResetTokens(User user, Instant now) {
+		passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user)
+			.forEach(resetToken -> resetToken.use(now));
 	}
 
 	private ErrorCode resolveRefreshTokenStatus(RefreshToken storedToken, Instant now) {
