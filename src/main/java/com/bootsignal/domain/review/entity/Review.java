@@ -4,6 +4,7 @@ import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.global.entity.BaseEntity;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,6 +15,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
@@ -22,6 +24,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 과정 회차별 사용자 리뷰 기본 정보와 인증 리뷰 상세 설문 연관을 저장하는 엔티티입니다.
+ */
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -57,6 +62,9 @@ public class Review extends BaseEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @OneToOne(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private ReviewVerifiedDetail verifiedDetail;
+
     private LocalDateTime deletedAt;
 
     @Builder
@@ -75,8 +83,9 @@ public class Review extends BaseEntity {
         if (content != null) this.content = content;
     }
 
-    public void upgradeToVerified() {
-        this.reviewType = ReviewType.VERIFIED;
+    public void updateVerifiedDetail(ReviewVerifiedDetail verifiedDetail) {
+        this.verifiedDetail = verifiedDetail;
+        verifiedDetail.assignReview(this);
     }
 
     public void softDelete() {

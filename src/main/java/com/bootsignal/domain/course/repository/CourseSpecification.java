@@ -2,6 +2,7 @@ package com.bootsignal.domain.course.repository;
 
 import com.bootsignal.domain.code.service.FieldCategoryService;
 import com.bootsignal.domain.course.dto.DurationFilter;
+import com.bootsignal.domain.course.dto.PriceRange;
 import com.bootsignal.domain.course.dto.FieldCategory;
 import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course_session.entity.CourseSession;
@@ -98,6 +99,39 @@ public class CourseSpecification {
                 subquery.where(
                         cb.equal(sessionRoot.get("course"), root),
                         cb.greaterThan(sessionRoot.get("selfPaymentAmount"), 0)
+                );
+            }
+            return cb.exists(subquery);
+        };
+    }
+
+    /**
+     * 가격 범위 필터 — CourseSession.selfPaymentAmount 기준 EXISTS 서브쿼리
+     * BELOW_30 : 0 ~ 300000 이하
+     * BELOW_45 : 0 ~ 450000 이하
+     * BELOW_60 : 0 ~ 600000 이하
+     * priceRange 파라미터가 없으면(=null) 필터를 적용하지 않음 → 60만 초과 포함 전체 조회
+     */
+    public static Specification<Course> withPriceRange(PriceRange priceRange) {
+        return (root, query, cb) -> {
+            if (priceRange == null || query == null) {
+                return null;
+            }
+            Subquery<CourseSession> subquery = query.subquery(CourseSession.class);
+            var sessionRoot = subquery.from(CourseSession.class);
+            subquery.select(sessionRoot);
+            switch (priceRange) {
+                case BELOW_30 -> subquery.where(
+                        cb.equal(sessionRoot.get("course"), root),
+                        cb.lessThanOrEqualTo(sessionRoot.get("selfPaymentAmount"), 300000)
+                );
+                case BELOW_45 -> subquery.where(
+                        cb.equal(sessionRoot.get("course"), root),
+                        cb.lessThanOrEqualTo(sessionRoot.get("selfPaymentAmount"), 450000)
+                );
+                case BELOW_60 -> subquery.where(
+                        cb.equal(sessionRoot.get("course"), root),
+                        cb.lessThanOrEqualTo(sessionRoot.get("selfPaymentAmount"), 600000)
                 );
             }
             return cb.exists(subquery);

@@ -2,6 +2,7 @@ package com.bootsignal.domain.review.controller;
 
 import com.bootsignal.domain.review.dto.ReviewCreateRequest;
 import com.bootsignal.domain.review.dto.ReviewResponse;
+import com.bootsignal.domain.review.dto.ReviewStatisticsResponse;
 import com.bootsignal.domain.review.dto.ReviewUpdateRequest;
 import com.bootsignal.domain.review.entity.ReviewType;
 import com.bootsignal.domain.review.service.ReviewService;
@@ -22,6 +23,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * 과정 리뷰와 인증 리뷰 상세 설문 통계 API를 제공하는 컨트롤러입니다.
+ */
 @RestController
 @RequiredArgsConstructor
 public class ReviewController {
@@ -46,6 +50,11 @@ public class ReviewController {
         return reviewService.getList(courseId, reviewType, pageable);
     }
 
+    @GetMapping("/api/courses/{courseId}/reviews/statistics")
+    public ReviewStatisticsResponse getStatistics(@PathVariable Long courseId) {
+        return reviewService.getStatistics(courseId);
+    }
+
     @GetMapping("/api/reviews/{reviewId}")
     public ReviewResponse get(@PathVariable Long reviewId) {
         return reviewService.get(reviewId);
@@ -57,11 +66,6 @@ public class ReviewController {
         @RequestBody @Valid ReviewUpdateRequest request
     ) {
         return reviewService.update(reviewId, request);
-    }
-
-    @PatchMapping("/api/reviews/{reviewId}/verify")
-    public ReviewResponse upgrade(@PathVariable Long reviewId) {
-        return reviewService.upgrade(reviewId);
     }
 
     @DeleteMapping("/api/reviews/{reviewId}")

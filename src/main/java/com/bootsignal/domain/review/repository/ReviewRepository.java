@@ -2,6 +2,7 @@ package com.bootsignal.domain.review.repository;
 
 import com.bootsignal.domain.review.entity.Review;
 import com.bootsignal.domain.review.entity.ReviewType;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,13 +19,24 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     boolean existsByIdAndDeletedAtIsNull(Long id);
 
-    Optional<Review> findByIdAndDeletedAtIsNull(Long id);
+    @Query("""
+        SELECT r FROM Review r
+        JOIN FETCH r.user u
+        JOIN FETCH r.course c
+        JOIN FETCH r.courseSession cs
+        LEFT JOIN FETCH r.verifiedDetail vd
+        WHERE r.id = :reviewId
+          AND r.deletedAt IS NULL
+        """)
+    Optional<Review> findActiveByIdWithDetail(@Param("reviewId") Long reviewId);
 
     @Query(
         value = """
             SELECT r FROM Review r
             JOIN FETCH r.user u
+            JOIN FETCH r.course c
             JOIN FETCH r.courseSession cs
+            LEFT JOIN FETCH r.verifiedDetail vd
             WHERE r.deletedAt IS NULL
               AND r.course.id = :courseId
               AND (:reviewType IS NULL OR r.reviewType = :reviewType)
@@ -64,5 +76,15 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
         @Param("userId") Long userId,
         Pageable pageable
     );
-}
 
+
+
+    @Query("""
+        SELECT r FROM Review r
+        JOIN FETCH r.verifiedDetail vd
+        WHERE r.deletedAt IS NULL
+          AND r.course.id = :courseId
+          AND r.reviewType = com.bootsignal.domain.review.entity.ReviewType.VERIFIED
+        """)
+    List<Review> findAllVerifiedWithDetailByCourseId(@Param("courseId") Long courseId);
+}
