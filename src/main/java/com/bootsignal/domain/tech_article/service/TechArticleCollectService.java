@@ -46,8 +46,7 @@ public class TechArticleCollectService {
 		try {
 			fetchedArticles = rssFeedParser.fetchAndParse(source);
 		} catch (IOException e) {
-			throw new BootSignalException(ErrorCode.INTERNAL_SERVER_ERROR,
-				source + " RSS 피드를 가져오지 못했습니다: " + e.getMessage());
+			throw new BootSignalException(ErrorCode.RSS_COLLECT_FAILED, ErrorCode.RSS_COLLECT_FAILED.message(), e);
 		}
 
 		List<ParsedRssArticle> keywordMatched = fetchedArticles.stream()
