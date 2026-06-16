@@ -11,15 +11,22 @@ import org.springframework.validation.annotation.Validated;
 public record TechArticleRssProperties(
 	@NotBlank String yozmFeedUrl,
 	@NotBlank String kakaoTechFeedUrl,
+	@NotBlank String d2NaverFeedUrl,
+	@NotBlank String woowahanFeedUrl,
+	@NotBlank String tossTechFeedUrl,
 	@Positive int collectLimit,
+	@Positive int collectWithinMonths,
 	@Positive int timeoutMillis,
 	@NotBlank String userAgent
 ) {
-	// 소스별 RSS 피드 URL 반환
+	// 소스별 RSS/Atom 피드 URL 반환
 	public String feedUrlOf(ArticleSource source) {
 		return switch (source) {
 			case YOZM -> yozmFeedUrl;
 			case KAKAO_TECH -> kakaoTechFeedUrl;
+			case D2_NAVER -> d2NaverFeedUrl;
+			case WOOWAHAN -> woowahanFeedUrl;
+			case TOSS_TECH -> tossTechFeedUrl;
 		};
 	}
 }

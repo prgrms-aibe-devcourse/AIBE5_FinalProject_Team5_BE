@@ -20,7 +20,7 @@ public class AdminTechArticleController {
 
 	/**
 	 * RSS 피드에서 기술 아티클을 수집한다.
-	 * source 쿼리 파라미터 미입력 시 YOZM, KAKAO_TECH 전체를 각각 최대 30건씩 수집
+	 * source 쿼리 파라미터 미입력 시 등록된 전체 소스를 수집
 	 */
 	@PostMapping("/collect")
 	public TechArticleCollectResponse collect(

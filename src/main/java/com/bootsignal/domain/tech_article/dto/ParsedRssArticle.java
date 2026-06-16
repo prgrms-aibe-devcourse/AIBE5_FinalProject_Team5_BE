@@ -1,6 +1,7 @@
 package com.bootsignal.domain.tech_article.dto;
 
 import com.bootsignal.domain.tech_article.entity.ArticleSource;
+import com.bootsignal.domain.tech_article.entity.TechArticle;
 import java.time.LocalDateTime;
 
 /* RSS 피드에서 파싱한 기술 아티클 정보 */
@@ -32,6 +33,19 @@ public record ParsedRssArticle(
 			publishedAt,
 			requireNonBlank(rssGuid, "rssGuid")
 		);
+	}
+
+	public TechArticle toEntity(ArticleSource source) {
+		return TechArticle.builder()
+			.source(source)
+			.title(title)
+			.summary(summary)
+			.thumbnailUrl(thumbnailUrl)
+			.author(author)
+			.articleUrl(articleUrl)
+			.publishedAt(publishedAt)
+			.rssGuid(rssGuid)
+			.build();
 	}
 
 	// 문자열 공백 제거 및 공백 검증

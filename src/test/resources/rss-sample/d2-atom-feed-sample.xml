@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>D2 Blog</title>
+  <link rel="alternate" href="https://d2.naver.com" />
+  <id>https://d2.naver.com/blog.atom</id>
+  <updated>2026-06-16T05:14:54Z</updated>
+  <entry>
+    <title>SaaS 대체하기: AI와 함께한 광고SDK 에러 모니터링 시스템 구축기</title>
+    <link rel="alternate" href="https://d2.naver.com/helloworld/8319114" />
+    <id>https://d2.naver.com/helloworld/8319114</id>
+    <updated>2026-06-16T14:14:39Z</updated>
+    <content type="html">&lt;p&gt;서드파티 SDK 환경에서 범용 에러 모니터링 도구 연동 시 발생하는 구조적 한계를 극복하기 위해 구축한 경험을 공유합니다.&lt;/p&gt;</content>
+  </entry>
+  <entry>
+    <title>AI 에이전트를 위한 Playwright E2E 테스트 하네스 구축하기</title>
+    <link rel="alternate" href="https://d2.naver.com/helloworld/6811215" />
+    <id>https://d2.naver.com/helloworld/6811215</id>
+    <updated>2026-06-15T10:51:03Z</updated>
+    <content type="html">&lt;p&gt;Playwright 기반 E2E 테스트를 구축하고, 에이전트가 직접 테스트 코드를 작성 및 검증하는 워크플로우를 만든 여정을 공유합니다.&lt;/p&gt;</content>
+  </entry>
+</feed>
