@@ -10,7 +10,6 @@ import com.bootsignal.domain.post.repository.PostRepository;
 import com.bootsignal.domain.review.entity.Review;
 import com.bootsignal.domain.review.repository.ReviewRepository;
 import com.bootsignal.domain.user.entity.User;
-import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
@@ -55,8 +54,7 @@ public class MyPageService {
 				p.getPostType().name(),
 				p.getTitle(),
 				p.getCreatedAt(),
-				p.getUpdatedAt(),
-				isOwnerOrAdmin(p.getUser().getId(), user)
+				p.getUpdatedAt()
 			))
 			.toList();
 
@@ -81,8 +79,7 @@ public class MyPageService {
 				"REVIEW",
 				summarize(r.getContent()),
 				r.getCreatedAt(),
-				r.getUpdatedAt(),
-				isOwnerOrAdmin(r.getUser().getId(), user)
+				r.getUpdatedAt()
 			))
 			.toList();
 
@@ -107,8 +104,7 @@ public class MyPageService {
 				"COMMENT",
 				summarize(c.getContent()),
 				c.getCreatedAt(),
-				c.getUpdatedAt(),
-				isOwnerOrAdmin(c.getUser().getId(), user)
+				c.getUpdatedAt()
 			))
 			.toList();
 
@@ -123,12 +119,6 @@ public class MyPageService {
 		return userRepository.findByEmail(email)
 			.filter(u -> !u.isDeleted())
 			.orElseThrow(() -> new BootSignalException(ErrorCode.UNAUTHORIZED));
-	}
-
-	/** 작성자 본인이거나 ADMIN 이면 삭제 가능 */
-	private boolean isOwnerOrAdmin(Long ownerId, User currentUser) {
-		return ownerId.equals(currentUser.getId())
-			|| currentUser.getRole() == UserRole.ADMIN;
 	}
 
 	/** 내용을 최대 100자로 요약합니다. */
