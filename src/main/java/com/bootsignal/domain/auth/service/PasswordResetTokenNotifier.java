@@ -8,5 +8,5 @@ import java.time.Instant;
  */
 public interface PasswordResetTokenNotifier {
 
-	void send(User user, String rawToken, Instant expiresAt);
+	void send(User user, String rawToken, String resetUrl, Instant expiresAt);
 }

@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
 public class NoopPasswordResetTokenNotifier implements PasswordResetTokenNotifier {
 
 	@Override
-	public void send(User user, String rawToken, Instant expiresAt) {
-		// 보안상 rawToken은 API 응답이나 로그에 남기지 않는다.
+	public void send(User user, String rawToken, String resetUrl, Instant expiresAt) {
+		// 보안상 rawToken과 resetUrl은 로그에 남기지 않는다.
 		log.info("Password reset token issued. userId={}, expiresAt={}", user.getId(), expiresAt);
 	}
 }

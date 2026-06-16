@@ -25,6 +25,7 @@ import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import com.bootsignal.global.config.properties.PasswordResetProperties;
 import com.bootsignal.global.security.jwt.JwtRefreshTokenClaims;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
 import com.bootsignal.global.security.jwt.JwtTokenPair;
@@ -51,7 +52,6 @@ public class AuthService {
 	private static final int MAX_NICKNAME_LENGTH = 30;
 	private static final int MAX_NICKNAME_RETRY_COUNT = 100;
 	private static final int PASSWORD_RESET_TOKEN_BYTES = 32;
-	private static final long PASSWORD_RESET_TOKEN_VALIDITY_SECONDS = 30 * 60L;
 
 	private final UserRepository userRepository;
 	private final RefreshTokenRepository refreshTokenRepository;
@@ -62,6 +62,7 @@ public class AuthService {
 	private final GoogleTokenVerifier googleTokenVerifier;
 	private final KakaoTokenVerifier kakaoTokenVerifier;
 	private final PasswordResetTokenNotifier passwordResetTokenNotifier;
+	private final PasswordResetProperties passwordResetProperties;
 	private final SecureRandom secureRandom = new SecureRandom();
 
 	@Transactional
@@ -98,13 +99,13 @@ public class AuthService {
 	@Transactional
 	public PasswordForgotResponse requestPasswordReset(PasswordForgotRequest request) {
 		String email = normalizeEmail(request.email());
-		userRepository.findByEmail(email)
+		return userRepository.findByEmailForUpdate(email)
 			.filter(this::isActiveUser)
-			.ifPresent(user -> {
+			.map(user -> {
 				validateLocalPasswordAccount(user);
-				issuePasswordResetToken(user);
-			});
-		return PasswordForgotResponse.accepted(PASSWORD_RESET_TOKEN_VALIDITY_SECONDS);
+				return issuePasswordResetToken(user);
+			})
+			.orElseGet(() -> PasswordForgotResponse.accepted(passwordResetProperties.validitySeconds()));
 	}
 
 	@Transactional
@@ -235,14 +236,23 @@ public class AuthService {
 		}
 	}
 
-	private void issuePasswordResetToken(User user) {
+	private PasswordForgotResponse issuePasswordResetToken(User user) {
 		Instant now = Instant.now();
 		invalidateUnusedPasswordResetTokens(user, now);
 		String rawToken = generatePasswordResetToken();
 		String tokenHash = refreshTokenHasher.hash(rawToken);
-		Instant expiresAt = now.plusSeconds(PASSWORD_RESET_TOKEN_VALIDITY_SECONDS);
+		Instant expiresAt = now.plusSeconds(passwordResetProperties.validitySeconds());
+		String resetUrl = passwordResetProperties.buildResetUrl(rawToken);
 		passwordResetTokenRepository.save(PasswordResetToken.issue(user, tokenHash, expiresAt));
-		passwordResetTokenNotifier.send(user, rawToken, expiresAt);
+		passwordResetTokenNotifier.send(user, rawToken, resetUrl, expiresAt);
+		if (passwordResetProperties.responseTokenEnabled()) {
+			return PasswordForgotResponse.acceptedWithToken(
+				passwordResetProperties.validitySeconds(),
+				rawToken,
+				resetUrl
+			);
+		}
+		return PasswordForgotResponse.accepted(passwordResetProperties.validitySeconds());
 	}
 
 	private PasswordResetToken findPasswordResetToken(String rawToken) {

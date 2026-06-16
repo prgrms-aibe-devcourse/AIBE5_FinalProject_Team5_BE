@@ -1,9 +1,7 @@
 package com.bootsignal.domain.auth.controller;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -14,12 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.bootsignal.domain.auth.oauth.GoogleTokenVerifier;
 import com.bootsignal.domain.auth.oauth.GoogleUserInfo;
 import com.bootsignal.domain.auth.oauth.KakaoTokenVerifier;
-import com.bootsignal.domain.auth.service.PasswordResetTokenNotifier;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -51,9 +46,6 @@ class AccountManagementIntegrationTest {
 
 	@MockitoBean
 	private KakaoTokenVerifier kakaoTokenVerifier;
-
-	@MockitoBean
-	private PasswordResetTokenNotifier passwordResetTokenNotifier;
 
 	@Test
 	void localAccountCanUseEmailCheckPasswordChangeResetAndDeleteFlow() throws Exception {
@@ -156,7 +148,7 @@ class AccountManagementIntegrationTest {
 					}
 					"""))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.data.provider").value("GOOGLE"));
+			.andExpect(jsonPath("$.data.user.provider").value("GOOGLE"));
 
 		mockMvc.perform(post("/api/auth/password/forgot")
 				.contentType(MediaType.APPLICATION_JSON)
@@ -169,12 +161,10 @@ class AccountManagementIntegrationTest {
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("SOCIAL_LOGIN_REQUIRED"))
 			.andExpect(jsonPath("$.error.message").value("소셜 로그인 계정입니다. 가입한 소셜 로그인으로 다시 로그인해 주세요."));
-
-		verify(passwordResetTokenNotifier, never()).send(any(), any(), any());
 	}
 
 	private String forgotPasswordAndCaptureToken(String email) throws Exception {
-		mockMvc.perform(post("/api/auth/password/forgot")
+		String response = mockMvc.perform(post("/api/auth/password/forgot")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -183,12 +173,18 @@ class AccountManagementIntegrationTest {
 					""".formatted(email)))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.accepted").value(true))
-			.andExpect(jsonPath("$.data.resetToken").doesNotExist())
-			.andExpect(jsonPath("$.data.expiresInSeconds").value(1800));
+			.andExpect(jsonPath("$.data.expiresInSeconds").value(1800))
+			.andExpect(jsonPath("$.data.resetToken").exists())
+			.andExpect(jsonPath("$.data.resetUrl").exists())
+			.andReturn()
+			.getResponse()
+			.getContentAsString(StandardCharsets.UTF_8);
 
-		ArgumentCaptor<String> resetTokenCaptor = ArgumentCaptor.forClass(String.class);
-		verify(passwordResetTokenNotifier).send(any(), resetTokenCaptor.capture(), any(Instant.class));
-		return resetTokenCaptor.getValue();
+		JsonNode data = objectMapper.readTree(response).path("data");
+		String resetToken = data.path("resetToken").asText();
+		assertThat(resetToken).isNotBlank();
+		assertThat(data.path("resetUrl").asText()).contains(resetToken);
+		return resetToken;
 	}
 
 	private JsonNode login(String email, String password) throws Exception {

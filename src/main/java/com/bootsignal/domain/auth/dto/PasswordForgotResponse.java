@@ -6,10 +6,20 @@ package com.bootsignal.domain.auth.dto;
  */
 public record PasswordForgotResponse(
 	boolean accepted,
-	long expiresInSeconds
+	long expiresInSeconds,
+	String resetToken,
+	String resetUrl
 ) {
 
 	public static PasswordForgotResponse accepted(long expiresInSeconds) {
-		return new PasswordForgotResponse(true, expiresInSeconds);
+		return new PasswordForgotResponse(true, expiresInSeconds, null, null);
+	}
+
+	public static PasswordForgotResponse acceptedWithToken(
+		long expiresInSeconds,
+		String resetToken,
+		String resetUrl
+	) {
+		return new PasswordForgotResponse(true, expiresInSeconds, resetToken, resetUrl);
 	}
 }

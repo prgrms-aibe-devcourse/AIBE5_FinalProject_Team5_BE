@@ -4,22 +4,18 @@ import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.global.security.jwt.JwtTokenPair;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * 로그인과 토큰 재발급 성공 시 사용자 정보와 JWT 토큰 정보를 함께 반환하는 DTO입니다.
  */
 public record LoginResponse(
-	Long userId,
-	String email,
-	String name,
-	String nickname,
-	UserRole role,
-	AuthProvider provider,
-	String tokenType,
 	String accessToken,
-	long accessTokenExpiresIn,
+	String tokenType,
+	long expiresIn,
 	String refreshToken,
-	long refreshTokenExpiresIn
+	long refreshTokenExpiresIn,
+	AuthUserResponse user
 ) {
 
 	public LoginResponse(
@@ -34,33 +30,58 @@ public record LoginResponse(
 		long refreshTokenExpiresIn
 	) {
 		this(
-			userId,
-			email,
-			nickname,
-			nickname,
-			role,
-			AuthProvider.LOCAL,
-			tokenType,
 			accessToken,
+			tokenType,
 			accessTokenExpiresIn,
 			refreshToken,
-			refreshTokenExpiresIn
+			refreshTokenExpiresIn,
+			new AuthUserResponse(userId, email, nickname, nickname, role, AuthProvider.LOCAL)
 		);
 	}
 
 	public static LoginResponse of(User user, JwtTokenPair tokenPair) {
 		return new LoginResponse(
-			user.getId(),
-			user.getEmail(),
-			user.getName(),
-			user.getNickname(),
-			user.getRole(),
-			user.getProvider(),
-			tokenPair.tokenType(),
 			tokenPair.accessToken(),
+			tokenPair.tokenType(),
 			tokenPair.accessTokenExpiresIn(),
 			tokenPair.refreshToken(),
-			tokenPair.refreshTokenExpiresIn()
+			tokenPair.refreshTokenExpiresIn(),
+			AuthUserResponse.from(user)
 		);
+	}
+
+	@JsonIgnore
+	public long accessTokenExpiresIn() {
+		return expiresIn;
+	}
+
+	@JsonIgnore
+	public Long userId() {
+		return user.userId();
+	}
+
+	@JsonIgnore
+	public String email() {
+		return user.email();
+	}
+
+	@JsonIgnore
+	public String name() {
+		return user.name();
+	}
+
+	@JsonIgnore
+	public String nickname() {
+		return user.nickname();
+	}
+
+	@JsonIgnore
+	public UserRole role() {
+		return user.role();
+	}
+
+	@JsonIgnore
+	public AuthProvider provider() {
+		return user.provider();
 	}
 }
