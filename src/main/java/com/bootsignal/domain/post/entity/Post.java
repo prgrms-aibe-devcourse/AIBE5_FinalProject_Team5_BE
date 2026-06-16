@@ -22,6 +22,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+
 public class Post extends BaseEntity {
 
 	@Id
@@ -39,8 +40,6 @@ public class Post extends BaseEntity {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private PostType postType;
-
-
 
 	@Column(nullable = false)
 	private String title;
