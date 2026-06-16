@@ -42,7 +42,7 @@ public class CourseService {
                 CourseSpecification.withKeyword(request.keyword()),
                 CourseSpecification.withTrngAreaCd(request.trngAreaCd()),
                 CourseSpecification.withFieldCategory(request.fieldCategory(), fieldCategoryService),
-                CourseSpecification.withIsFree(request.isFree()),
+                CourseSpecification.withPriceRange(request.priceRange()),
                 CourseSpecification.withDurationFilter(request.durationFilter())
         );
 
