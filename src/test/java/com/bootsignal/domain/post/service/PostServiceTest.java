@@ -69,7 +69,6 @@ class PostServiceTest {
 		PostResponse response = postService.create(new PostCreateRequest(
 			null,
 			PostType.BOARD,
-			"자유",
 			"게시글 제목",
 			"게시글 내용"
 		));
@@ -88,7 +87,6 @@ class PostServiceTest {
 		assertThatThrownBy(() -> postService.create(new PostCreateRequest(
 			null,
 			PostType.BOARD,
-			null,
 			"게시글 제목",
 			"게시글 내용"
 		)))
@@ -146,7 +144,6 @@ class PostServiceTest {
 		Post post = Post.builder()
 			.user(author)
 			.postType(PostType.BOARD)
-			.category("자유")
 			.title("게시글 제목")
 			.content("게시글 내용")
 			.build();

@@ -40,7 +40,7 @@ public class Post extends BaseEntity {
 	@Column(nullable = false)
 	private PostType postType;
 
-	private String category;
+
 
 	@Column(nullable = false)
 	private String title;
@@ -54,19 +54,21 @@ public class Post extends BaseEntity {
 	private LocalDateTime deletedAt;
 
 	@Builder
-	private Post(User user, Course course, PostType postType, String category, String title, String content) {
+	private Post(User user, Course course, PostType postType, String title, String content) {
 		this.user = user;
 		this.course = course;
 		this.postType = postType;
-		this.category = category;
+
 		this.title = title;
 		this.content = content;
 	}
 
-	public void update(String title, String content, String category) {
-		if (title != null) this.title = title;
-		if (content != null) this.content = content;
-		if (category != null) this.category = category;
+	public void update(String title, String content) {
+		if (title != null)
+			this.title = title;
+		if (content != null)
+			this.content = content;
+
 	}
 
 	public void softDelete() {

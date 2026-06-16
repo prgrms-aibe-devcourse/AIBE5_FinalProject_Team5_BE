@@ -10,7 +10,7 @@ public record PostResponse(
 	String userNickname,
 	Long courseId,
 	PostType postType,
-	String category,
+
 	String title,
 	String content,
 	LocalDateTime createdAt,
@@ -23,7 +23,7 @@ public record PostResponse(
 			post.getUser().getNickname(),
 			post.getCourse() != null ? post.getCourse().getId() : null,
 			post.getPostType(),
-			post.getCategory(),
+	
 			post.getTitle(),
 			post.getContent(),
 			post.getCreatedAt(),
