@@ -1,17 +1,24 @@
 package com.bootsignal.domain.auth.service;
 
+import com.bootsignal.domain.auth.dto.AuthActionResponse;
+import com.bootsignal.domain.auth.dto.EmailAvailabilityResponse;
 import com.bootsignal.domain.auth.dto.GoogleLoginRequest;
 import com.bootsignal.domain.auth.dto.KakaoLoginRequest;
 import com.bootsignal.domain.auth.dto.LoginRequest;
 import com.bootsignal.domain.auth.dto.LoginResponse;
+import com.bootsignal.domain.auth.dto.PasswordForgotRequest;
+import com.bootsignal.domain.auth.dto.PasswordForgotResponse;
+import com.bootsignal.domain.auth.dto.PasswordResetRequest;
 import com.bootsignal.domain.auth.dto.RefreshTokenRequest;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
+import com.bootsignal.domain.auth.entity.PasswordResetToken;
 import com.bootsignal.domain.auth.entity.RefreshToken;
 import com.bootsignal.domain.auth.oauth.GoogleTokenVerifier;
 import com.bootsignal.domain.auth.oauth.GoogleUserInfo;
 import com.bootsignal.domain.auth.oauth.KakaoTokenVerifier;
 import com.bootsignal.domain.auth.oauth.KakaoUserInfo;
+import com.bootsignal.domain.auth.repository.PasswordResetTokenRepository;
 import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
 import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
@@ -22,7 +29,9 @@ import com.bootsignal.global.security.jwt.JwtRefreshTokenClaims;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
 import com.bootsignal.global.security.jwt.JwtTokenPair;
 import com.bootsignal.global.security.jwt.RefreshTokenHasher;
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -41,19 +50,24 @@ public class AuthService {
 
 	private static final int MAX_NICKNAME_LENGTH = 30;
 	private static final int MAX_NICKNAME_RETRY_COUNT = 100;
+	private static final int PASSWORD_RESET_TOKEN_BYTES = 32;
+	private static final long PASSWORD_RESET_TOKEN_VALIDITY_SECONDS = 30 * 60L;
 
 	private final UserRepository userRepository;
 	private final RefreshTokenRepository refreshTokenRepository;
+	private final PasswordResetTokenRepository passwordResetTokenRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
 	private final RefreshTokenHasher refreshTokenHasher;
 	private final GoogleTokenVerifier googleTokenVerifier;
 	private final KakaoTokenVerifier kakaoTokenVerifier;
+	private final SecureRandom secureRandom = new SecureRandom();
 
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
 		String email = normalizeEmail(request.email());
-		String nickname = request.nickname().strip();
+		String nickname = normalizeRequiredText(request.nickname(), "닉네임은 필수입니다.");
+		String name = normalizeName(request.name(), nickname);
 		if (userRepository.existsByEmail(email)) {
 			throw new BootSignalException(ErrorCode.DUPLICATE_EMAIL);
 		}
@@ -64,6 +78,7 @@ public class AuthService {
 		User user = User.signupLocal(
 			email,
 			passwordEncoder.encode(request.password()),
+			name,
 			nickname
 		);
 
@@ -72,6 +87,50 @@ public class AuthService {
 		} catch (DataIntegrityViolationException exception) {
 			throw new BootSignalException(resolveDuplicateErrorCode(exception));
 		}
+	}
+
+	public EmailAvailabilityResponse checkEmailAvailability(String email) {
+		String normalizedEmail = normalizeEmail(email);
+		return new EmailAvailabilityResponse(normalizedEmail, !userRepository.existsByEmail(normalizedEmail));
+	}
+
+	@Transactional
+	public PasswordForgotResponse requestPasswordReset(PasswordForgotRequest request) {
+		String email = normalizeEmail(request.email());
+		return userRepository.findByEmail(email)
+			.filter(this::isActiveUser)
+			.map(user -> {
+				validateLocalPasswordAccount(user);
+				return issuePasswordResetToken(user);
+			})
+			.orElseGet(PasswordForgotResponse::acceptedWithoutToken);
+	}
+
+	@Transactional
+	public AuthActionResponse resetPassword(PasswordResetRequest request) {
+		Instant now = Instant.now();
+		PasswordResetToken resetToken = findPasswordResetToken(request.token());
+
+		if (resetToken.isExpired(now)) {
+			throw new BootSignalException(ErrorCode.PASSWORD_RESET_TOKEN_EXPIRED);
+		}
+		if (resetToken.isUsed()) {
+			throw new BootSignalException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+		}
+
+		User user = resetToken.getUser();
+		if (user.isDeleted()) {
+			throw new BootSignalException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+		}
+		validateLocalPasswordAccount(user);
+		if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+			throw new BootSignalException(ErrorCode.PASSWORD_REUSE_NOT_ALLOWED);
+		}
+
+		user.changePassword(passwordEncoder.encode(request.newPassword()));
+		resetToken.use(now);
+		revokeActiveRefreshTokens(user, now);
+		return AuthActionResponse.success();
 	}
 
 	@Transactional
@@ -170,9 +229,34 @@ public class AuthService {
 
 	private void handleRefreshTokenReuse(RefreshToken storedToken, Instant now) {
 		if (!storedToken.isExpired(now) && (storedToken.isRevoked() || storedToken.isReplaced())) {
-			refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(storedToken.getUser())
-				.forEach(activeToken -> activeToken.revoke(now));
+			revokeActiveRefreshTokens(storedToken.getUser(), now);
 		}
+	}
+
+	private PasswordForgotResponse issuePasswordResetToken(User user) {
+		Instant now = Instant.now();
+		String rawToken = generatePasswordResetToken();
+		String tokenHash = refreshTokenHasher.hash(rawToken);
+		Instant expiresAt = now.plusSeconds(PASSWORD_RESET_TOKEN_VALIDITY_SECONDS);
+		passwordResetTokenRepository.save(PasswordResetToken.issue(user, tokenHash, expiresAt));
+		return new PasswordForgotResponse(true, rawToken, expiresAt, PASSWORD_RESET_TOKEN_VALIDITY_SECONDS);
+	}
+
+	private PasswordResetToken findPasswordResetToken(String rawToken) {
+		String tokenHash = refreshTokenHasher.hash(rawToken);
+		return passwordResetTokenRepository.findByTokenHash(tokenHash)
+			.orElseThrow(() -> new BootSignalException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID));
+	}
+
+	private String generatePasswordResetToken() {
+		byte[] randomBytes = new byte[PASSWORD_RESET_TOKEN_BYTES];
+		secureRandom.nextBytes(randomBytes);
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+	}
+
+	private void revokeActiveRefreshTokens(User user, Instant now) {
+		refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user)
+			.forEach(activeToken -> activeToken.revoke(now));
 	}
 
 	private ErrorCode resolveRefreshTokenStatus(RefreshToken storedToken, Instant now) {
@@ -297,9 +381,38 @@ public class AuthService {
 	}
 
 	private boolean isLocalActiveUser(User user) {
-		return !user.isDeleted()
+		return isActiveUser(user)
 			&& user.getProvider() == AuthProvider.LOCAL
-			&& user.getPasswordHash() != null;
+			&& user.hasPassword();
+	}
+
+	private boolean isActiveUser(User user) {
+		return !user.isDeleted();
+	}
+
+	private void validateLocalPasswordAccount(User user) {
+		if (user.getProvider() != AuthProvider.LOCAL || !user.hasPassword()) {
+			throw new BootSignalException(ErrorCode.SOCIAL_LOGIN_REQUIRED);
+		}
+	}
+
+	private String normalizeRequiredText(String value, String blankMessage) {
+		String normalized = value == null ? "" : value.strip();
+		if (!StringUtils.hasText(normalized)) {
+			throw new BootSignalException(ErrorCode.BAD_REQUEST, blankMessage);
+		}
+		return normalized;
+	}
+
+	private String normalizeName(String name, String fallbackNickname) {
+		if (name == null) {
+			return fallbackNickname;
+		}
+		String normalized = name.strip();
+		if (!StringUtils.hasText(normalized)) {
+			throw new BootSignalException(ErrorCode.BAD_REQUEST, "이름은 비어 있을 수 없습니다.");
+		}
+		return normalized;
 	}
 
 	private BootSignalException invalidLoginCredentials() {

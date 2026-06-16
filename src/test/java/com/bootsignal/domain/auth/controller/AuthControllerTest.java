@@ -4,16 +4,21 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.bootsignal.domain.auth.dto.AuthActionResponse;
+import com.bootsignal.domain.auth.dto.EmailAvailabilityResponse;
 import com.bootsignal.domain.auth.dto.LoginResponse;
+import com.bootsignal.domain.auth.dto.PasswordForgotResponse;
 import com.bootsignal.domain.auth.dto.SignupResponse;
 import com.bootsignal.domain.auth.service.AuthService;
 import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -50,7 +55,62 @@ class AuthControllerTest {
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.id").value(1))
 			.andExpect(jsonPath("$.data.email").value("user@example.com"))
+			.andExpect(jsonPath("$.data.name").value("tester"))
 			.andExpect(jsonPath("$.data.nickname").value("tester"))
+			.andExpect(jsonPath("$.error").doesNotExist());
+	}
+
+	@Test
+	void checkEmailReturnsAvailability() throws Exception {
+		given(authService.checkEmailAvailability("user@example.com"))
+			.willReturn(new EmailAvailabilityResponse("user@example.com", true));
+
+		mockMvc.perform(get("/api/auth/check-email")
+				.queryParam("email", "user@example.com"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.email").value("user@example.com"))
+			.andExpect(jsonPath("$.data.available").value(true))
+			.andExpect(jsonPath("$.error").doesNotExist());
+	}
+
+	@Test
+	void forgotPasswordReturnsAcceptedResponse() throws Exception {
+		Instant expiresAt = Instant.parse("2026-06-16T03:00:00Z");
+		given(authService.requestPasswordReset(any()))
+			.willReturn(new PasswordForgotResponse(true, "reset-token", expiresAt, 1800L));
+
+		mockMvc.perform(post("/api/auth/password/forgot")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"email": "user@example.com"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.accepted").value(true))
+			.andExpect(jsonPath("$.data.resetToken").value("reset-token"))
+			.andExpect(jsonPath("$.data.expiresInSeconds").value(1800))
+			.andExpect(jsonPath("$.error").doesNotExist());
+	}
+
+	@Test
+	void resetPasswordReturnsCompletedResponse() throws Exception {
+		given(authService.resetPassword(any()))
+			.willReturn(AuthActionResponse.success());
+
+		mockMvc.perform(post("/api/auth/password/reset")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"token": "reset-token",
+						"newPassword": "newPassword123"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.completed").value(true))
 			.andExpect(jsonPath("$.error").doesNotExist());
 	}
 

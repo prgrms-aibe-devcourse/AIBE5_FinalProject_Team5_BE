@@ -8,6 +8,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.bootsignal.domain.auth.entity.RefreshToken;
+import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
+import com.bootsignal.domain.user.dto.PasswordChangeRequest;
 import com.bootsignal.domain.user.dto.UserInfoResponse;
 import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
@@ -16,6 +19,7 @@ import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.domain.user.storage.ProfileImageStorage;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -43,13 +48,19 @@ class UserServiceTest {
 	private ProfileImageStorage profileImageStorage;
 
 	@Mock
+	private PasswordEncoder passwordEncoder;
+
+	@Mock
+	private RefreshTokenRepository refreshTokenRepository;
+
+	@Mock
 	private MultipartFile multipartFile;
 
 	private UserService userService;
 
 	@BeforeEach
 	void setUp() {
-		userService = new UserService(userRepository, profileImageStorage);
+		userService = new UserService(userRepository, profileImageStorage, passwordEncoder, refreshTokenRepository);
 	}
 
 	@AfterEach
@@ -231,6 +242,83 @@ class UserServiceTest {
 		assertThat(response.profileImageUrl()).isEqualTo("http://localhost:8080/local-files/profile/1_uuid.png");
 	}
 
+	@Test
+	@DisplayName("현재 비밀번호가 맞으면 새 비밀번호로 변경하고 활성 세션을 폐기한다")
+	void changePasswordUpdatesPasswordAndRevokesRefreshTokens() {
+		// given
+		User user = localUser(1L, "user@example.com", "홍길동", "tester");
+		RefreshToken activeToken = RefreshToken.issue(user, "refresh-hash", Instant.now().plusSeconds(600));
+		setAuthentication("user@example.com", UserRole.USER);
+		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(passwordEncoder.matches("password123", "encoded-password")).willReturn(true);
+		given(passwordEncoder.matches("newPassword123", "encoded-password")).willReturn(false);
+		given(passwordEncoder.encode("newPassword123")).willReturn("new-encoded-password");
+		given(refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user))
+			.willReturn(List.of(activeToken));
+
+		// when
+		userService.changePassword(new PasswordChangeRequest("password123", "newPassword123"));
+
+		// then
+		assertThat(user.getPasswordHash()).isEqualTo("new-encoded-password");
+		assertThat(activeToken.isRevoked()).isTrue();
+	}
+
+	@Test
+	@DisplayName("현재 비밀번호가 틀리면 INVALID_CURRENT_PASSWORD 예외를 던진다")
+	void changePasswordThrowsWhenCurrentPasswordDoesNotMatch() {
+		// given
+		User user = localUser(1L, "user@example.com", "홍길동", "tester");
+		setAuthentication("user@example.com", UserRole.USER);
+		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(passwordEncoder.matches("wrongPassword", "encoded-password")).willReturn(false);
+
+		// when & then
+		assertThatThrownBy(() -> userService.changePassword(new PasswordChangeRequest("wrongPassword", "newPassword123")))
+			.isInstanceOf(BootSignalException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.INVALID_CURRENT_PASSWORD);
+
+		verify(passwordEncoder, never()).encode(any());
+	}
+
+	@Test
+	@DisplayName("소셜 로그인 계정은 비밀번호 변경을 지원하지 않는다")
+	void changePasswordThrowsWhenUserHasNoLocalPassword() {
+		// given
+		User user = googleUser(1L, "user@example.com", "길동");
+		setAuthentication("user@example.com", UserRole.USER);
+		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+
+		// when & then
+		assertThatThrownBy(() -> userService.changePassword(new PasswordChangeRequest("password123", "newPassword123")))
+			.isInstanceOf(BootSignalException.class)
+			.extracting("errorCode")
+			.isEqualTo(ErrorCode.SOCIAL_LOGIN_REQUIRED);
+
+		verify(passwordEncoder, never()).matches(any(), any());
+	}
+
+	@Test
+	@DisplayName("회원 탈퇴는 사용자를 soft delete 처리하고 활성 세션을 폐기한다")
+	void deleteMyAccountSoftDeletesUserAndRevokesRefreshTokens() {
+		// given
+		User user = googleUser(1L, "user@example.com", "길동");
+		RefreshToken activeToken = RefreshToken.issue(user, "refresh-hash", Instant.now().plusSeconds(600));
+		setAuthentication("user@example.com", UserRole.USER);
+		given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
+		given(refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user))
+			.willReturn(List.of(activeToken));
+
+		// when
+		userService.deleteMyAccount();
+
+		// then
+		assertThat(user.isDeleted()).isTrue();
+		assertThat(user.getDeletedAt()).isNotNull();
+		assertThat(activeToken.isRevoked()).isTrue();
+	}
+
 	// SecurityContext에 JWT 인증 상태를 직접 주입한다
 	private void setAuthentication(String email, UserRole role) {
 		SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
@@ -249,6 +337,13 @@ class UserServiceTest {
 			nickname,
 			"https://example.com/profile.png"
 		);
+		ReflectionTestUtils.setField(user, "id", id);
+		return user;
+	}
+
+	// 테스트용 이메일 가입 사용자를 생성한다
+	private User localUser(Long id, String email, String name, String nickname) {
+		User user = User.signupLocal(email, "encoded-password", name, nickname);
 		ReflectionTestUtils.setField(user, "id", id);
 		return user;
 	}

@@ -4,11 +4,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.bootsignal.domain.user.dto.MemberActionResponse;
 import com.bootsignal.domain.user.dto.UserInfoResponse;
 import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.UserRole;
@@ -68,6 +71,7 @@ class UserControllerTest {
 			.andExpect(jsonPath("$.success").value(true))
 			.andExpect(jsonPath("$.data.userId").value(1))
 			.andExpect(jsonPath("$.data.email").value("user@example.com"))
+			.andExpect(jsonPath("$.data.name").value("길동"))
 			.andExpect(jsonPath("$.data.nickname").value("길동"))
 			.andExpect(jsonPath("$.data.role").value("USER"))
 			.andExpect(jsonPath("$.data.provider").value("GOOGLE"))
@@ -106,6 +110,38 @@ class UserControllerTest {
 			.andExpect(jsonPath("$.error").doesNotExist());
 
 		verify(userService).updateMyInfo(eq("새닉네임"), any());
+	}
+
+	@Test
+	@DisplayName("PATCH /api/users/me/password — 비밀번호 변경 성공 (200)")
+	void changeMyPasswordReturnsOkResponse() throws Exception {
+		// given
+		given(userService.changePassword(any()))
+			.willReturn(MemberActionResponse.success());
+
+		// when & then
+		mockMvc.perform(patch("/api/users/me/password")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"currentPassword": "password123",
+						"newPassword": "newPassword123"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.completed").value(true))
+			.andExpect(jsonPath("$.error").doesNotExist());
+	}
+
+	@Test
+	@DisplayName("DELETE /api/users/me — 회원 탈퇴 성공 (204)")
+	void deleteMyAccountReturnsNoContent() throws Exception {
+		// when & then
+		mockMvc.perform(delete("/api/users/me"))
+			.andExpect(status().isNoContent());
+
+		verify(userService).deleteMyAccount();
 	}
 
 	@Test

@@ -1,19 +1,29 @@
 package com.bootsignal.domain.user.service;
 
+import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
+import com.bootsignal.domain.user.dto.MemberActionResponse;
+import com.bootsignal.domain.user.dto.PasswordChangeRequest;
 import com.bootsignal.domain.user.dto.UserInfoResponse;
+import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.domain.user.storage.ProfileImageStorage;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import com.bootsignal.global.security.SecurityUtil;
+import java.time.Instant;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 로그인 사용자의 프로필 조회/수정, 비밀번호 변경, 회원 탈퇴를 처리하는 서비스입니다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -23,41 +33,34 @@ public class UserService {
 
 	private final UserRepository userRepository;
 	private final ProfileImageStorage profileImageStorage;
+	private final PasswordEncoder passwordEncoder;
+	private final RefreshTokenRepository refreshTokenRepository;
 
-	/** 내 정보 조회 **/
 	public UserInfoResponse getMyInfo() {
 		return UserInfoResponse.from(findActiveUser());
 	}
 
-	/** 내 정보 수정 **/
-	  // profileImage: 루트/temp-storage/profile-images에 임시 저장 (배포 시 S3 전환 예정)
 	@Transactional
 	public UserInfoResponse updateMyInfo(String nickname, MultipartFile profileImage) {
 		User user = findActiveUser();
-
 		String normalizedNickname = normalizeNickname(nickname);
 
-		// 닉네임·이미지 묶음 수정 요청 여부 검사
-		if (profileImage == null || profileImage.isEmpty())  {
-			if (normalizedNickname == null || normalizedNickname.equals(user.getNickname())) {
-				return UserInfoResponse.from(user);
-			}
+		if ((profileImage == null || profileImage.isEmpty())
+			&& (normalizedNickname == null || normalizedNickname.equals(user.getNickname()))) {
+			return UserInfoResponse.from(user);
 		}
 
-		// 닉네임 수정 요청 여부 검사 
 		String nicknameForUpdate = null;
 		if (normalizedNickname != null && !normalizedNickname.equals(user.getNickname())) {
 			validateNicknameAvailable(user, normalizedNickname);
 			nicknameForUpdate = normalizedNickname;
 		}
 
-		// 프로필 이미지 수정 요청 여부 검사
 		String profileImageUrl = null;
 		if (profileImage != null && !profileImage.isEmpty()) {
-			profileImageUrl = resolveProfileImageUrl(profileImage, user.getId());
+			profileImageUrl = profileImageStorage.store(profileImage, user.getId());
 		}
 
-		// 사용자 정보 수정 처리
 		try {
 			user.updateProfile(nicknameForUpdate, profileImageUrl);
 			return UserInfoResponse.from(user);
@@ -66,31 +69,44 @@ public class UserService {
 		}
 	}
 
-	// 프로필 이미지 URL 결정 
-	private String resolveProfileImageUrl(MultipartFile profileImage, Long userId) {
-		if (profileImage == null || profileImage.isEmpty()) { // 수정 요청 없는 경우
-			return null;
+	@Transactional
+	public MemberActionResponse changePassword(PasswordChangeRequest request) {
+		User user = findActiveUser();
+		validatePasswordLoginAvailable(user);
+
+		if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+			throw new BootSignalException(ErrorCode.INVALID_CURRENT_PASSWORD);
 		}
-		// 프로필 이미지 저장소에 저장하고 URL 반환 (배포 시 S3 전환 예정)
-		return profileImageStorage.store(profileImage, userId);
+		if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+			throw new BootSignalException(ErrorCode.PASSWORD_REUSE_NOT_ALLOWED);
+		}
+
+		user.changePassword(passwordEncoder.encode(request.newPassword()));
+		revokeActiveRefreshTokens(user, Instant.now());
+		return MemberActionResponse.success();
 	}
 
-	// 현재 사용자 조회
+	@Transactional
+	public void deleteMyAccount() {
+		User user = findActiveUser();
+		user.softDelete(LocalDateTime.now());
+		revokeActiveRefreshTokens(user, Instant.now());
+	}
+
 	private User findActiveUser() {
 		String email = SecurityUtil.getCurrentUserEmail();
-		
+
 		return userRepository.findByEmail(email)
 			.filter(activeUser -> !activeUser.isDeleted())
 			.orElseThrow(() -> new BootSignalException(ErrorCode.USER_NOT_FOUND));
 	}
 
-	// 닉네임 전처리
 	private String normalizeNickname(String nickname) {
-		if (nickname == null) { // 수정 요청 없는 경우
+		if (nickname == null) {
 			return null;
 		}
 
-		String normalized = nickname.strip(); // 앞뒤 공백 제거
+		String normalized = nickname.strip();
 		if (!StringUtils.hasText(normalized)) {
 			throw new BootSignalException(ErrorCode.BAD_REQUEST, "닉네임은 비어 있을 수 없습니다.");
 		}
@@ -101,14 +117,23 @@ public class UserService {
 		return normalized;
 	}
 
-	// 닉네임 중복 검사
 	private void validateNicknameAvailable(User user, String nickname) {
-		if (nickname == null) { // 수정 요청 없는 경우
+		if (nickname == null) {
 			return;
 		}
-		// 본인 닉네임 제외하고 중복 여부 검사 (AuthService 회원가입과 동일한 ErrorCode 사용)
 		if (userRepository.existsByNicknameAndIdNot(nickname, user.getId())) {
 			throw new BootSignalException(ErrorCode.DUPLICATE_NICKNAME);
 		}
+	}
+
+	private void validatePasswordLoginAvailable(User user) {
+		if (user.getProvider() != AuthProvider.LOCAL || !user.hasPassword()) {
+			throw new BootSignalException(ErrorCode.SOCIAL_LOGIN_REQUIRED);
+		}
+	}
+
+	private void revokeActiveRefreshTokens(User user, Instant now) {
+		refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user)
+			.forEach(activeToken -> activeToken.revoke(now));
 	}
 }
