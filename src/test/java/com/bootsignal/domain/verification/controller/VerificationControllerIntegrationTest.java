@@ -149,12 +149,35 @@ class VerificationControllerIntegrationTest {
                         "courseSessionId": %d,
                         "reviewType": "VERIFIED",
                         "rating": 5,
-                        "content": "승인된 인증으로 작성한 리뷰입니다."
+                        "content": "승인된 인증으로 작성한 리뷰입니다.",
+                        "verifiedDetail": {
+                            "priorKnowledgeLevel": "non_major",
+                            "age": 29,
+                            "learningGoal": "employment",
+                            "attendanceType": "online",
+                            "cohort": 1,
+                            "courseDifficulty": "medium",
+                            "progressSpeed": "moderate",
+                            "teamProjectDifficulty": "medium",
+                            "avgSelfStudyHours": 3,
+                            "instructorDeliveryRating": 5,
+                            "curriculumRating": 4,
+                            "employmentSupportRating": 4,
+                            "projectCount": 3,
+                            "projectAchievementRating": 5,
+                            "toolSupportRating": 4,
+                            "mentoringSatisfactionRating": 5,
+                            "completionStatus": "completed",
+                            "employmentStatus": "preparing",
+                            "collaborationComment": "팀 프로젝트 협업 경험이 좋았습니다."
+                        }
                     }
                     """.formatted(fixture.courseSessionId())))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.reviewType").value("VERIFIED"));
+            .andExpect(jsonPath("$.data.reviewType").value("VERIFIED"))
+            .andExpect(jsonPath("$.data.verifiedDetail.priorKnowledgeLevel").value("비전공"))
+            .andExpect(jsonPath("$.data.verifiedDetail.employmentSupportSatisfactionRating").value(4));
     }
 
     @Test
