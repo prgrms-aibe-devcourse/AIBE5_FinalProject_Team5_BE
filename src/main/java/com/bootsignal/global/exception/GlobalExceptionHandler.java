@@ -2,6 +2,7 @@ package com.bootsignal.global.exception;
 
 import com.bootsignal.global.response.ApiResponse;
 import com.bootsignal.global.response.ErrorResponse;
+import com.bootsignal.domain.tech_article.entity.ArticleSource;
 import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.util.List;
@@ -71,6 +72,10 @@ public class GlobalExceptionHandler {
 		IllegalArgumentException.class
 	})
 	public ResponseEntity<ApiResponse<Void>> handleBadRequestException(Exception exception) {
+		if (exception instanceof MethodArgumentTypeMismatchException mismatchException
+			&& mismatchException.getRequiredType() == ArticleSource.class) {
+			return toResponse(ErrorCode.INVALID_ARTICLE_SOURCE, ErrorCode.INVALID_ARTICLE_SOURCE.message());
+		}
 		return toResponse(ErrorCode.BAD_REQUEST, resolveMessage(exception, ErrorCode.BAD_REQUEST.message()));
 	}
 

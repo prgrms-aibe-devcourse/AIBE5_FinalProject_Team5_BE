@@ -13,7 +13,7 @@ public enum ErrorCode {
 	BAD_REQUEST(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "잘못된 요청입니다."),
 	VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "요청 값이 올바르지 않습니다."),
 	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "로그인이 필요합니다."),
-	FORBIDDEN(HttpStatus.FORBIDDEN, "FORBIDDEN", "접근 권한이 없습니다."),
+	FORBIDDEN(HttpStatus.FORBIDDEN, "FORBIDDEN", "관리자 권한이 필요합니다."),
 	NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "요청한 리소스를 찾을 수 없습니다."),
 	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "사용자를 찾을 수 없습니다."),
 	COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "COURSE_NOT_FOUND", "과정을 찾을 수 없습니다."),
@@ -27,6 +27,7 @@ public enum ErrorCode {
 	BOOKMARK_ALREADY_EXISTS(HttpStatus.CONFLICT, "BOOKMARK_ALREADY_EXISTS", "이미 북마크한 과정입니다."),
 	BOOKMARK_NOT_FOUND(HttpStatus.NOT_FOUND, "BOOKMARK_NOT_FOUND", "북마크를 찾을 수 없습니다."),
 	INVALID_PAGE_PARAMETER(HttpStatus.BAD_REQUEST, "INVALID_PAGE_PARAMETER", "페이지 정보가 올바르지 않습니다."),
+	INVALID_ARTICLE_SOURCE(HttpStatus.BAD_REQUEST, "INVALID_ARTICLE_SOURCE", "지원하지 않는 RSS 소스입니다."),
 	VERIFICATION_NOT_APPROVED(HttpStatus.FORBIDDEN, "VERIFICATION_NOT_APPROVED", "수료 인증이 승인되지 않아 인증 리뷰를 작성할 수 없습니다."),
 	VERIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "VERIFICATION_NOT_FOUND", "인증 신청을 찾을 수 없습니다."),
 	VERIFICATION_ALREADY_EXISTS(HttpStatus.CONFLICT, "VERIFICATION_ALREADY_EXISTS", "이미 해당 과정 회차에 대한 인증 신청이 존재합니다."),
@@ -58,6 +59,7 @@ public enum ErrorCode {
 	AI_OUTPUT_INVALID(HttpStatus.INTERNAL_SERVER_ERROR, "AI_OUTPUT_INVALID", "AI Agent 출력 값이 올바르지 않습니다."),
 	AI_RETRY_EXHAUSTED(HttpStatus.INTERNAL_SERVER_ERROR, "AI_RETRY_EXHAUSTED", "AI Agent 재시도 횟수를 초과했습니다."),
 	AI_EXECUTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "AI_EXECUTION_FAILED", "AI Agent 실행 중 오류가 발생했습니다."),
+	RSS_COLLECT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "RSS_COLLECT_FAILED", "RSS 수집에 실패했습니다."),
 	INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "서버 내부 오류가 발생했습니다.");
 
 	private final HttpStatus status;

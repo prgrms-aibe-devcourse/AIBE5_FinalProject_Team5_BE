@@ -96,6 +96,17 @@ app:
       auth-key: ${HRD_API_AUTH_KEY:}
       base-url: ${HRD_API_BASE_URL:https://www.work24.go.kr/cm/openApi/call/hr}
       return-type: ${HRD_API_RETURN_TYPE:JSON}
+  tech-article:
+    rss:
+      yozm-feed-url: ${YOZM_RSS_FEED_URL:https://yozm.wishket.com/magazine/feed/}
+      kakao-tech-feed-url: ${KAKAO_TECH_RSS_FEED_URL:https://tech.kakao.com/feed/}
+      d2-naver-feed-url: ${D2_NAVER_RSS_FEED_URL:https://d2.naver.com/d2.atom}
+      woowahan-feed-url: ${WOOWAHAN_RSS_FEED_URL:https://techblog.woowahan.com/feed/}
+      toss-tech-feed-url: ${TOSS_TECH_RSS_FEED_URL:https://toss.tech/rss.xml}
+      collect-limit: ${TECH_ARTICLE_COLLECT_LIMIT:30} # 키워드 필터 통과 후 소스별 최대 저장 건수
+      collect-within-months: ${TECH_ARTICLE_COLLECT_WITHIN_MONTHS:6} # 수집 기준일로부터 발행일이 N개월 이내인 글만 저장
+      timeout-millis: ${TECH_ARTICLE_RSS_TIMEOUT_MILLIS:15000}
+      user-agent: ${TECH_ARTICLE_RSS_USER_AGENT:Mozilla/5.0 BootSignalRssCollector/1.0}
   work24:
     crawler:
       default-course-url: "${WORK24_CRAWLER_DEFAULT_COURSE_URL:https://www.work24.go.kr/hr/a/a/3100/selectTracseDetl.do?tracseId=AIG20240000498288&tracseTme=7&crseTracseSe=C0061&trainstCstmrId=500036172479}"
