@@ -94,7 +94,7 @@ public class CourseService {
      * 과정 상세 조회 (institution 및 대표 세션 포함)
      */
     public CourseDetailResponse getCourseDetail(Long courseId) {
-        Course course = courseRepository.findById(courseId)
+        Course course = courseRepository.findWithInstitutionById(courseId)
                 .orElseThrow(() -> new BootSignalException(ErrorCode.COURSE_NOT_FOUND));
 
         List<CourseSession> sessions = courseSessionRepository.findByCourse_IdOrderByTraStartDateAsc(courseId);
