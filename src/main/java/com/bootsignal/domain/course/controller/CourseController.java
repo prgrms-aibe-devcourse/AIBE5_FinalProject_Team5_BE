@@ -27,15 +27,15 @@ public class CourseController {
     private final CourseSessionService courseSessionService;
 
     /**
-     * 과정 목록 조회 (검색 + 필터 + 페이징)
-     * GET /api/courses?keyword=Java&trngAreaCd=11&fieldCategory=AI&isFree=true&durationFilter=WITHIN_3_MONTHS&page=0&size=20
+     * 과정 회차(세션) 목록 조회 (검색 + 필터 + 페이징)
+     * GET /api/courses?keyword=Java&trngAreaCd=11&fieldCategory=AI&priceRange=BELOW_30&durationFilter=WITHIN_3_MONTHS&page=0&size=20
      *
      * keyword        : 훈련과정명, 훈련기관명 검색 (부분 일치)
      * trngAreaCd     : 지역 대분류 코드 앞 2자리 (예: 11=서울, 26=부산) — 전방 일치
      * fieldCategory  : 분야 카테고리 (AI / SECURITY / BIG_DATA / CLOUD / UI_UX / VR / APP_SW / OTHERS)
-     * isFree         : 가격 필터 — true=무료(자기부담금=0), false=유료(자기부담금>0)
-     * durationFilter : 기간 필터 — WITHIN_3_MONTHS(≤90일) / WITHIN_6_MONTHS(91~180일) / OVER_6_MONTHS(>180일)
-     * page           : 페이지 번호 (0부터 시작)
+     * priceRange     : 본인 부담금 가격 필터 (BELOW_30: 30만원 이하 / BELOW_45: 45만원 이하 / BELOW_60: 60만원 이하)
+     * durationFilter : 기간 필터 (총 훈련일수 기준) — WITHIN_3_MONTHS(≤90일) / WITHIN_6_MONTHS(91~180일) / OVER_6_MONTHS(>180일)
+     * page           : 페이지 번호 (0부터 시작, 기본값 0)
      * size           : 페이지 크기 (기본값 20, 최대 100)
      */
     @GetMapping

@@ -87,4 +87,13 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
           AND r.reviewType = com.bootsignal.domain.review.entity.ReviewType.VERIFIED
         """)
     List<Review> findAllVerifiedWithDetailByCourseId(@Param("courseId") Long courseId);
+
+    @Query("""
+        SELECT r.course.id, COUNT(r), SUM(r.rating)
+        FROM Review r
+        WHERE r.course.id IN :courseIds AND r.deletedAt IS NULL
+        GROUP BY r.course.id
+        """)
+    List<Object[]> findReviewSumsByCourseIds(@Param("courseIds") List<Long> courseIds);
 }
+

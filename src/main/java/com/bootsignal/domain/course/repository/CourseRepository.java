@@ -15,6 +15,9 @@ public interface CourseRepository extends JpaRepository<Course, Long>,
 
     Optional<Course> findByTrprId(String trprId);
 
+    @EntityGraph(attributePaths = {"institution"})
+    Optional<Course> findWithInstitutionById(Long id);
+
     Page<Course> findByReviewCrawledAtIsNull(Pageable pageable);
 
     // 목록 조회 시 institution을 한 번에 fetch하여 N+1 방지
