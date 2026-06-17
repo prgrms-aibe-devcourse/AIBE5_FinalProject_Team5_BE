@@ -1,13 +1,16 @@
 package com.bootsignal.domain.course.service;
 
+import com.bootsignal.domain.code.service.FieldCategoryService;
 import com.bootsignal.domain.course.dto.CourseDetailResponse;
 import com.bootsignal.domain.course.dto.CourseListRequest;
 import com.bootsignal.domain.course.dto.CourseListResponse;
 import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course.repository.CourseRepository;
-import com.bootsignal.domain.course.repository.CourseSpecification;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.course_session.repository.CourseSessionRepository;
+import com.bootsignal.domain.course_session.repository.CourseSessionSpecification;
+import com.bootsignal.domain.review.repository.ReviewRepository;
+import com.bootsignal.domain.crawled_review.repository.CrawledReviewRepository;
 import com.bootsignal.global.dto.PageResponse;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
@@ -20,10 +23,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Comparator;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,49 +36,55 @@ public class CourseService {
 
     private final CourseRepository courseRepository;
     private final CourseSessionRepository courseSessionRepository;
+    private final FieldCategoryService fieldCategoryService;
+    private final ReviewRepository reviewRepository;
+    private final CrawledReviewRepository crawledReviewRepository;
 
     /**
-     * 과정 목록 조회 (검색 + 필터 + 페이징)
+     * 과정 목록 조회 (검색 + 필터 + 페이징) - 과정 세션(기수) 기준 조회
      */
     public PageResponse<CourseListResponse> getCourses(CourseListRequest request) {
-        Specification<Course> spec = Specification.allOf(
-                CourseSpecification.withKeyword(request.keyword()),
-                CourseSpecification.withTrngAreaCd(request.trngAreaCd()),
-                CourseSpecification.withNcsCd(request.ncsCd())
+        Specification<CourseSession> spec = Specification.allOf(
+                CourseSessionSpecification.withKeyword(request.keyword()),
+                CourseSessionSpecification.withTrngAreaCd(request.trngAreaCd()),
+                CourseSessionSpecification.withFieldCategory(request.fieldCategory(), fieldCategoryService),
+                CourseSessionSpecification.withPriceRange(request.priceRange()),
+                CourseSessionSpecification.withDurationFilter(request.durationFilter())
         );
 
         Pageable pageable = PageRequest.of(
                 request.page(),
                 request.size(),
-                Sort.by(Sort.Direction.DESC, "createdAt")
+                Sort.by(Sort.Direction.DESC, "id")
         );
 
-        // Specification 적용 시에도 institution fetch join 처리
-        Specification<Course> withFetch = spec.and((root, query, cb) -> {
+        // N+1 방지를 위해 course와 institution을 fetch join
+        Specification<CourseSession> withFetch = spec.and((root, query, cb) -> {
             if (query != null && Long.class != query.getResultType()) {
-                // count 쿼리가 아닐 때만 fetch join 적용
-                root.fetch("institution", jakarta.persistence.criteria.JoinType.LEFT);
+                var courseFetch = root.fetch("course", jakarta.persistence.criteria.JoinType.LEFT);
+                courseFetch.fetch("institution", jakarta.persistence.criteria.JoinType.LEFT);
             }
             return cb.conjunction();
         });
 
-        Page<Course> coursePage = courseRepository.findAll(withFetch, pageable);
+        Page<CourseSession> sessionPage = courseSessionRepository.findAll(withFetch, pageable);
 
-        // N+1 문제 방지. 회차(Session)들을 Bulk로 조회하여 자바 메모리 단에서 매핑
-        List<Long> courseIds = coursePage.getContent().stream()
-                .map(Course::getId)
+        // 현재 페이지의 과정 ID 목록 추출 (중복 제거)
+        List<Long> courseIds = sessionPage.getContent().stream()
+                .map(session -> session.getCourse() != null ? session.getCourse().getId() : null)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
                 .toList();
 
-        Map<Long, List<CourseSession>> sessionsByCourse = courseSessionRepository.findByCourse_IdIn(courseIds)
-                .stream()
-                .collect(Collectors.groupingBy(session -> session.getCourse().getId()));
+        // 각 과정별 통합 리뷰 평점 조회 및 계산
+        Map<Long, BigDecimal> reviewRatings = calculateCombinedReviewRatings(courseIds);
 
-        java.time.LocalDate today = java.time.LocalDate.now();
-
-        Page<CourseListResponse> responsePage = coursePage.map(course -> {
-            List<CourseSession> sessions = sessionsByCourse.getOrDefault(course.getId(), List.of());
-            CourseSession repSession = CourseSession.findRepresentativeSession(sessions, today);
-            return CourseListResponse.from(course, repSession);
+        Page<CourseListResponse> responsePage = sessionPage.map(session -> {
+            Long courseId = session.getCourse() != null ? session.getCourse().getId() : null;
+            BigDecimal reviewRating = courseId != null
+                    ? reviewRatings.getOrDefault(courseId, BigDecimal.ZERO.setScale(1, RoundingMode.HALF_UP))
+                    : BigDecimal.ZERO.setScale(1, RoundingMode.HALF_UP);
+            return CourseListResponse.from(session, reviewRating);
         });
 
         return PageResponse.from(responsePage);
@@ -84,7 +94,7 @@ public class CourseService {
      * 과정 상세 조회 (institution 및 대표 세션 포함)
      */
     public CourseDetailResponse getCourseDetail(Long courseId) {
-        Course course = courseRepository.findById(courseId)
+        Course course = courseRepository.findWithInstitutionById(courseId)
                 .orElseThrow(() -> new BootSignalException(ErrorCode.COURSE_NOT_FOUND));
 
         List<CourseSession> sessions = courseSessionRepository.findByCourse_IdOrderByTraStartDateAsc(courseId);
@@ -93,4 +103,61 @@ public class CourseService {
 
         return CourseDetailResponse.from(course, repSession);
     }
+
+    private Map<Long, BigDecimal> calculateCombinedReviewRatings(List<Long> courseIds) {
+        if (courseIds.isEmpty()) {
+            return Map.of();
+        }
+
+        // 1. 사용자 리뷰 통계 조회
+        List<Object[]> userReviewSums = reviewRepository.findReviewSumsByCourseIds(courseIds);
+        Map<Long, ReviewRatingStat> userStats = new HashMap<>();
+        for (Object[] row : userReviewSums) {
+            Long courseId = (Long) row[0];
+            long count = toLong(row[1]);
+            long sum = toLong(row[2]);
+            userStats.put(courseId, new ReviewRatingStat(count, sum));
+        }
+
+        // 2. 크롤링 리뷰 통계 조회
+        List<Object[]> crawledReviewSums = crawledReviewRepository.findCrawledReviewSumsByCourseIds(courseIds);
+        Map<Long, ReviewRatingStat> crawledStats = new HashMap<>();
+        for (Object[] row : crawledReviewSums) {
+            Long courseId = (Long) row[0];
+            long count = toLong(row[1]);
+            long sum = toLong(row[2]);
+            crawledStats.put(courseId, new ReviewRatingStat(count, sum));
+        }
+
+        // 3. 사용자 및 크롤링 리뷰 데이터 합산 및 평균 계산
+        Map<Long, BigDecimal> result = new HashMap<>();
+        for (Long courseId : courseIds) {
+            ReviewRatingStat uStat = userStats.getOrDefault(courseId, new ReviewRatingStat(0L, 0L));
+            ReviewRatingStat cStat = crawledStats.getOrDefault(courseId, new ReviewRatingStat(0L, 0L));
+
+            long totalCount = uStat.count() + cStat.count();
+            long totalSum = uStat.sum() + cStat.sum();
+
+            if (totalCount == 0) {
+                result.put(courseId, BigDecimal.ZERO.setScale(1, RoundingMode.HALF_UP));
+            } else {
+                BigDecimal avg = BigDecimal.valueOf(totalSum)
+                        .divide(BigDecimal.valueOf(totalCount), 1, RoundingMode.HALF_UP);
+                result.put(courseId, avg);
+            }
+        }
+
+        return result;
+    }
+
+    private long toLong(Object val) {
+        if (val == null) return 0L;
+        if (val instanceof Number number) {
+            return number.longValue();
+        }
+        return 0L;
+    }
+
+    private record ReviewRatingStat(long count, long sum) {}
 }
+

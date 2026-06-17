@@ -1,21 +1,38 @@
 package com.bootsignal.domain.auth.service;
 
+import com.bootsignal.domain.auth.dto.AuthActionResponse;
+import com.bootsignal.domain.auth.dto.EmailAvailabilityResponse;
 import com.bootsignal.domain.auth.dto.GoogleLoginRequest;
 import com.bootsignal.domain.auth.dto.KakaoLoginRequest;
 import com.bootsignal.domain.auth.dto.LoginRequest;
 import com.bootsignal.domain.auth.dto.LoginResponse;
+import com.bootsignal.domain.auth.dto.PasswordForgotRequest;
+import com.bootsignal.domain.auth.dto.PasswordForgotResponse;
+import com.bootsignal.domain.auth.dto.PasswordResetRequest;
+import com.bootsignal.domain.auth.dto.RefreshTokenRequest;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
+import com.bootsignal.domain.auth.entity.PasswordResetToken;
+import com.bootsignal.domain.auth.entity.RefreshToken;
 import com.bootsignal.domain.auth.oauth.GoogleTokenVerifier;
 import com.bootsignal.domain.auth.oauth.GoogleUserInfo;
 import com.bootsignal.domain.auth.oauth.KakaoTokenVerifier;
 import com.bootsignal.domain.auth.oauth.KakaoUserInfo;
+import com.bootsignal.domain.auth.repository.PasswordResetTokenRepository;
+import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
 import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import com.bootsignal.global.config.properties.PasswordResetProperties;
+import com.bootsignal.global.security.jwt.JwtRefreshTokenClaims;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
+import com.bootsignal.global.security.jwt.JwtTokenPair;
+import com.bootsignal.global.security.jwt.RefreshTokenHasher;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -24,6 +41,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+/**
+ * 회원가입, 로그인, 소셜 로그인과 Refresh Token 회전/폐기를 담당하는 인증 서비스입니다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -31,17 +51,25 @@ public class AuthService {
 
 	private static final int MAX_NICKNAME_LENGTH = 30;
 	private static final int MAX_NICKNAME_RETRY_COUNT = 100;
+	private static final int PASSWORD_RESET_TOKEN_BYTES = 32;
 
 	private final UserRepository userRepository;
+	private final RefreshTokenRepository refreshTokenRepository;
+	private final PasswordResetTokenRepository passwordResetTokenRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final RefreshTokenHasher refreshTokenHasher;
 	private final GoogleTokenVerifier googleTokenVerifier;
 	private final KakaoTokenVerifier kakaoTokenVerifier;
+	private final PasswordResetTokenNotifier passwordResetTokenNotifier;
+	private final PasswordResetProperties passwordResetProperties;
+	private final SecureRandom secureRandom = new SecureRandom();
 
 	@Transactional
 	public SignupResponse signup(SignupRequest request) {
 		String email = normalizeEmail(request.email());
-		String nickname = request.nickname().strip();
+		String nickname = normalizeRequiredText(request.nickname(), "닉네임은 필수입니다.");
+		String name = normalizeName(request.name(), nickname);
 		if (userRepository.existsByEmail(email)) {
 			throw new BootSignalException(ErrorCode.DUPLICATE_EMAIL);
 		}
@@ -52,6 +80,7 @@ public class AuthService {
 		User user = User.signupLocal(
 			email,
 			passwordEncoder.encode(request.password()),
+			name,
 			nickname
 		);
 
@@ -62,6 +91,52 @@ public class AuthService {
 		}
 	}
 
+	public EmailAvailabilityResponse checkEmailAvailability(String email) {
+		String normalizedEmail = normalizeEmail(email);
+		return new EmailAvailabilityResponse(normalizedEmail, !userRepository.existsByEmail(normalizedEmail));
+	}
+
+	@Transactional
+	public PasswordForgotResponse requestPasswordReset(PasswordForgotRequest request) {
+		String email = normalizeEmail(request.email());
+		return userRepository.findByEmailForUpdate(email)
+			.filter(this::isActiveUser)
+			.map(user -> {
+				validateLocalPasswordAccount(user);
+				return issuePasswordResetToken(user);
+			})
+			.orElseGet(() -> PasswordForgotResponse.accepted(passwordResetProperties.validitySeconds()));
+	}
+
+	@Transactional
+	public AuthActionResponse resetPassword(PasswordResetRequest request) {
+		Instant now = Instant.now();
+		PasswordResetToken resetToken = findPasswordResetToken(request.token());
+
+		if (resetToken.isExpired(now)) {
+			throw new BootSignalException(ErrorCode.PASSWORD_RESET_TOKEN_EXPIRED);
+		}
+		if (resetToken.isUsed()) {
+			throw new BootSignalException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+		}
+
+		User user = resetToken.getUser();
+		if (user.isDeleted()) {
+			throw new BootSignalException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID);
+		}
+		validateLocalPasswordAccount(user);
+		if (passwordEncoder.matches(request.newPassword(), user.getPasswordHash())) {
+			throw new BootSignalException(ErrorCode.PASSWORD_REUSE_NOT_ALLOWED);
+		}
+
+		user.changePassword(passwordEncoder.encode(request.newPassword()));
+		resetToken.use(now);
+		invalidateUnusedPasswordResetTokens(user, now);
+		revokeActiveRefreshTokens(user, now);
+		return AuthActionResponse.success();
+	}
+
+	@Transactional
 	public LoginResponse login(LoginRequest request) {
 		String email = normalizeEmail(request.email());
 		User user = userRepository.findByEmail(email)
@@ -72,7 +147,7 @@ public class AuthService {
 			throw invalidLoginCredentials();
 		}
 
-		return LoginResponse.of(user, jwtTokenProvider.createTokenPair(user));
+		return issueLoginResponse(user);
 	}
 
 	@Transactional
@@ -82,7 +157,7 @@ public class AuthService {
 			.map(this::validateGoogleLoginUser)
 			.orElseGet(() -> signupGoogleUser(googleUserInfo));
 
-		return LoginResponse.of(user, jwtTokenProvider.createTokenPair(user));
+		return issueLoginResponse(user);
 	}
 
 	@Transactional
@@ -92,7 +167,125 @@ public class AuthService {
 			.map(this::validateKakaoLoginUser)
 			.orElseGet(() -> signupKakaoUser(kakaoUserInfo));
 
-		return LoginResponse.of(user, jwtTokenProvider.createTokenPair(user));
+		return issueLoginResponse(user);
+	}
+
+	@Transactional
+	public LoginResponse refresh(RefreshTokenRequest request) {
+		Instant now = Instant.now();
+		JwtRefreshTokenClaims claims = jwtTokenProvider.getRefreshTokenClaims(request.refreshToken());
+		RefreshToken storedToken = findStoredRefreshToken(request.refreshToken());
+		User user = validateRefreshTokenOwner(storedToken, claims);
+
+		if (!storedToken.isReusable(now)) {
+			handleRefreshTokenReuse(storedToken, now);
+			throw new BootSignalException(resolveRefreshTokenStatus(storedToken, now));
+		}
+
+		storedToken.replace(now);
+		return issueLoginResponse(user);
+	}
+
+	@Transactional
+	public void logout(RefreshTokenRequest request) {
+		Instant now = Instant.now();
+		JwtRefreshTokenClaims claims = jwtTokenProvider.getRefreshTokenClaims(request.refreshToken());
+		RefreshToken storedToken = findStoredRefreshToken(request.refreshToken());
+		validateRefreshTokenOwner(storedToken, claims);
+
+		if (storedToken.isExpired(now)) {
+			storedToken.revoke(now);
+			throw new BootSignalException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+		}
+		if (storedToken.isRevoked() || storedToken.isReplaced()) {
+			throw new BootSignalException(ErrorCode.REFRESH_TOKEN_REVOKED);
+		}
+
+		storedToken.revoke(now);
+	}
+
+	private LoginResponse issueLoginResponse(User user) {
+		JwtTokenPair tokenPair = jwtTokenProvider.createTokenPair(user);
+		storeRefreshToken(user, tokenPair);
+		return LoginResponse.of(user, tokenPair);
+	}
+
+	private void storeRefreshToken(User user, JwtTokenPair tokenPair) {
+		String refreshTokenHash = refreshTokenHasher.hash(tokenPair.refreshToken());
+		Instant expiresAt = Instant.now().plusSeconds(tokenPair.refreshTokenExpiresIn());
+		refreshTokenRepository.save(RefreshToken.issue(user, refreshTokenHash, expiresAt));
+	}
+
+	private RefreshToken findStoredRefreshToken(String refreshToken) {
+		String refreshTokenHash = refreshTokenHasher.hash(refreshToken);
+		return refreshTokenRepository.findByTokenHash(refreshTokenHash)
+			.orElseThrow(() -> new BootSignalException(ErrorCode.INVALID_REFRESH_TOKEN));
+	}
+
+	private User validateRefreshTokenOwner(RefreshToken storedToken, JwtRefreshTokenClaims claims) {
+		User user = storedToken.getUser();
+		if (!user.getId().equals(claims.userId()) || user.isDeleted()) {
+			throw new BootSignalException(ErrorCode.INVALID_REFRESH_TOKEN);
+		}
+		return user;
+	}
+
+	private void handleRefreshTokenReuse(RefreshToken storedToken, Instant now) {
+		if (!storedToken.isExpired(now) && (storedToken.isRevoked() || storedToken.isReplaced())) {
+			revokeActiveRefreshTokens(storedToken.getUser(), now);
+		}
+	}
+
+	private PasswordForgotResponse issuePasswordResetToken(User user) {
+		Instant now = Instant.now();
+		invalidateUnusedPasswordResetTokens(user, now);
+		String rawToken = generatePasswordResetToken();
+		String tokenHash = refreshTokenHasher.hash(rawToken);
+		Instant expiresAt = now.plusSeconds(passwordResetProperties.validitySeconds());
+		String resetUrl = passwordResetProperties.buildResetUrl(rawToken);
+		passwordResetTokenRepository.save(PasswordResetToken.issue(user, tokenHash, expiresAt));
+		passwordResetTokenNotifier.send(user, rawToken, resetUrl, expiresAt);
+		if (passwordResetProperties.responseTokenEnabled()) {
+			return PasswordForgotResponse.acceptedWithToken(
+				passwordResetProperties.validitySeconds(),
+				rawToken,
+				resetUrl
+			);
+		}
+		return PasswordForgotResponse.accepted(passwordResetProperties.validitySeconds());
+	}
+
+	private PasswordResetToken findPasswordResetToken(String rawToken) {
+		String tokenHash = refreshTokenHasher.hash(rawToken);
+		return passwordResetTokenRepository.findByTokenHash(tokenHash)
+			.orElseThrow(() -> new BootSignalException(ErrorCode.PASSWORD_RESET_TOKEN_INVALID));
+	}
+
+	private String generatePasswordResetToken() {
+		byte[] randomBytes = new byte[PASSWORD_RESET_TOKEN_BYTES];
+		secureRandom.nextBytes(randomBytes);
+		return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+	}
+
+	private void revokeActiveRefreshTokens(User user, Instant now) {
+		refreshTokenRepository.findAllByUserAndRevokedFalseAndReplacedFalse(user)
+			.forEach(activeToken -> activeToken.revoke(now));
+	}
+
+	private void invalidateUnusedPasswordResetTokens(User user, Instant now) {
+		passwordResetTokenRepository.findAllByUserAndUsedAtIsNull(user)
+			.forEach(resetToken -> resetToken.use(now));
+	}
+
+	private ErrorCode resolveRefreshTokenStatus(RefreshToken storedToken, Instant now) {
+		if (storedToken.isExpired(now)) {
+			storedToken.revoke(now);
+			return ErrorCode.REFRESH_TOKEN_EXPIRED;
+		}
+		if (storedToken.isRevoked() || storedToken.isReplaced()) {
+			return ErrorCode.REFRESH_TOKEN_REUSED;
+		}
+		return ErrorCode.INVALID_REFRESH_TOKEN;
 	}
 
 	private User signupGoogleUser(GoogleUserInfo googleUserInfo) {
@@ -206,9 +399,38 @@ public class AuthService {
 	}
 
 	private boolean isLocalActiveUser(User user) {
-		return !user.isDeleted()
+		return isActiveUser(user)
 			&& user.getProvider() == AuthProvider.LOCAL
-			&& user.getPasswordHash() != null;
+			&& user.hasPassword();
+	}
+
+	private boolean isActiveUser(User user) {
+		return !user.isDeleted();
+	}
+
+	private void validateLocalPasswordAccount(User user) {
+		if (user.getProvider() != AuthProvider.LOCAL || !user.hasPassword()) {
+			throw new BootSignalException(ErrorCode.SOCIAL_LOGIN_REQUIRED);
+		}
+	}
+
+	private String normalizeRequiredText(String value, String blankMessage) {
+		String normalized = value == null ? "" : value.strip();
+		if (!StringUtils.hasText(normalized)) {
+			throw new BootSignalException(ErrorCode.BAD_REQUEST, blankMessage);
+		}
+		return normalized;
+	}
+
+	private String normalizeName(String name, String fallbackNickname) {
+		if (name == null) {
+			return fallbackNickname;
+		}
+		String normalized = name.strip();
+		if (!StringUtils.hasText(normalized)) {
+			throw new BootSignalException(ErrorCode.BAD_REQUEST, "이름은 비어 있을 수 없습니다.");
+		}
+		return normalized;
 	}
 
 	private BootSignalException invalidLoginCredentials() {

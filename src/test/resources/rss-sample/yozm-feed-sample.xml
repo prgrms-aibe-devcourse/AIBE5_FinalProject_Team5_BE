@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>요즘IT » 피드</title>
+    <link>https://yozm.wishket.com/magazine/list/new/</link>
+    <lastBuildDate>Tue, 16 Jun 2026 09:34:42 +0000</lastBuildDate>
+    <item>
+      <title>앤트로픽 페이블 5(Fable 5) 차단 사건의 전말</title>
+      <link>https://yozm.wishket.com/magazine/detail/3805</link>
+      <description>출시 사흘 만에, 미국 정부의 편지 한 장으로 최고 수준 LLM의 사용이 중단됐습니다.</description>
+      <guid>https://yozm.wishket.com/magazine/detail/3805</guid>
+      <pubDate>Tue, 16 Jun 2026 09:00:00 +0000</pubDate>
+      <content:encoded xmlns:content="http://purl.org/rss/1.0/modules/content/"><![CDATA[<p><img src="https://yozm.wishket.com/media/thumbnail/sample.jpg" alt="cover"/></p>]]></content:encoded>
+    </item>
+    <item>
+      <title>TypeScript 유틸리티 타입 실무 가이드</title>
+      <link>https://yozm.wishket.com/magazine/detail/3800</link>
+      <description>실무에서 자주 쓰는 TypeScript 유틸리티 타입 패턴을 정리했습니다.</description>
+      <guid>https://yozm.wishket.com/magazine/detail/3800</guid>
+      <pubDate>Mon, 15 Jun 2026 09:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

@@ -28,7 +28,7 @@ class GoogleIdTokenVerifierTest {
 	@BeforeEach
 	void setUp() {
 		verifier = new GoogleIdTokenVerifier(
-			new GoogleOAuthProperties("google-client-id", "https://example.com/certs"),
+			new GoogleOAuthProperties("google-client-id", "", "https://example.com/certs"),
 			jwtDecoder
 		);
 	}
@@ -164,7 +164,7 @@ class GoogleIdTokenVerifierTest {
 	@Test
 	void verifyThrowsInternalServerErrorWhenClientIdIsMissing() {
 		GoogleIdTokenVerifier missingClientIdVerifier = new GoogleIdTokenVerifier(
-			new GoogleOAuthProperties("", "https://example.com/certs"),
+			new GoogleOAuthProperties("", "", "https://example.com/certs"),
 			jwtDecoder
 		);
 

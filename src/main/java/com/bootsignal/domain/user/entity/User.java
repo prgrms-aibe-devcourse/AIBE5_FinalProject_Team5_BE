@@ -15,6 +15,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 애플리케이션 회원의 로그인 방식, 프로필, 탈퇴 상태를 저장하는 사용자 엔티티입니다.
+ */
 @Entity
 @Getter
 @Table(
@@ -84,9 +87,13 @@ public class User extends BaseEntity {
 		this.deleted = false;
 	}
 
+	public static User signupLocal(String email, String encodedPassword, String name, String nickname) {
+		// 일반 회원가입은 프론트에서 입력한 이름과 닉네임을 각각 보존한다.
+		return new User(email, encodedPassword, name, nickname, AuthProvider.LOCAL, null, null);
+	}
+
 	public static User signupLocal(String email, String encodedPassword, String nickname) {
-		// 기존 users 스키마의 필수 name 컬럼은 닉네임과 같은 값으로 저장한다.
-		return new User(email, encodedPassword, nickname, nickname, AuthProvider.LOCAL, null, null);
+		return signupLocal(email, encodedPassword, nickname, nickname);
 	}
 
 	public static User signupGoogle(
@@ -114,14 +121,22 @@ public class User extends BaseEntity {
 	public void updateProfile(String nickname, String profileImageUrl) {
 		if (nickname != null) { // 새 닉네임 전달
 			this.nickname = nickname;
-			
-			// 이메일 가입 사용자는 name 컬럼도 닉네임과 동일하게 유지한다.
-			if (this.provider == AuthProvider.LOCAL) {
-				this.name = nickname;
-			}
 		}
 		if (profileImageUrl != null) { // 새 프로필 이미지 전달
 			this.profileImageUrl = profileImageUrl;
 		}
+	}
+
+	public boolean hasPassword() {
+		return this.passwordHash != null && !this.passwordHash.isBlank();
+	}
+
+	public void changePassword(String encodedPassword) {
+		this.passwordHash = encodedPassword;
+	}
+
+	public void softDelete(LocalDateTime deletedAt) {
+		this.deleted = true;
+		this.deletedAt = deletedAt;
 	}
 }

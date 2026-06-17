@@ -1,3 +1,4 @@
+# 공통 애플리케이션 설정 파일이다. 환경별 값은 .env에서 주입하고, 안전한 기본값만 여기에 둔다.
 spring:
   application:
     name: bootsignal
@@ -12,10 +13,22 @@ spring:
         format_sql: true
   servlet:
     multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
+      # 인증 증빙과 프로필 이미지 업로드를 허용하며, 운영 환경에서는 .env로 조정한다.
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:100MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:120MB}
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:true}
+          starttls:
+            enable: ${SMTP_STARTTLS_ENABLE:true}
 
-  # ── Spring Batch 설정 ──
+  # Spring Batch 공통 설정이다. 배치 작업은 API 또는 명시적 실행으로만 시작한다.
   batch:
     job:
       enabled: false
@@ -45,13 +58,26 @@ app:
       secret: ${JWT_SECRET:local-development-jwt-secret-change-before-deploy-32bytes}
       access-token-validity-seconds: ${JWT_ACCESS_TOKEN_VALIDITY_SECONDS:3600}
       refresh-token-validity-seconds: ${JWT_REFRESH_TOKEN_VALIDITY_SECONDS:1209600}
+    token-encryption:
+      secret: ${TOKEN_ENCRYPTION_SECRET}
   oauth:
     google:
       client-id: ${GOOGLE_CLIENT_ID:}
       jwk-set-uri: ${GOOGLE_JWK_SET_URI:https://www.googleapis.com/oauth2/v3/certs}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
     kakao:
       client-id: ${KAKAO_CLIENT_ID:}
       jwk-set-uri: ${KAKAO_JWK_SET_URI:https://kauth.kakao.com/.well-known/jwks.json}
+  auth:
+    password-reset:
+      validity-seconds: ${PASSWORD_RESET_VALIDITY_SECONDS:1800}
+      # 운영 기본값은 false다. local/test에서만 토큰 응답 노출을 켜서 수동 검증한다.
+      response-token-enabled: ${PASSWORD_RESET_RESPONSE_TOKEN_ENABLED:false}
+      reset-url-template: ${PASSWORD_RESET_URL_TEMPLATE:http://localhost:5173/reset-password?token={token}}
+      mail:
+        enabled: ${PASSWORD_RESET_MAIL_ENABLED:false}
+        from: ${PASSWORD_RESET_MAIL_FROM:no-reply@bootsignal.com}
+        subject: ${PASSWORD_RESET_MAIL_SUBJECT:BootSignal 비밀번호 재설정 안내}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   aws:
@@ -64,12 +90,23 @@ app:
     timeout-millis: ${OPENAI_TIMEOUT_MILLIS:30000}
     temperature: ${OPENAI_TEMPERATURE:}
     max-output-tokens: ${OPENAI_MAX_OUTPUT_TOKENS:}
- 
+
   hrd:
     api:
       auth-key: ${HRD_API_AUTH_KEY:}
-      base-url: https://www.work24.go.kr/cm/openApi/call/hr
-      return-type: JSON
+      base-url: ${HRD_API_BASE_URL:https://www.work24.go.kr/cm/openApi/call/hr}
+      return-type: ${HRD_API_RETURN_TYPE:JSON}
+  tech-article:
+    rss:
+      yozm-feed-url: ${YOZM_RSS_FEED_URL:https://yozm.wishket.com/magazine/feed/}
+      kakao-tech-feed-url: ${KAKAO_TECH_RSS_FEED_URL:https://tech.kakao.com/feed/}
+      d2-naver-feed-url: ${D2_NAVER_RSS_FEED_URL:https://d2.naver.com/d2.atom}
+      woowahan-feed-url: ${WOOWAHAN_RSS_FEED_URL:https://techblog.woowahan.com/feed/}
+      toss-tech-feed-url: ${TOSS_TECH_RSS_FEED_URL:https://toss.tech/rss.xml}
+      collect-limit: ${TECH_ARTICLE_COLLECT_LIMIT:30} # 키워드 필터 통과 후 소스별 최대 저장 건수
+      collect-within-months: ${TECH_ARTICLE_COLLECT_WITHIN_MONTHS:6} # 수집 기준일로부터 발행일이 N개월 이내인 글만 저장
+      timeout-millis: ${TECH_ARTICLE_RSS_TIMEOUT_MILLIS:15000}
+      user-agent: ${TECH_ARTICLE_RSS_USER_AGENT:Mozilla/5.0 BootSignalRssCollector/1.0}
   work24:
     crawler:
       default-course-url: "${WORK24_CRAWLER_DEFAULT_COURSE_URL:https://www.work24.go.kr/hr/a/a/3100/selectTracseDetl.do?tracseId=AIG20240000498288&tracseTme=7&crseTracseSe=C0061&trainstCstmrId=500036172479}"
@@ -77,11 +114,17 @@ app:
       timeout-millis: ${WORK24_CRAWLER_TIMEOUT_MILLIS:30000}
       user-agent: ${WORK24_CRAWLER_USER_AGENT:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36}
   profile-image:
-    # 저장소 유형 : (local: 로컬 임시 저장), (s3: s3 저장) 
+    # 프로필 이미지 저장소 유형이다. 현재 구현은 local 저장소를 사용하며, s3는 추후 확장용이다.
     storage-type: ${PROFILE_IMAGE_STORAGE_TYPE:local}
     local:
       upload-dir: ${PROFILE_IMAGE_UPLOAD_DIR:temp-storage/profile-images}
       public-path-prefix: ${PROFILE_IMAGE_PUBLIC_PATH_PREFIX:/local-files/profile}
       base-url: ${PROFILE_IMAGE_BASE_URL:http://localhost:8080}
     s3:
-      # S3 저장 관련 설정 예정
+      # S3 저장소 관련 설정은 S3 구현 추가 시 확장한다.
+  calendar:
+    google:
+      redirect-uri: ${GOOGLE_CALENDAR_REDIRECT_URI:http://localhost:8080/api/calendar/connect/google/callback}
+      scope: ${GOOGLE_CALENDAR_SCOPE:openid email profile https://www.googleapis.com/auth/calendar.events}
+      connect-success-url: ${GOOGLE_CALENDAR_CONNECT_SUCCESS_URL:http://localhost:5173/dashboard/schedule}
+      connect-failure-url: ${GOOGLE_CALENDAR_CONNECT_FAILURE_URL:http://localhost:5173/dashboard/schedule}

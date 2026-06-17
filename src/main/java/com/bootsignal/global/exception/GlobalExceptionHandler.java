@@ -2,6 +2,7 @@ package com.bootsignal.global.exception;
 
 import com.bootsignal.global.response.ApiResponse;
 import com.bootsignal.global.response.ErrorResponse;
+import com.bootsignal.domain.tech_article.entity.ArticleSource;
 import jakarta.validation.ConstraintViolationException;
 import java.io.IOException;
 import java.util.List;
@@ -57,13 +58,24 @@ public class GlobalExceptionHandler {
 		return toResponse(ErrorCode.VALIDATION_ERROR, ErrorCode.VALIDATION_ERROR.message(), fieldErrors);
 	}
 
+	@ExceptionHandler(MissingServletRequestParameterException.class)
+	public ResponseEntity<ApiResponse<Void>> handleMissingServletRequestParameterException(
+		MissingServletRequestParameterException exception
+	) {
+		String message = String.format("필수 요청 파라미터 '%s'가 없습니다.", exception.getParameterName());
+		return toResponse(ErrorCode.BAD_REQUEST, message);
+	}
+
 	@ExceptionHandler({
 		HttpMessageNotReadableException.class,
-		MissingServletRequestParameterException.class,
 		MethodArgumentTypeMismatchException.class,
 		IllegalArgumentException.class
 	})
 	public ResponseEntity<ApiResponse<Void>> handleBadRequestException(Exception exception) {
+		if (exception instanceof MethodArgumentTypeMismatchException mismatchException
+			&& mismatchException.getRequiredType() == ArticleSource.class) {
+			return toResponse(ErrorCode.INVALID_ARTICLE_SOURCE, ErrorCode.INVALID_ARTICLE_SOURCE.message());
+		}
 		return toResponse(ErrorCode.BAD_REQUEST, resolveMessage(exception, ErrorCode.BAD_REQUEST.message()));
 	}
 

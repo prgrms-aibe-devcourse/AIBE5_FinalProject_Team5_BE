@@ -43,7 +43,6 @@ public class PostService {
 			.user(user)
 			.course(course)
 			.postType(request.postType())
-			.category(request.category())
 			.title(request.title())
 			.content(request.content())
 			.build();
@@ -69,7 +68,7 @@ public class PostService {
 			throw new BootSignalException(ErrorCode.FORBIDDEN);
 		}
 
-		post.update(request.title(), request.content(), request.category());
+		post.update(request.title(), request.content());
 		return PostResponse.from(post);
 	}
 

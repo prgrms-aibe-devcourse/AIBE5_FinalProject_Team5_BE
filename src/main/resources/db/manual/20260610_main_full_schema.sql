@@ -103,16 +103,31 @@ CREATE TABLE IF NOT EXISTS `verification` (
   `course_session_id` bigint NOT NULL,
   `created_at` datetime(6) DEFAULT NULL,
   `id` bigint NOT NULL AUTO_INCREMENT,
+  `processed_at` datetime(6) DEFAULT NULL,
   `updated_at` datetime(6) DEFAULT NULL,
   `user_id` bigint NOT NULL,
+  `processed_by_id` bigint DEFAULT NULL,
+  `job_training_history_file_size` bigint DEFAULT NULL,
+  `online_course_application_file_size` bigint DEFAULT NULL,
+  `admin_memo` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `job_training_history_data` longblob DEFAULT NULL,
+  `online_course_application_data` longblob DEFAULT NULL,
+  `reject_reason` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `job_training_history_content_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `online_course_application_content_type` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `job_training_history_file_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `online_course_application_file_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `status` enum('APPROVED','PENDING','REJECTED') COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_verification_user_course_session` (`user_id`, `course_session_id`),
   KEY `FKl4xbomskkaxodid0eue6q6rup` (`course_id`),
   KEY `FKjyf2sr4l4jg5nw0dbn0ubdw4k` (`course_session_id`),
   KEY `FK7ntgdvdvok1jx29t3uooau08j` (`user_id`),
+  KEY `fk_verification_processed_by` (`processed_by_id`),
   CONSTRAINT `FK7ntgdvdvok1jx29t3uooau08j` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
   CONSTRAINT `FKjyf2sr4l4jg5nw0dbn0ubdw4k` FOREIGN KEY (`course_session_id`) REFERENCES `course_session` (`id`),
-  CONSTRAINT `FKl4xbomskkaxodid0eue6q6rup` FOREIGN KEY (`course_id`) REFERENCES `course` (`id`)
+  CONSTRAINT `FKl4xbomskkaxodid0eue6q6rup` FOREIGN KEY (`course_id`) REFERENCES `course` (`id`),
+  CONSTRAINT `fk_verification_processed_by` FOREIGN KEY (`processed_by_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `post` (
