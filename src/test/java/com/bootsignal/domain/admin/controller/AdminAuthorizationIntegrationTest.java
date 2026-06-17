@@ -35,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 class AdminAuthorizationIntegrationTest {
 
 	private static final String ADMIN_REPORTS_URL = "/api/admin/reports";
+	private static final String PUBLIC_NOTICES_URL = "/api/notices";
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -86,6 +87,16 @@ class AdminAuthorizationIntegrationTest {
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+	}
+
+	@Test
+	void publicNoticeListCanBeAccessedWithoutToken() throws Exception {
+		// 고객센터 공개 공지 목록은 로그인하지 않은 사용자도 조회할 수 있어야 한다.
+		mockMvc.perform(get(PUBLIC_NOTICES_URL))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.content").isArray())
+			.andExpect(jsonPath("$.error").doesNotExist());
 	}
 
 	private void signup(String email, String password, String nickname) throws Exception {
