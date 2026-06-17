@@ -1,17 +1,20 @@
 spring:
   datasource:
-    url: ${DB_URL}
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     database-platform: org.hibernate.dialect.MySQLDialect
   data:
     redis:
-      host: ${REDIS_HOST}
+      host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+  batch:
+    jdbc:
+      initialize-schema: never
 
 server:
   port: ${SERVER_PORT:8080}
@@ -19,3 +22,4 @@ server:
 logging:
   level:
     root: info
+    org.hibernate.SQL: warn

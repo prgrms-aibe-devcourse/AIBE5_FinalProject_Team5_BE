@@ -40,3 +40,15 @@ out/
 ### VS Code ###
 .vscode/
 .claude/
+
+### AWS / Deployment local artifacts ###
+*.pem
+*.p12
+*.jks
+*.keystore
+global-bundle.pem
+application.jar
+*.sql
+*.zip
+.elasticbeanstalk/*.log
+.aws-sam/
