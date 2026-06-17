@@ -4,11 +4,13 @@ import com.bootsignal.domain.course_session.entity.CourseSession;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface CourseSessionRepository extends JpaRepository<CourseSession, Long> {
+public interface CourseSessionRepository extends JpaRepository<CourseSession, Long>,
+        JpaSpecificationExecutor<CourseSession> {
 
     List<CourseSession> findByCourse_Id(Long courseId);
 
