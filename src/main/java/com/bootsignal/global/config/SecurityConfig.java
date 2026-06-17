@@ -70,6 +70,7 @@ public class SecurityConfig {
 				.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/reviews", "/api/reviews/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/articles", "/api/articles/**").permitAll()
+				.requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/calendar/connect/google/callback").permitAll()
 				.requestMatchers("/api/admin/**").hasRole("ADMIN")
 				.requestMatchers(HttpMethod.POST, "/api/work24/**").hasRole("ADMIN")
