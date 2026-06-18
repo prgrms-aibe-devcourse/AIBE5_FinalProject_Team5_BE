@@ -1,9 +1,10 @@
 package com.bootsignal.domain.report.service;
 
+import com.bootsignal.domain.comment.repository.CommentRepository;
+import com.bootsignal.domain.post.repository.PostRepository;
 import com.bootsignal.domain.report.dto.ReportCreateRequest;
 import com.bootsignal.domain.report.dto.ReportResponse;
 import com.bootsignal.domain.report.entity.Report;
-import com.bootsignal.domain.post.repository.PostRepository;
 import com.bootsignal.domain.report.repository.ReportRepository;
 import com.bootsignal.domain.review.repository.ReviewRepository;
 import com.bootsignal.domain.user.entity.User;
@@ -27,6 +28,7 @@ public class ReportService {
     private final UserRepository userRepository;
     private final PostRepository postRepository;
     private final ReviewRepository reviewRepository;
+    private final CommentRepository commentRepository;
 
     @Transactional
     public ReportResponse create(ReportCreateRequest request) {
@@ -48,7 +50,7 @@ public class ReportService {
         boolean exists = switch (request.targetType()) {
             case POST -> postRepository.existsByIdAndDeletedAtIsNullAndIsValidTrue(request.targetId());
             case REVIEW -> reviewRepository.existsByIdAndDeletedAtIsNull(request.targetId());
-            case COMMENT -> throw new BootSignalException(ErrorCode.BAD_REQUEST, "댓글 신고 기능은 아직 지원하지 않습니다.");
+            case COMMENT -> commentRepository.findActiveById(request.targetId()).isPresent();
         };
 
         if (!exists) {
