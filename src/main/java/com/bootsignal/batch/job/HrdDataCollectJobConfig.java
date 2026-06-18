@@ -166,7 +166,7 @@ public class HrdDataCollectJobConfig {
     public RepositoryItemReader<HrdCourseListRaw> listRawReaderForDetail() {
         RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
         reader.setRepository(listRawRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findUncollectedDetails");
         reader.setPageSize(10);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;
@@ -245,7 +245,7 @@ public class HrdDataCollectJobConfig {
     public RepositoryItemReader<HrdCourseListRaw> listRawReaderForSchedule() {
         RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
         reader.setRepository(listRawRepo);
-        reader.setMethodName("findAll");
+        reader.setMethodName("findUncollectedSchedules");
         reader.setPageSize(10);
         reader.setSort(Map.of("id", Sort.Direction.ASC));
         return reader;

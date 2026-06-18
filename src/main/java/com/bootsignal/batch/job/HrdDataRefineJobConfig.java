@@ -22,7 +22,10 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.batch.item.database.JpaCursorItemReader;
+import org.springframework.batch.item.database.builder.JpaCursorItemReaderBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Sort;
@@ -50,6 +53,7 @@ public class HrdDataRefineJobConfig {
     private final InstitutionRepository institutionRepo;
     private final CourseRepository courseRepo;
     private final CourseSessionRepository courseSessionRepo;
+    private final EntityManagerFactory entityManagerFactory;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -235,13 +239,12 @@ public class HrdDataRefineJobConfig {
 
     @Bean
     @StepScope
-    public RepositoryItemReader<HrdCourseListRaw> listRawReaderForSession() {
-        RepositoryItemReader<HrdCourseListRaw> reader = new RepositoryItemReader<>();
-        reader.setRepository(listRawRepo);
-        reader.setMethodName("findByIsRefinedFalse");
-        reader.setPageSize(50);
-        reader.setSort(Map.of("id", Sort.Direction.ASC));
-        return reader;
+    public JpaCursorItemReader<HrdCourseListRaw> listRawReaderForSession() {
+        return new JpaCursorItemReaderBuilder<HrdCourseListRaw>()
+                .name("listRawReaderForSession")
+                .entityManagerFactory(entityManagerFactory)
+                .queryString("SELECT r FROM HrdCourseListRaw r WHERE r.isRefined = false ORDER BY r.id ASC")
+                .build();
     }
 
     @Bean

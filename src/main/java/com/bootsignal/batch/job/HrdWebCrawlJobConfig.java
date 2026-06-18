@@ -18,9 +18,12 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.batch.item.database.JpaCursorItemReader;
+import org.springframework.batch.item.database.builder.JpaCursorItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,6 +50,7 @@ public class HrdWebCrawlJobConfig {
     private final CourseSessionRepository courseSessionRepo;
     private final InstitutionRepository institutionRepo;
     private final Work24CrawlerService crawlerService;
+    private final EntityManagerFactory entityManagerFactory;
 
     // ═══════════════════════════════════════
     // Job 정의
@@ -84,13 +88,12 @@ public class HrdWebCrawlJobConfig {
      */
     @Bean
     @StepScope
-    public RepositoryItemReader<CourseSession> courseSessionReaderForCrawl() {
-        RepositoryItemReader<CourseSession> reader = new RepositoryItemReader<>();
-        reader.setRepository(courseSessionRepo);
-        reader.setMethodName("findByTitleLinkIsNotNullAndCrawledAtIsNull");
-        reader.setPageSize(10);
-        reader.setSort(Map.of("id", Sort.Direction.ASC));
-        return reader;
+    public JpaCursorItemReader<CourseSession> courseSessionReaderForCrawl() {
+        return new JpaCursorItemReaderBuilder<CourseSession>()
+                .name("courseSessionReaderForCrawl")
+                .entityManagerFactory(entityManagerFactory)
+                .queryString("SELECT s FROM CourseSession s WHERE s.titleLink IS NOT NULL AND s.crawledAt IS NULL ORDER BY s.id ASC")
+                .build();
     }
 
     /**
