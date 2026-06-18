@@ -4,9 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.bootsignal.domain.comment.entity.Comment;
+import com.bootsignal.domain.comment.repository.CommentRepository;
 import com.bootsignal.domain.post.repository.PostRepository;
 import com.bootsignal.domain.report.dto.ReportCreateRequest;
 import com.bootsignal.domain.report.dto.ReportResponse;
@@ -48,11 +51,20 @@ class ReportServiceTest {
 	@Mock
 	private ReviewRepository reviewRepository;
 
+	@Mock
+	private CommentRepository commentRepository;
+
 	private ReportService reportService;
 
 	@BeforeEach
 	void setUp() {
-		reportService = new ReportService(reportRepository, userRepository, postRepository, reviewRepository);
+		reportService = new ReportService(
+			reportRepository,
+			userRepository,
+			postRepository,
+			reviewRepository,
+			commentRepository
+		);
 	}
 
 	@AfterEach
@@ -103,23 +115,24 @@ class ReportServiceTest {
 	}
 
 	@Test
-	void createRejectsUnsupportedCommentTarget() {
+	void createSavesReportWhenCommentTargetExists() {
 		User reporter = user(1L);
 		ReportCreateRequest request = new ReportCreateRequest(
 			ReportTargetType.COMMENT,
 			30L,
 			"부적절한 댓글",
-			"댓글 도메인이 아직 없습니다."
+			"댓글 신고입니다."
 		);
 		setAuthentication(reporter.getEmail());
 		given(userRepository.findByEmail(reporter.getEmail())).willReturn(Optional.of(reporter));
+		given(commentRepository.findActiveById(30L)).willReturn(Optional.of(mock(Comment.class)));
+		given(reportRepository.save(any(Report.class))).willAnswer(invocation -> invocation.getArgument(0));
 
-		assertThatThrownBy(() -> reportService.create(request))
-			.isInstanceOf(BootSignalException.class)
-			.extracting(exception -> ((BootSignalException) exception).errorCode())
-			.isEqualTo(ErrorCode.BAD_REQUEST);
+		ReportResponse response = reportService.create(request);
 
-		verify(reportRepository, never()).save(any());
+		assertThat(response.targetType()).isEqualTo(ReportTargetType.COMMENT);
+		assertThat(response.targetId()).isEqualTo(30L);
+		verify(reportRepository).save(any(Report.class));
 	}
 
 	private void setAuthentication(String email) {
