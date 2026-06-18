@@ -54,7 +54,10 @@ public class MyPageService {
 				p.getPostType().name(),
 				p.getTitle(),
 				p.getCreatedAt(),
-				p.getUpdatedAt()
+				p.getUpdatedAt(),
+				null,
+				null,
+				null
 			))
 			.toList();
 
@@ -79,7 +82,10 @@ public class MyPageService {
 				"REVIEW",
 				summarize(r.getContent()),
 				r.getCreatedAt(),
-				r.getUpdatedAt()
+				r.getUpdatedAt(),
+				null,
+				r.getCourse() != null ? r.getCourse().getId() : null,
+				r.getCourseSession() != null ? r.getCourseSession().getId() : null
 			))
 			.toList();
 
@@ -104,7 +110,10 @@ public class MyPageService {
 				"COMMENT",
 				summarize(c.getContent()),
 				c.getCreatedAt(),
-				c.getUpdatedAt()
+				c.getUpdatedAt(),
+				c.getPost() != null ? c.getPost().getId() : null,
+				null,
+				null
 			))
 			.toList();
 
