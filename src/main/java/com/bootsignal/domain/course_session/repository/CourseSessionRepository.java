@@ -3,6 +3,7 @@ package com.bootsignal.domain.course_session.repository;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
@@ -11,6 +12,9 @@ import java.util.Optional;
 
 public interface CourseSessionRepository extends JpaRepository<CourseSession, Long>,
         JpaSpecificationExecutor<CourseSession> {
+
+    @EntityGraph(attributePaths = {"course", "course.institution"})
+    Optional<CourseSession> findWithCourseAndInstitutionById(Long id);
 
     List<CourseSession> findByCourse_Id(Long courseId);
 

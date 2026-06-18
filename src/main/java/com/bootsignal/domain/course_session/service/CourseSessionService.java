@@ -1,7 +1,9 @@
 package com.bootsignal.domain.course_session.service;
 
 import com.bootsignal.domain.course.repository.CourseRepository;
+import com.bootsignal.domain.course_session.dto.CourseSessionDetailResponse;
 import com.bootsignal.domain.course_session.dto.CourseSessionResponse;
+import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.course_session.repository.CourseSessionRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
@@ -34,5 +36,15 @@ public class CourseSessionService {
                 .stream()
                 .map(CourseSessionResponse::from)
                 .toList();
+    }
+
+    /**
+     * 과정 회차(세션) 단일 조회
+     * - 회차가 존재하지 않으면 COURSE_SESSION_NOT_FOUND 예외
+     */
+    public CourseSessionDetailResponse getCourseSessionDetail(Long courseSessionId) {
+        CourseSession session = courseSessionRepository.findWithCourseAndInstitutionById(courseSessionId)
+                .orElseThrow(() -> new BootSignalException(ErrorCode.COURSE_SESSION_NOT_FOUND));
+        return CourseSessionDetailResponse.from(session);
     }
 }
