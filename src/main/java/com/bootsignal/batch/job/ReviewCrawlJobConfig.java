@@ -16,9 +16,12 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import jakarta.persistence.EntityManagerFactory;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.data.RepositoryItemReader;
+import org.springframework.batch.item.database.JpaCursorItemReader;
+import org.springframework.batch.item.database.builder.JpaCursorItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,6 +48,7 @@ public class ReviewCrawlJobConfig {
     private final CourseSessionRepository courseSessionRepo;
     private final CrawledReviewRepository crawledReviewRepo;
     private final ReviewPageCrawlerService reviewCrawlerService;
+    private final EntityManagerFactory entityManagerFactory;
 
     /** Course + 크롤링된 리뷰 목록을 Processor → Writer 간 전달하는 내부 DTO */
     record ReviewCrawlOutput(Course course, List<CrawledReview> reviews) {
@@ -86,13 +90,12 @@ public class ReviewCrawlJobConfig {
      */
     @Bean
     @StepScope
-    public RepositoryItemReader<Course> courseReaderForReviewCrawl() {
-        RepositoryItemReader<Course> reader = new RepositoryItemReader<>();
-        reader.setRepository(courseRepo);
-        reader.setMethodName("findByReviewCrawledAtIsNull");
-        reader.setPageSize(10);
-        reader.setSort(Map.of("id", Sort.Direction.ASC));
-        return reader;
+    public JpaCursorItemReader<Course> courseReaderForReviewCrawl() {
+        return new JpaCursorItemReaderBuilder<Course>()
+                .name("courseReaderForReviewCrawl")
+                .entityManagerFactory(entityManagerFactory)
+                .queryString("SELECT c FROM Course c WHERE c.reviewCrawledAt IS NULL ORDER BY c.id ASC")
+                .build();
     }
 
     /**
