@@ -7,6 +7,7 @@ import com.bootsignal.domain.review.dto.ReviewUpdateRequest;
 import com.bootsignal.domain.review.entity.ReviewType;
 import com.bootsignal.domain.review.service.ReviewService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,7 +25,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 과정 리뷰와 인증 리뷰 상세 설문 통계 API를 제공하는 컨트롤러입니다.
+ * 과정 리뷰, 최신 리뷰와 인증 리뷰 상세 설문 통계 API를 제공하는 컨트롤러입니다.
  */
 @RestController
 @RequiredArgsConstructor
@@ -53,6 +54,13 @@ public class ReviewController {
     @GetMapping("/api/courses/{courseId}/reviews/statistics")
     public ReviewStatisticsResponse getStatistics(@PathVariable Long courseId) {
         return reviewService.getStatistics(courseId);
+    }
+
+    @GetMapping("/api/reviews/latest")
+    public List<ReviewResponse> getLatestReviews(
+        @RequestParam(defaultValue = "5") int limit
+    ) {
+        return reviewService.getLatestReviews(limit);
     }
 
     @GetMapping("/api/reviews/{reviewId}")

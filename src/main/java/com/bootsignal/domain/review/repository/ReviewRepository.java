@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /**
- * 리뷰 조회, 중복 작성 검증, 활성 리뷰 존재 여부를 처리하는 JPA 저장소입니다.
+ * 리뷰 조회, 최신 리뷰 조회, 중복 작성 검증, 활성 리뷰 존재 여부를 처리하는 JPA 저장소입니다.
  */
 public interface ReviewRepository extends JpaRepository<Review, Long> {
 
@@ -55,6 +55,20 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     );
 
     /**
+     * 메인 페이지 최신 리뷰 노출을 위해 전체 과정의 활성 리뷰를 최신순으로 조회합니다.
+     */
+    @Query("""
+        SELECT r FROM Review r
+        JOIN FETCH r.user u
+        JOIN FETCH r.course c
+        JOIN FETCH r.courseSession cs
+        LEFT JOIN FETCH r.verifiedDetail vd
+        WHERE r.deletedAt IS NULL
+        ORDER BY r.createdAt DESC, r.id DESC
+        """)
+    List<Review> findLatestActiveReviews(Pageable pageable);
+
+    /**
      * 현재 사용자가 작성한 활성 리뷰를 페이지 단위로 조회합니다.
      */
     @Query(
@@ -96,4 +110,3 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
         """)
     List<Object[]> findReviewSumsByCourseIds(@Param("courseIds") List<Long> courseIds);
 }
-

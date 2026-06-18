@@ -41,8 +41,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -113,6 +118,8 @@ class ReviewServiceTest {
 
         assertThat(response.reviewId()).isEqualTo(100L);
         assertThat(response.reviewType()).isEqualTo(ReviewType.GENERAL);
+        assertThat(response.userProfileImageUrl()).isEqualTo("https://example.com/profile.png");
+        assertThat(response.courseTitle()).isEqualTo("백엔드 개발 과정");
         assertThat(response.rating()).isEqualTo(4);
         assertThat(response.content()).isEqualTo("좋은 과정입니다.");
         assertThat(response.verifiedDetail()).isNull();
@@ -225,6 +232,79 @@ class ReviewServiceTest {
             .isEqualTo(ErrorCode.BAD_REQUEST);
     }
 
+    @Test
+    @DisplayName("과정별 리뷰 조회 시 일반 리뷰와 인증 리뷰 모두 작성자 프로필 이미지를 포함한다")
+    void getListReturnsProfileImageForGeneralAndVerifiedReviews() {
+        Course course = course(10L);
+        CourseSession courseSession = courseSession(20L, course);
+        Review generalReview = review(
+            100L,
+            user(1L, "general@example.com"),
+            course,
+            courseSession,
+            ReviewType.GENERAL,
+            5,
+            "일반 리뷰"
+        );
+        Review verifiedReview = review(
+            101L,
+            user(2L, "verified@example.com"),
+            course,
+            courseSession,
+            ReviewType.VERIFIED,
+            4,
+            "인증 리뷰"
+        );
+        Pageable pageable = PageRequest.of(0, 10);
+        given(courseRepository.findById(10L)).willReturn(Optional.of(course));
+        given(reviewRepository.findAllByCourseId(10L, null, pageable))
+            .willReturn(new PageImpl<>(List.of(generalReview, verifiedReview), pageable, 2));
+
+        Page<ReviewResponse> response = reviewService.getList(10L, null, pageable);
+
+        assertThat(response.getContent()).hasSize(2);
+        assertThat(response.getContent())
+            .extracting(ReviewResponse::userProfileImageUrl)
+            .containsExactly("https://example.com/profile.png", "https://example.com/profile.png");
+        assertThat(response.getContent())
+            .extracting(ReviewResponse::reviewType)
+            .containsExactly(ReviewType.GENERAL, ReviewType.VERIFIED);
+    }
+
+    @Test
+    @DisplayName("최신 리뷰 조회 시 전체 과정의 활성 리뷰를 요청한 개수만큼 최신순으로 조회한다")
+    void getLatestReviewsReturnsLatestActiveReviews() {
+        User user = user(1L, "user@example.com");
+        Course course = course(10L);
+        CourseSession courseSession = courseSession(20L, course);
+        Review review = review(100L, user, course, courseSession, ReviewType.GENERAL, 5, "최신 리뷰");
+        given(reviewRepository.findLatestActiveReviews(any(Pageable.class))).willReturn(List.of(review));
+
+        List<ReviewResponse> responses = reviewService.getLatestReviews(5);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).reviewId()).isEqualTo(100L);
+        assertThat(responses.get(0).userProfileImageUrl()).isEqualTo("https://example.com/profile.png");
+        assertThat(responses.get(0).courseTitle()).isEqualTo("백엔드 개발 과정");
+        assertThat(responses.get(0).content()).isEqualTo("최신 리뷰");
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(reviewRepository).findLatestActiveReviews(pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(5);
+    }
+
+    @Test
+    @DisplayName("최신 리뷰 조회 개수가 허용 범위를 벗어나면 차단한다")
+    void getLatestReviewsThrowsWhenLimitIsOutOfRange() {
+        assertThatThrownBy(() -> reviewService.getLatestReviews(21))
+            .isInstanceOf(BootSignalException.class)
+            .extracting(exception -> ((BootSignalException) exception).errorCode())
+            .isEqualTo(ErrorCode.BAD_REQUEST);
+
+        verify(reviewRepository, never()).findLatestActiveReviews(any(Pageable.class));
+    }
+
     private void setAuthentication(String email) {
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
             email,
@@ -237,6 +317,7 @@ class ReviewServiceTest {
         User user = User.signupLocal(email, "encoded-password", "tester");
         ReflectionTestUtils.setField(user, "id", id);
         ReflectionTestUtils.setField(user, "role", UserRole.USER);
+        ReflectionTestUtils.setField(user, "profileImageUrl", "https://example.com/profile.png");
         return user;
     }
 
