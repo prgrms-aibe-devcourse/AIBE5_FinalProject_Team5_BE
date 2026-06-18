@@ -24,6 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/* 북마크 생성, 삭제, 목록 조회와 정렬 조건 변환을 담당하는 서비스 */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -108,7 +109,7 @@ public class BookmarkService {
 	// 정렬 조건 변환
 	private Sort toSort(BookmarkSort bookmarkSort) {
 		return switch (bookmarkSort) {
-			case LATEST -> Sort.by(Sort.Direction.DESC, "startDate");
+			case LATEST -> Sort.by(Sort.Direction.ASC, "startDate");
 			case RATING -> Sort.by(Sort.Direction.DESC, "courseSession.course.stdgScor");
 		};
 	}

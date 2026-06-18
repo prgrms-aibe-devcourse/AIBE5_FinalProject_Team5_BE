@@ -33,16 +33,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
+/* BookmarkService의 북마크 생성, 삭제, 목록 조회 정책을 검증하는 단위 테스트 */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BookmarkService 테스트")
 class BookmarkServiceTest {
@@ -207,6 +210,13 @@ class BookmarkServiceTest {
 		assertThat(response.page()).isZero();
 		assertThat(response.size()).isEqualTo(20);
 		assertThat(response.last()).isTrue();
+
+		// latest 정렬은 사용자가 곧 시작하는 과정을 먼저 보도록 시작일 오름차순을 사용한다.
+		ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+		verify(bookmarkRepository).findAllByUserId(eq(1L), pageableCaptor.capture());
+		Sort.Order startDateOrder = pageableCaptor.getValue().getSort().getOrderFor("startDate");
+		assertThat(startDateOrder).isNotNull();
+		assertThat(startDateOrder.getDirection()).isEqualTo(Sort.Direction.ASC);
 	}
 
 	@Test
