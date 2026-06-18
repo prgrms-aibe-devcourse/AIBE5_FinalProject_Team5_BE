@@ -50,6 +50,10 @@ public class AdminReportService {
         ReportStatus status = request.resolvedStatus();
         ReportAction action = request.resolvedAction();
 
+        if (report.getStatus() != ReportStatus.PENDING) {
+            throw new BootSignalException(ErrorCode.BAD_REQUEST, "이미 처리된 신고입니다.");
+        }
+
         if (status != ReportStatus.COMPLETED) {
             throw new BootSignalException(ErrorCode.BAD_REQUEST, "신고 처리는 COMPLETED 상태만 가능합니다.");
         }

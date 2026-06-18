@@ -1,6 +1,7 @@
 package com.bootsignal.domain.report.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
 import com.bootsignal.domain.comment.entity.Comment;
@@ -17,6 +18,8 @@ import com.bootsignal.domain.report.entity.ReportTargetType;
 import com.bootsignal.domain.report.repository.ReportRepository;
 import com.bootsignal.domain.review.repository.ReviewRepository;
 import com.bootsignal.domain.user.entity.User;
+import com.bootsignal.global.exception.BootSignalException;
+import com.bootsignal.global.exception.ErrorCode;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -79,6 +82,25 @@ class AdminReportServiceTest {
         assertThat(response.contentUrl()).isEqualTo("/community/posts/10/comments/30");
         assertThat(comment.isValid()).isFalse();
         assertThat(comment.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void processThrowsBadRequestWhenReportAlreadyCompleted() {
+        User reporter = user(1L, "reporter");
+        Report report = report(reporter, 100L, ReportTargetType.COMMENT, 30L);
+        report.process(ReportStatus.COMPLETED, ReportAction.HIDE, "이미 처리되었습니다.");
+        AdminReportProcessRequest request = new AdminReportProcessRequest(
+            null,
+            null,
+            ReportAction.INVALID_REASON,
+            "재처리 시도"
+        );
+        given(reportRepository.findById(100L)).willReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> adminReportService.process(100L, request))
+            .isInstanceOf(BootSignalException.class)
+            .extracting(exception -> ((BootSignalException) exception).errorCode())
+            .isEqualTo(ErrorCode.BAD_REQUEST);
     }
 
     private Report report(User reporter, Long id, ReportTargetType targetType, Long targetId) {
