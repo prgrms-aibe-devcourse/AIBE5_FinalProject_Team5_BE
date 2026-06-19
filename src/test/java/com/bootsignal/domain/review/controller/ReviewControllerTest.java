@@ -64,6 +64,8 @@ class ReviewControllerTest {
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.reviewId").value(100))
+            .andExpect(jsonPath("$.data.userProfileImageUrl").value("https://example.com/profile.png"))
+            .andExpect(jsonPath("$.data.courseTitle").value("백엔드 개발 과정"))
             .andExpect(jsonPath("$.data.reviewType").value("GENERAL"))
             .andExpect(jsonPath("$.data.rating").value(4))
             .andExpect(jsonPath("$.data.verifiedDetail").doesNotExist())
@@ -122,6 +124,27 @@ class ReviewControllerTest {
             .andExpect(jsonPath("$.error").doesNotExist());
     }
 
+    @Test
+    @DisplayName("GET /api/reviews/latest - 전체 과정 최신 리뷰 목록을 반환한다")
+    void getLatestReviewsReturnsRecentReviews() throws Exception {
+        given(reviewService.getLatestReviews(5))
+            .willReturn(List.of(reviewResponse(100L, ReviewType.GENERAL, 4, "좋은 과정입니다.", null)));
+
+        mockMvc.perform(get("/api/reviews/latest")
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.data[0].reviewId").value(100))
+            .andExpect(jsonPath("$.data[0].userNickname").value("tester"))
+            .andExpect(jsonPath("$.data[0].userProfileImageUrl").value("https://example.com/profile.png"))
+            .andExpect(jsonPath("$.data[0].courseId").value(10))
+            .andExpect(jsonPath("$.data[0].courseTitle").value("백엔드 개발 과정"))
+            .andExpect(jsonPath("$.data[0].rating").value(4))
+            .andExpect(jsonPath("$.error").doesNotExist());
+
+        verify(reviewService).getLatestReviews(5);
+    }
+
     private ReviewResponse reviewResponse(
         Long reviewId,
         ReviewType reviewType,
@@ -133,7 +156,9 @@ class ReviewControllerTest {
             reviewId,
             1L,
             "tester",
+            "https://example.com/profile.png",
             10L,
+            "백엔드 개발 과정",
             20L,
             reviewType,
             rating,

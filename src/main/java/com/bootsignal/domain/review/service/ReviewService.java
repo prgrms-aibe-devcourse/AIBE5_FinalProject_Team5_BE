@@ -24,20 +24,25 @@ import com.bootsignal.domain.verification.repository.VerificationRepository;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import com.bootsignal.global.security.SecurityUtil;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 /**
- * 리뷰 생성, 수정, 조회와 인증 리뷰 상세 설문 통계 생성을 담당하는 서비스입니다.
+ * 리뷰 생성, 수정, 과정별 조회, 최신 리뷰 조회와 인증 리뷰 상세 설문 통계 생성을 담당하는 서비스입니다.
  */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReviewService {
+
+    private static final int LATEST_REVIEW_MIN_LIMIT = 1;
+    private static final int LATEST_REVIEW_MAX_LIMIT = 20;
 
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
@@ -90,6 +95,13 @@ public class ReviewService {
             .map(ReviewResponse::from);
     }
 
+    public List<ReviewResponse> getLatestReviews(int limit) {
+        validateLatestReviewLimit(limit);
+        return reviewRepository.findLatestActiveReviews(PageRequest.of(0, limit)).stream()
+            .map(ReviewResponse::from)
+            .toList();
+    }
+
     public ReviewStatisticsResponse getStatistics(Long courseId) {
         getCourse(courseId);
         return ReviewStatisticsResponse.from(reviewRepository.findAllVerifiedWithDetailByCourseId(courseId));
@@ -128,6 +140,15 @@ public class ReviewService {
     private void validateCourseSessionBelongsToCourse(CourseSession courseSession, Long courseId) {
         if (!courseSession.getCourse().getId().equals(courseId)) {
             throw new BootSignalException(ErrorCode.BAD_REQUEST, "해당 회차는 요청한 과정에 속하지 않습니다.");
+        }
+    }
+
+    private void validateLatestReviewLimit(int limit) {
+        if (limit < LATEST_REVIEW_MIN_LIMIT || limit > LATEST_REVIEW_MAX_LIMIT) {
+            throw new BootSignalException(
+                ErrorCode.BAD_REQUEST,
+                "최신 리뷰 조회 개수는 1개 이상 20개 이하로 요청해야 합니다."
+            );
         }
     }
 

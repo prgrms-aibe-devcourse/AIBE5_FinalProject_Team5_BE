@@ -4,6 +4,7 @@ import com.bootsignal.domain.code.service.FieldCategoryService;
 import com.bootsignal.domain.course.dto.CourseDetailResponse;
 import com.bootsignal.domain.course.dto.CourseListRequest;
 import com.bootsignal.domain.course.dto.CourseListResponse;
+import com.bootsignal.domain.course.dto.CourseSort;
 import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course.repository.CourseRepository;
 import com.bootsignal.domain.course_session.entity.CourseSession;
@@ -25,14 +26,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 과정 목록, 과정 상세, 목록용 리뷰 평점 집계를 담당하는 서비스입니다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class CourseService {
+
+    // 서비스 날짜 기준은 국내 과정 일정에 맞춰 한국 시간대를 사용합니다.
+    private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
 
     private final CourseRepository courseRepository;
     private final CourseSessionRepository courseSessionRepository;
@@ -44,6 +53,8 @@ public class CourseService {
      * 과정 목록 조회 (검색 + 필터 + 페이징) - 과정 세션(기수) 기준 조회
      */
     public PageResponse<CourseListResponse> getCourses(CourseListRequest request) {
+        CourseSort courseSort = CourseSort.from(request.sort());
+        LocalDate today = LocalDate.now(SERVICE_ZONE);
         Specification<CourseSession> spec = Specification.allOf(
                 CourseSessionSpecification.withKeyword(request.keyword()),
                 CourseSessionSpecification.withTrngAreaCd(request.trngAreaCd()),
@@ -52,11 +63,17 @@ public class CourseService {
                 CourseSessionSpecification.withDurationFilter(request.durationFilter())
         );
 
-        Pageable pageable = PageRequest.of(
-                request.page(),
-                request.size(),
-                Sort.by(Sort.Direction.DESC, "id")
-        );
+        if (courseSort == CourseSort.POPULAR) {
+            // 메인 인기 과정은 아직 시작하지 않은 과정만 노출하고, 북마크 수 기준으로 정렬합니다.
+            spec = spec
+                    .and(CourseSessionSpecification.startsOnOrAfter(today))
+                    .and(CourseSessionSpecification.orderByBookmarkCountDesc());
+        } else if (courseSort == CourseSort.DEADLINE) {
+            // 모집 마감 임박순은 이미 시작한 과정보다 시작 예정 과정을 우선 노출합니다.
+            spec = spec.and(CourseSessionSpecification.orderByDeadlineSoon(today));
+        }
+
+        Pageable pageable = PageRequest.of(request.page(), request.size(), toSort(courseSort));
 
         // N+1 방지를 위해 course와 institution을 fetch join
         Specification<CourseSession> withFetch = spec.and((root, query, cb) -> {
@@ -158,6 +175,26 @@ public class CourseService {
         return 0L;
     }
 
+    private Sort toSort(CourseSort courseSort) {
+        return switch (courseSort) {
+            // 북마크 수 집계 정렬은 Criteria orderBy로 처리하므로 Pageable Sort는 비워둡니다.
+            case POPULAR -> Sort.unsorted();
+            case SATISFACTION -> Sort.by(
+                    desc("course.stdgScor"),
+                    desc("id")
+            );
+            case EMPLOYMENT_RATE -> Sort.by(
+                    desc("employmentRate"),
+                    desc("id")
+            );
+            case DEADLINE -> Sort.unsorted();
+            case LATEST -> Sort.by(desc("id"));
+        };
+    }
+
+    private Sort.Order desc(String property) {
+        return Sort.Order.desc(property);
+    }
+
     private record ReviewRatingStat(long count, long sum) {}
 }
-
