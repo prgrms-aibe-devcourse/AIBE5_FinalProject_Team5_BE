@@ -16,6 +16,14 @@ spring:
 server:
   port: ${SERVER_PORT:8080}
 
+app:
+  security:
+    jwt:
+      cookie:
+        # 운영 HTTPS 환경에서는 JWT 쿠키가 평문 HTTP로 전송되지 않도록 Secure 기본값을 true로 둔다.
+        secure: ${JWT_COOKIE_SECURE:true}
+        same-site: ${JWT_COOKIE_SAME_SITE:Lax}
+
 logging:
   level:
     root: info

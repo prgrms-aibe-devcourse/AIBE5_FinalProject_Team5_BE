@@ -13,6 +13,9 @@ import com.bootsignal.domain.auth.dto.RefreshTokenRequest;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
 import com.bootsignal.domain.auth.service.AuthService;
+import com.bootsignal.global.security.jwt.JwtTokenCookieManager;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -22,14 +25,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 회원가입, 로그인, 소셜 로그인, 토큰 관리, 비밀번호 찾기 API를 제공하는 인증 컨트롤러입니다.
+ * 회원가입, 로그인, 소셜 로그인, HttpOnly 쿠키 기반 토큰 관리, 비밀번호 찾기 API를 제공하는 인증 컨트롤러입니다.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -38,6 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
 	private final AuthService authService;
+	private final JwtTokenCookieManager jwtTokenCookieManager;
 
 	@GetMapping("/check-email")
 	public EmailAvailabilityResponse checkEmail(
@@ -57,23 +61,32 @@ public class AuthController {
 	}
 
 	@PostMapping("/login")
-	public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-		return authService.login(request);
+	public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
+		LoginResponse loginResponse = authService.login(request);
+		jwtTokenCookieManager.addTokenCookies(response, loginResponse);
+		return loginResponse;
 	}
 
 	@PostMapping("/google/login")
-	public LoginResponse googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-		return authService.googleLogin(request);
+	public LoginResponse googleLogin(@Valid @RequestBody GoogleLoginRequest request, HttpServletResponse response) {
+		LoginResponse loginResponse = authService.googleLogin(request);
+		jwtTokenCookieManager.addTokenCookies(response, loginResponse);
+		return loginResponse;
 	}
 
 	@PostMapping("/kakao/login")
-	public LoginResponse kakaoLogin(@Valid @RequestBody KakaoLoginRequest request) {
-		return authService.kakaoLogin(request);
+	public LoginResponse kakaoLogin(@Valid @RequestBody KakaoLoginRequest request, HttpServletResponse response) {
+		LoginResponse loginResponse = authService.kakaoLogin(request);
+		jwtTokenCookieManager.addTokenCookies(response, loginResponse);
+		return loginResponse;
 	}
 
 	@PostMapping("/refresh")
-	public LoginResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
-		return authService.refresh(request);
+	public LoginResponse refresh(HttpServletRequest request, HttpServletResponse response) {
+		String refreshToken = jwtTokenCookieManager.requireRefreshToken(request);
+		LoginResponse loginResponse = authService.refresh(new RefreshTokenRequest(refreshToken));
+		jwtTokenCookieManager.addTokenCookies(response, loginResponse);
+		return loginResponse;
 	}
 
 	@PostMapping("/password/forgot")
@@ -88,7 +101,12 @@ public class AuthController {
 
 	@PostMapping("/logout")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void logout(@Valid @RequestBody RefreshTokenRequest request) {
-		authService.logout(request);
+	public void logout(HttpServletRequest request, HttpServletResponse response) {
+		try {
+			String refreshToken = jwtTokenCookieManager.requireRefreshToken(request);
+			authService.logout(new RefreshTokenRequest(refreshToken));
+		} finally {
+			jwtTokenCookieManager.clearTokenCookies(response);
+		}
 	}
 }

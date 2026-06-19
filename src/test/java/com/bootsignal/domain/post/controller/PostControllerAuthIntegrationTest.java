@@ -1,11 +1,10 @@
 package com.bootsignal.domain.post.controller;
 
+import static com.bootsignal.support.AuthCookieTestUtils.extractAccessToken;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -16,6 +15,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 게시글 작성 API가 로그인 인증 토큰을 요구하고 인증 실패를 올바르게 처리하는지 검증하는 통합 테스트입니다.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -24,9 +26,6 @@ class PostControllerAuthIntegrationTest {
 
 	@Autowired
 	private MockMvc mockMvc;
-
-	@Autowired
-	private ObjectMapper objectMapper;
 
 	@Test
 	void createPostWithLoginAccessToken() throws Exception {
@@ -41,7 +40,7 @@ class PostControllerAuthIntegrationTest {
 					"""))
 			.andExpect(status().isCreated());
 
-		String loginResponse = mockMvc.perform(post("/api/auth/login")
+		String accessToken = extractAccessToken(mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -50,14 +49,7 @@ class PostControllerAuthIntegrationTest {
 					}
 					"""))
 			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString(StandardCharsets.UTF_8);
-
-		String accessToken = objectMapper.readTree(loginResponse)
-			.path("data")
-			.path("accessToken")
-			.asText();
+			.andReturn());
 
 		mockMvc.perform(post("/api/posts")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
