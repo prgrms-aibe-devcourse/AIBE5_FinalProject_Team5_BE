@@ -6,8 +6,7 @@ Use this path when ECS is not available in the AWS account.
 
 ```text
 GitHub backend repository
-  -> CodePipeline
-  -> CodeBuild
+  -> GitHub Actions or CodePipeline / CodeBuild
   -> Elastic Beanstalk Java 21 environment
   -> RDS MySQL / S3 / Redis
 ```
@@ -18,9 +17,52 @@ Elastic Beanstalk deployment uses:
 
 - `buildspec.yml`: builds the Spring Boot executable jar for CodeBuild.
 - `Procfile`: tells Elastic Beanstalk how to run the app.
+- `.github/workflows/deploy-eb.yml`: deploys from GitHub Actions to Elastic Beanstalk.
 - `application-prod.yml`: reads production settings from environment variables.
 
 The ECS/ECR buildspec is preserved as `buildspec-ecs.yml` for future use.
+
+## GitHub Actions Deployment
+
+If AWS CodeConnections or CodePipeline source integration is blocked by account policy, use GitHub Actions.
+
+Workflow file:
+
+```text
+.github/workflows/deploy-eb.yml
+```
+
+Trigger:
+
+- push to `main`
+- manual `workflow_dispatch`
+
+Required GitHub repository secrets:
+
+```text
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+```
+
+The workflow:
+
+1. Runs Gradle tests and builds the Spring Boot jar.
+2. Copies the built jar to `application.jar`.
+3. Creates `deployment.zip` with:
+   - `application.jar`
+   - `Procfile`
+4. Uploads the zip to the Elastic Beanstalk artifact S3 bucket.
+5. Creates a new Elastic Beanstalk application version.
+6. Updates the `team5-bootsignal-prod` environment.
+
+Current default values inside the workflow:
+
+| Item | Value |
+| --- | --- |
+| AWS region | `ap-northeast-2` |
+| EB application | `team5-bootsignal` |
+| EB environment | `team5-bootsignal-prod` |
+| EB artifact bucket | `elasticbeanstalk-ap-northeast-2-495264909330` |
 
 ## Elastic Beanstalk App
 
@@ -33,6 +75,7 @@ Recommended values:
 | Platform | Java |
 | Platform branch | Corretto 21 / Java 21 |
 | Environment type | Single instance for first deploy |
+| Database | AWS RDS MySQL below 8.4 |
 
 The `Procfile` runs the app on port `5000`, which is the standard port used by Elastic Beanstalk Java SE reverse proxy configuration.
 
