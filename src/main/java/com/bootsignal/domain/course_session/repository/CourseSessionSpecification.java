@@ -1,16 +1,23 @@
 package com.bootsignal.domain.course_session.repository;
 
 import com.bootsignal.domain.code.service.FieldCategoryService;
+import com.bootsignal.domain.bookmark.entity.Bookmark;
 import com.bootsignal.domain.course.dto.DurationFilter;
 import com.bootsignal.domain.course.dto.PriceRange;
 import com.bootsignal.domain.course.dto.FieldCategory;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.util.Set;
 
+/**
+ * 과정 목록 조회에 필요한 검색, 필터, 정렬 조건을 JPA Specification으로 조립하는 파일입니다.
+ */
 public class CourseSessionSpecification {
 
     private CourseSessionSpecification() {
@@ -115,6 +122,42 @@ public class CourseSessionSpecification {
                 );
                 case OVER_6_MONTHS -> cb.greaterThan(root.get("totalTrainingDays"), 180);
             };
+        };
+    }
+
+    /**
+     * 기준일 이후에 시작하는 과정 기수만 조회합니다.
+     * 메인 인기 과정은 아직 시작하지 않은 과정만 노출해야 하므로 오늘 날짜를 기준으로 사용합니다.
+     */
+    public static Specification<CourseSession> startsOnOrAfter(LocalDate startDate) {
+        return (root, query, cb) -> {
+            if (startDate == null) {
+                return null;
+            }
+            return cb.greaterThanOrEqualTo(root.get("traStartDate"), startDate);
+        };
+    }
+
+    /**
+     * 북마크 수가 많은 과정 기수부터 정렬합니다.
+     * 별도 인기 점수 컬럼이 없으므로 Bookmark 테이블의 courseSession 집계 수를 인기 기준으로 사용합니다.
+     */
+    public static Specification<CourseSession> orderByBookmarkCountDesc() {
+        return (root, query, cb) -> {
+            if (query != null && Long.class != query.getResultType() && long.class != query.getResultType()) {
+                Subquery<Long> bookmarkCount = query.subquery(Long.class);
+                Root<Bookmark> bookmark = bookmarkCount.from(Bookmark.class);
+                bookmarkCount.select(cb.count(bookmark.get("id")));
+                bookmarkCount.where(cb.equal(bookmark.get("courseSession").get("id"), root.get("id")));
+
+                var courseJoin = root.join("course", JoinType.LEFT);
+                query.orderBy(
+                        cb.desc(bookmarkCount),
+                        cb.desc(courseJoin.get("stdgScor")),
+                        cb.desc(root.get("id"))
+                );
+            }
+            return cb.conjunction();
         };
     }
 }
