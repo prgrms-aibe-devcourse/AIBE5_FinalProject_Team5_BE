@@ -7,6 +7,7 @@ import com.bootsignal.domain.course.dto.PriceRange;
 import com.bootsignal.domain.course.dto.FieldCategory;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
@@ -154,6 +155,32 @@ public class CourseSessionSpecification {
                 query.orderBy(
                         cb.desc(bookmarkCount),
                         cb.desc(courseJoin.get("stdgScor")),
+                        cb.desc(root.get("id"))
+                );
+            }
+            return cb.conjunction();
+        };
+    }
+
+    /**
+     * 모집 마감 임박순 정렬입니다.
+     * 시작 예정 과정은 시작일 오름차순으로 먼저 노출하고, 이미 시작했거나 시작일이 없는 과정은 뒤로 보냅니다.
+     */
+    public static Specification<CourseSession> orderByDeadlineSoon(LocalDate today) {
+        return (root, query, cb) -> {
+            if (today == null) {
+                return null;
+            }
+            if (query != null && Long.class != query.getResultType() && long.class != query.getResultType()) {
+                Path<LocalDate> startDate = root.get("traStartDate");
+                var deadlinePriority = cb.selectCase()
+                        .when(cb.isNull(startDate), 2)
+                        .when(cb.greaterThanOrEqualTo(startDate, today), 0)
+                        .otherwise(1);
+
+                query.orderBy(
+                        cb.asc(deadlinePriority),
+                        cb.asc(startDate),
                         cb.desc(root.get("id"))
                 );
             }

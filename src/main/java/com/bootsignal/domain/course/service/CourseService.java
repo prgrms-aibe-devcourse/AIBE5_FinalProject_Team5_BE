@@ -54,6 +54,7 @@ public class CourseService {
      */
     public PageResponse<CourseListResponse> getCourses(CourseListRequest request) {
         CourseSort courseSort = CourseSort.from(request.sort());
+        LocalDate today = LocalDate.now(SERVICE_ZONE);
         Specification<CourseSession> spec = Specification.allOf(
                 CourseSessionSpecification.withKeyword(request.keyword()),
                 CourseSessionSpecification.withTrngAreaCd(request.trngAreaCd()),
@@ -65,8 +66,11 @@ public class CourseService {
         if (courseSort == CourseSort.POPULAR) {
             // 메인 인기 과정은 아직 시작하지 않은 과정만 노출하고, 북마크 수 기준으로 정렬합니다.
             spec = spec
-                    .and(CourseSessionSpecification.startsOnOrAfter(LocalDate.now(SERVICE_ZONE)))
+                    .and(CourseSessionSpecification.startsOnOrAfter(today))
                     .and(CourseSessionSpecification.orderByBookmarkCountDesc());
+        } else if (courseSort == CourseSort.DEADLINE) {
+            // 모집 마감 임박순은 이미 시작한 과정보다 시작 예정 과정을 우선 노출합니다.
+            spec = spec.and(CourseSessionSpecification.orderByDeadlineSoon(today));
         }
 
         Pageable pageable = PageRequest.of(request.page(), request.size(), toSort(courseSort));
@@ -183,20 +187,13 @@ public class CourseService {
                     desc("employmentRate"),
                     desc("id")
             );
-            case DEADLINE -> Sort.by(
-                    asc("traStartDate"),
-                    desc("id")
-            );
+            case DEADLINE -> Sort.unsorted();
             case LATEST -> Sort.by(desc("id"));
         };
     }
 
     private Sort.Order desc(String property) {
         return Sort.Order.desc(property);
-    }
-
-    private Sort.Order asc(String property) {
-        return Sort.Order.asc(property);
     }
 
     private record ReviewRatingStat(long count, long sum) {}

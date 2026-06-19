@@ -100,6 +100,35 @@ class CourseSessionRepositorySortTest {
                 .containsExactly("북마크 많은 과정", "북마크 적은 과정");
     }
 
+    @Test
+    void deadlineSpecificationSortsUpcomingCoursesBeforeStartedCourses() {
+        LocalDate today = LocalDate.now();
+        Course pastCourse = saveCourse("TR-DEADLINE-PAST", "이미 시작한 과정", BigDecimal.valueOf(5.0));
+        Course nearFutureCourse = saveCourse("TR-DEADLINE-NEAR", "곧 시작하는 과정", BigDecimal.valueOf(4.0));
+        Course farFutureCourse = saveCourse("TR-DEADLINE-FAR", "나중에 시작하는 과정", BigDecimal.valueOf(3.0));
+        Course noStartDateCourse = saveCourse("TR-DEADLINE-NO-DATE", "시작일 없는 과정", BigDecimal.valueOf(2.0));
+
+        courseSessionRepository.saveAll(List.of(
+                session("TR-DEADLINE-PAST", 1, pastCourse, today.minusDays(3)),
+                session("TR-DEADLINE-NEAR", 1, nearFutureCourse, today.plusDays(1)),
+                session("TR-DEADLINE-FAR", 1, farFutureCourse, today.plusDays(20)),
+                session("TR-DEADLINE-NO-DATE", 1, noStartDateCourse)
+        ));
+
+        Page<CourseSession> result = courseSessionRepository.findAll(
+                CourseSessionSpecification.orderByDeadlineSoon(today),
+                PageRequest.of(0, 10)
+        );
+
+        assertThat(result.getContent()).extracting(CourseSession::getTrprId)
+                .containsExactly(
+                        "TR-DEADLINE-NEAR",
+                        "TR-DEADLINE-FAR",
+                        "TR-DEADLINE-PAST",
+                        "TR-DEADLINE-NO-DATE"
+                );
+    }
+
     private Course saveCourse(String trprId, String title, BigDecimal stdgScor) {
         return courseRepository.save(Course.builder()
                 .trprId(trprId)

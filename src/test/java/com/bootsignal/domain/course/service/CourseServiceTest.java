@@ -51,7 +51,6 @@ class CourseServiceTest {
     @CsvSource({
             "satisfaction, course.stdgScor, DESC",
             "employmentRate, employmentRate, DESC",
-            "deadline, traStartDate, ASC",
             "latest, id, DESC"
     })
     void getCoursesAppliesRequestedSort(String sort, String expectedProperty, Sort.Direction expectedDirection) {
@@ -115,5 +114,35 @@ class CourseServiceTest {
         Pageable pageable = pageableCaptor.getValue();
         assertThat(pageable.getPageSize()).isEqualTo(7);
         assertThat(pageable.getSort().isUnsorted()).isTrue();
+    }
+
+    @Test
+    void getCoursesUsesSpecificationOrderForDeadlineSort() {
+        when(courseSessionRepository.findAll(
+                org.mockito.ArgumentMatchers.<Specification<CourseSession>>any(),
+                org.mockito.ArgumentMatchers.any(Pageable.class)
+        ))
+                .thenReturn(Page.empty());
+
+        CourseListRequest request = new CourseListRequest(
+                null,
+                null,
+                null,
+                null,
+                null,
+                "deadline",
+                0,
+                10
+        );
+
+        courseService.getCourses(request);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        org.mockito.Mockito.verify(courseSessionRepository).findAll(
+                org.mockito.ArgumentMatchers.<Specification<CourseSession>>any(),
+                pageableCaptor.capture()
+        );
+
+        assertThat(pageableCaptor.getValue().getSort().isUnsorted()).isTrue();
     }
 }
