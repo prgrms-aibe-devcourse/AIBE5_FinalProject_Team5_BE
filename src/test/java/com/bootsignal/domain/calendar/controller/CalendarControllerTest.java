@@ -237,16 +237,17 @@ class CalendarControllerTest {
 	}
 
 	@Test
-	@DisplayName("GET /api/calendar/connect/google — Google OAuth redirect (302)")
-	void startGoogleConnectRedirectsToGoogle() throws Exception {
+	@DisplayName("GET /api/calendar/connect/google — Google OAuth redirect URL JSON (200)")
+	void startGoogleConnectReturnsRedirectUrl() throws Exception {
 		// given
 		given(calendarService.startGoogleConnect())
 			.willReturn("https://accounts.google.com/o/oauth2/v2/auth?state=test");
 
 		// when & then
 		mockMvc.perform(get("/api/calendar/connect/google"))
-			.andExpect(status().isFound())
-			.andExpect(header().string("Location", "https://accounts.google.com/o/oauth2/v2/auth?state=test"));
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.redirectUrl").value("https://accounts.google.com/o/oauth2/v2/auth?state=test"));
 	}
 
 	@Test
