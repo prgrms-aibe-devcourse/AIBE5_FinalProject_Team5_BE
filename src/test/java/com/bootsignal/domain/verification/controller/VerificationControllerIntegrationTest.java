@@ -1,5 +1,6 @@
 package com.bootsignal.domain.verification.controller;
 
+import static com.bootsignal.support.AuthCookieTestUtils.extractAccessToken;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -250,7 +251,7 @@ class VerificationControllerIntegrationTest {
     }
 
     private String login(String email) throws Exception {
-        String loginResponse = mockMvc.perform(post("/api/auth/login")
+        return extractAccessToken(mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -259,11 +260,7 @@ class VerificationControllerIntegrationTest {
                     }
                     """.formatted(email, PASSWORD)))
             .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString(StandardCharsets.UTF_8);
-
-        return objectMapper.readTree(loginResponse).path("data").path("accessToken").asText();
+            .andReturn());
     }
 
     private CourseSessionFixture createCourseSessionFixture() {

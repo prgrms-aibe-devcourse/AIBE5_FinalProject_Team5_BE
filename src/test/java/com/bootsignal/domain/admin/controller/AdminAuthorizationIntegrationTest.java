@@ -1,5 +1,6 @@
 package com.bootsignal.domain.admin.controller;
 
+import static com.bootsignal.support.AuthCookieTestUtils.extractAccessToken;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -8,8 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.domain.user.repository.UserRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -39,9 +38,6 @@ class AdminAuthorizationIntegrationTest {
 
 	@Autowired
 	private MockMvc mockMvc;
-
-	@Autowired
-	private ObjectMapper objectMapper;
 
 	@Autowired
 	private UserRepository userRepository;
@@ -113,7 +109,7 @@ class AdminAuthorizationIntegrationTest {
 	}
 
 	private String login(String email, String password) throws Exception {
-		String loginResponse = mockMvc.perform(post("/api/auth/login")
+		return extractAccessToken(mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -122,10 +118,6 @@ class AdminAuthorizationIntegrationTest {
 					}
 					""".formatted(email, password)))
 			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString(StandardCharsets.UTF_8);
-
-		return objectMapper.readTree(loginResponse).path("data").path("accessToken").asText();
+			.andReturn());
 	}
 }

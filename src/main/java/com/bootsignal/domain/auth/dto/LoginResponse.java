@@ -7,13 +7,18 @@ import com.bootsignal.global.security.jwt.JwtTokenPair;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
- * 로그인과 토큰 재발급 성공 시 사용자 정보와 JWT 토큰 정보를 함께 반환하는 DTO입니다.
+ * 로그인과 토큰 재발급 성공 시 쿠키 발급에 필요한 JWT와 응답 본문의 사용자 정보를 함께 운반하는 DTO입니다.
  */
 public record LoginResponse(
+	@JsonIgnore
 	String accessToken,
+	@JsonIgnore
 	String tokenType,
+	@JsonIgnore
 	long expiresIn,
+	@JsonIgnore
 	String refreshToken,
+	@JsonIgnore
 	long refreshTokenExpiresIn,
 	AuthUserResponse user
 ) {

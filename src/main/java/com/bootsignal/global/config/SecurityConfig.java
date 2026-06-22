@@ -3,7 +3,9 @@ package com.bootsignal.global.config;
 import com.bootsignal.global.config.properties.CorsProperties;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import com.bootsignal.global.security.jwt.JwtCsrfTokenFilter;
 import com.bootsignal.global.security.jwt.JwtAuthenticationFilter;
+import com.bootsignal.global.security.jwt.JwtTokenCookieManager;
 import com.bootsignal.global.security.jwt.JwtTokenProvider;
 import java.util.List;
 import java.util.Objects;
@@ -28,7 +30,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
- * JWT 기반 인증, CORS, 공개/보호 API 경계를 설정하는 보안 구성입니다.
+ * JWT 헤더/쿠키 기반 인증, CSRF 방어, CORS, 공개/보호 API 경계를 설정하는 보안 구성입니다.
  */
 @Configuration
 @EnableWebSecurity
@@ -41,10 +43,12 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(
 		HttpSecurity http,
+		JwtCsrfTokenFilter jwtCsrfTokenFilter,
 		JwtAuthenticationFilter jwtAuthenticationFilter,
 		@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
 	) throws Exception {
 		return http
+			// JWT 쿠키 인증은 별도 double-submit CSRF 필터(JwtCsrfTokenFilter)로 검증한다.
 			.csrf(AbstractHttpConfigurer::disable)
 			.httpBasic(AbstractHttpConfigurer::disable)
 			.formLogin(AbstractHttpConfigurer::disable)
@@ -95,17 +99,27 @@ public class SecurityConfig {
 					)
 				)
 			)
-			.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+			.addFilterBefore(jwtCsrfTokenFilter, UsernamePasswordAuthenticationFilter.class)
+			.addFilterAfter(jwtAuthenticationFilter, JwtCsrfTokenFilter.class)
 			.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
 			.build();
 	}
 
 	@Bean
-	public JwtAuthenticationFilter jwtAuthenticationFilter(
-		JwtTokenProvider jwtTokenProvider,
+	public JwtCsrfTokenFilter jwtCsrfTokenFilter(
+		JwtTokenCookieManager jwtTokenCookieManager,
 		@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
 	) {
-		return new JwtAuthenticationFilter(jwtTokenProvider, handlerExceptionResolver);
+		return new JwtCsrfTokenFilter(jwtTokenCookieManager, handlerExceptionResolver);
+	}
+
+	@Bean
+	public JwtAuthenticationFilter jwtAuthenticationFilter(
+		JwtTokenProvider jwtTokenProvider,
+		JwtTokenCookieManager jwtTokenCookieManager,
+		@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
+	) {
+		return new JwtAuthenticationFilter(jwtTokenProvider, jwtTokenCookieManager, handlerExceptionResolver);
 	}
 
 	@Bean

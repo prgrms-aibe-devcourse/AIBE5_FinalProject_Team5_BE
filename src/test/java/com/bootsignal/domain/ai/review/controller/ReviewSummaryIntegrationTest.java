@@ -1,5 +1,6 @@
 package com.bootsignal.domain.ai.review.controller;
 
+import static com.bootsignal.support.AuthCookieTestUtils.extractAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -35,6 +36,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 리뷰 요약 AI API가 로그인 인증, 외부 AI 응답 처리, 실행 로그 저장까지 연결되는지 검증하는 통합 테스트입니다.
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -83,7 +87,7 @@ class ReviewSummaryIntegrationTest {
 					"""))
 			.andExpect(status().isCreated());
 
-		String loginResponse = mockMvc.perform(post("/api/auth/login")
+		String accessToken = extractAccessToken(mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -92,14 +96,7 @@ class ReviewSummaryIntegrationTest {
 					}
 					"""))
 			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString(StandardCharsets.UTF_8);
-
-		String accessToken = objectMapper.readTree(loginResponse)
-			.path("data")
-			.path("accessToken")
-			.asText();
+			.andReturn());
 
 		String summaryResponse = mockMvc.perform(post("/api/ai/review-summaries")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
