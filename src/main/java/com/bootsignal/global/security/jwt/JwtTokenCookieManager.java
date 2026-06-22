@@ -35,14 +35,17 @@ public class JwtTokenCookieManager {
 
 	private final boolean cookieSecure;
 	private final String cookieSameSite;
+	private final String cookieDomain;
 	private final SecureRandom secureRandom = new SecureRandom();
 
 	public JwtTokenCookieManager(
 		@Value("${app.security.jwt.cookie.secure:false}") boolean cookieSecure,
-		@Value("${app.security.jwt.cookie.same-site:Lax}") String cookieSameSite
+		@Value("${app.security.jwt.cookie.same-site:Lax}") String cookieSameSite,
+		@Value("${app.security.jwt.cookie.domain:}") String cookieDomain
 	) {
 		this.cookieSecure = cookieSecure;
 		this.cookieSameSite = StringUtils.hasText(cookieSameSite) ? cookieSameSite : "Lax";
+		this.cookieDomain = StringUtils.hasText(cookieDomain) ? cookieDomain : null;
 	}
 
 	public void addTokenCookies(HttpServletResponse response, LoginResponse loginResponse) {
@@ -124,11 +127,15 @@ public class JwtTokenCookieManager {
 	}
 
 	private ResponseCookie.ResponseCookieBuilder baseCookie(String name, String value, String path, boolean httpOnly) {
-		return ResponseCookie.from(name, value)
+		ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
 			.httpOnly(httpOnly)
 			.secure(cookieSecure)
 			.path(path)
 			.sameSite(cookieSameSite);
+		if (cookieDomain != null) {
+			builder = builder.domain(cookieDomain);
+		}
+		return builder;
 	}
 
 	private String generateCsrfToken() {

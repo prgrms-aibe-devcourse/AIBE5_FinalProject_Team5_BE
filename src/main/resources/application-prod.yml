@@ -23,6 +23,8 @@ app:
         # 운영 HTTPS 환경에서는 JWT 쿠키가 평문 HTTP로 전송되지 않도록 Secure 기본값을 true로 둔다.
         secure: ${JWT_COOKIE_SECURE:true}
         same-site: ${JWT_COOKIE_SAME_SITE:Lax}
+        # CSRF 쿠키를 프론트(boot-signal.com)에서 JS로 읽으려면 상위 도메인으로 발급해야 한다.
+        domain: ${JWT_COOKIE_DOMAIN:.boot-signal.com}
 
 logging:
   level:
