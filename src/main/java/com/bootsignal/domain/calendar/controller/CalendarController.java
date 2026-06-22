@@ -1,12 +1,11 @@
 package com.bootsignal.domain.calendar.controller;
 
+import com.bootsignal.domain.calendar.dto.CalendarConnectResponse;
 import com.bootsignal.domain.calendar.dto.CalendarEventListResponse;
 import com.bootsignal.domain.calendar.dto.CalendarStatusResponse;
 import com.bootsignal.domain.calendar.service.CalendarEventQueryService;
 import com.bootsignal.domain.calendar.service.CalendarService;
 import com.bootsignal.global.exception.BootSignalException;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.net.URI;
@@ -34,14 +33,11 @@ public class CalendarController {
 		return calendarService.getStatus();
 	}
 
-	/* Google Calendar OAuth 연동 시작 */
+	/* Google Calendar OAuth 연동 시작 (redirect URL JSON 반환) */
 	@GetMapping("/connect/google")
-	public void startGoogleConnect(HttpServletResponse response) throws IOException {
-		// 구글 캘린더 OAuth 인증 URL 생성
+	public CalendarConnectResponse startGoogleConnect() {
 		String authorizationUrl = calendarService.startGoogleConnect();
-		
-		// 리다이렉트 응답 전송
-		response.sendRedirect(authorizationUrl);
+		return CalendarConnectResponse.of(authorizationUrl);
 	}
 
 	/* Google Calendar OAuth callback (연동 -> 구글 -> 콜백) */
