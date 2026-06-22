@@ -34,7 +34,7 @@ public class Report extends BaseEntity {
     private User reporter;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 10)   // REVIEW(6), POST(4), COMMENT(7)
     private ReportTargetType targetType;
 
     @Column(nullable = false)
@@ -47,12 +47,14 @@ public class Report extends BaseEntity {
     private String detail;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 10)   // PENDING(7), COMPLETED(9)
     private ReportStatus status = ReportStatus.PENDING;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 30)                     // HIDE(4), INVALID_REASON(14) — 향후 추가 여유 포함
     private ReportAction action;
 
+    @Column(length = 500)
     private String processReason;
 
     @Builder

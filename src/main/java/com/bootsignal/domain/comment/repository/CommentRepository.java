@@ -41,6 +41,17 @@ public interface CommentRepository extends JpaRepository<Comment, Long> {
 	Optional<Comment> findActiveById(@Param("commentId") Long commentId);
 
 	/**
+	 * 관리자 신고 처리용 댓글 조회 - 소프트삭제 여부와 무관하게 user, post fetch join 포함합니다.
+	 */
+	@Query("""
+		SELECT c FROM Comment c
+		JOIN FETCH c.post p
+		JOIN FETCH c.user u
+		WHERE c.id = :commentId
+		""")
+	Optional<Comment> findByIdWithUserAndPost(@Param("commentId") Long commentId);
+
+	/**
 	 * 현재 사용자가 작성한 활성 댓글을 페이지 단위로 조회합니다.
 	 */
 	@Query(

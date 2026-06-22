@@ -2,6 +2,7 @@ package com.bootsignal.domain.post.repository;
 
 import com.bootsignal.domain.post.entity.Post;
 import com.bootsignal.domain.post.entity.PostType;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +15,16 @@ import org.springframework.data.repository.query.Param;
 public interface PostRepository extends JpaRepository<Post, Long> {
 
 	boolean existsByIdAndDeletedAtIsNullAndIsValidTrue(Long id);
+
+	/**
+	 * 관리자 신고 처리용 게시글 조회 - 소프트삭제 여부와 무관하게 user fetch join 포함합니다.
+	 */
+	@Query("""
+		SELECT p FROM Post p
+		JOIN FETCH p.user u
+		WHERE p.id = :postId
+		""")
+	Optional<Post> findByIdWithUser(@Param("postId") Long postId);
 
 	@Query(
 		value = """

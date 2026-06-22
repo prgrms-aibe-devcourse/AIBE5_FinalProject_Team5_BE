@@ -30,6 +30,17 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
         """)
     Optional<Review> findActiveByIdWithDetail(@Param("reviewId") Long reviewId);
 
+    /**
+     * 관리자 신고 처리용 리뷰 조회 - 소프트삭제 여부와 무관하게 user, course fetch join 포함합니다.
+     */
+    @Query("""
+        SELECT r FROM Review r
+        JOIN FETCH r.user u
+        JOIN FETCH r.course c
+        WHERE r.id = :reviewId
+        """)
+    Optional<Review> findByIdWithUserAndCourse(@Param("reviewId") Long reviewId);
+
     @Query(
         value = """
             SELECT r FROM Review r

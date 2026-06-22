@@ -77,13 +77,13 @@ public class AdminReportService {
 
     private ReportTargetSnapshot resolveTargetSnapshot(Report report) {
         return switch (report.getTargetType()) {
-            case POST -> postRepository.findById(report.getTargetId())
+            case POST -> postRepository.findByIdWithUser(report.getTargetId())
                 .map(this::postSnapshot)
                 .orElseGet(() -> ReportTargetSnapshot.missing(report.getTargetId()));
-            case COMMENT -> commentRepository.findById(report.getTargetId())
+            case COMMENT -> commentRepository.findByIdWithUserAndPost(report.getTargetId())
                 .map(this::commentSnapshot)
                 .orElseGet(() -> ReportTargetSnapshot.missing(report.getTargetId()));
-            case REVIEW -> reviewRepository.findById(report.getTargetId())
+            case REVIEW -> reviewRepository.findByIdWithUserAndCourse(report.getTargetId())
                 .map(this::reviewSnapshot)
                 .orElseGet(() -> ReportTargetSnapshot.missing(report.getTargetId()));
         };
