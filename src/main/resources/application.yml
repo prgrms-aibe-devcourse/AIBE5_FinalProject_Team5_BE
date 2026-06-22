@@ -62,6 +62,8 @@ app:
         # JWT 쿠키의 브라우저 전송 정책이다. HTTPS 배포 환경에서는 JWT_COOKIE_SECURE=true 사용을 권장한다.
         secure: ${JWT_COOKIE_SECURE:false}
         same-site: ${JWT_COOKIE_SAME_SITE:Lax}
+        # 서브도메인 간 쿠키 공유가 필요할 때 설정 (예: .boot-signal.com). 미설정 시 발급 호스트에만 귀속.
+        domain: ${JWT_COOKIE_DOMAIN:}
     token-encryption:
       secret: ${TOKEN_ENCRYPTION_SECRET}
   oauth:
