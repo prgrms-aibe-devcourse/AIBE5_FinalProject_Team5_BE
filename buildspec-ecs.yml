@@ -1,0 +1,35 @@
+version: 0.2
+
+env:
+  variables:
+    # Must match the container name in the ECS task definition.
+    CONTAINER_NAME: bootsignal-backend
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      - export IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}
+      - export IMAGE_URI=$ECR_REPOSITORY_URI:$IMAGE_TAG
+      - echo Image URI is $IMAGE_URI
+
+  build:
+    commands:
+      - echo Building Docker image...
+      - export IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}
+      - export IMAGE_URI=$ECR_REPOSITORY_URI:$IMAGE_TAG
+      - docker build -t $IMAGE_URI .
+
+  post_build:
+    commands:
+      - echo Pushing Docker image...
+      - export IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:-latest}
+      - export IMAGE_URI=$ECR_REPOSITORY_URI:$IMAGE_TAG
+      - docker push $IMAGE_URI
+      - echo Writing ECS image definition...
+      - printf '[{"name":"%s","imageUri":"%s"}]' $CONTAINER_NAME $IMAGE_URI > imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json

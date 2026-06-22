@@ -1,0 +1,102 @@
+name: Deploy Backend To Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - main
+      - publish
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-eb-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ap-northeast-2
+  EB_APPLICATION_NAME: team5-bootsignal
+  EB_ENVIRONMENT_NAME: team5-bootsignal-prod
+  EB_ARTIFACT_BUCKET: elasticbeanstalk-ap-northeast-2-495264909330
+
+jobs:
+  deploy:
+    name: Build And Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build Spring Boot jar
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean bootJar -x test --no-daemon --stacktrace
+
+      - name: Prepare Elastic Beanstalk artifact
+        shell: bash
+        run: |
+          JAR_PATH="$(find build/libs -maxdepth 1 -name '*.jar' | head -n 1)"
+          if [[ -z "$JAR_PATH" ]]; then
+            echo "No executable jar found in build/libs"
+            exit 1
+          fi
+
+          cp "$JAR_PATH" application.jar
+          zip -j deployment.zip application.jar Procfile
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create Elastic Beanstalk application version
+        id: version
+        shell: bash
+        run: |
+          VERSION_LABEL="be-${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}-$(date +%Y%m%d%H%M%S)"
+          S3_KEY="backend/${VERSION_LABEL}.zip"
+
+          aws s3 cp deployment.zip "s3://${EB_ARTIFACT_BUCKET}/${S3_KEY}"
+
+          aws elasticbeanstalk create-application-version \
+            --application-name "${EB_APPLICATION_NAME}" \
+            --version-label "${VERSION_LABEL}" \
+            --source-bundle S3Bucket="${EB_ARTIFACT_BUCKET}",S3Key="${S3_KEY}"
+
+          echo "version_label=${VERSION_LABEL}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy application version
+        shell: bash
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name "${EB_ENVIRONMENT_NAME}" \
+            --version-label "${{ steps.version.outputs.version_label }}"
+
+      - name: Wait for environment update
+        shell: bash
+        run: |
+          aws elasticbeanstalk wait environment-updated \
+            --environment-names "${EB_ENVIRONMENT_NAME}"
+
+      - name: Print environment status
+        shell: bash
+        run: |
+          aws elasticbeanstalk describe-environments \
+            --environment-names "${EB_ENVIRONMENT_NAME}" \
+            --query "Environments[0].{Status:Status,Health:Health,CNAME:CNAME,VersionLabel:VersionLabel}" \
+            --output table

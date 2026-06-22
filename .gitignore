@@ -1,7 +1,7 @@
 HELP.md
 .gradle
 build/
-temp-storage/profile-images/
+temp-storage/
 .env
 .env.*
 !.env.example
@@ -40,3 +40,20 @@ out/
 ### VS Code ###
 .vscode/
 .claude/
+
+### AWS / Deployment local artifacts ###
+*.pem
+*.p12
+*.jks
+*.keystore
+_credentials.csv
+_accessKeys.csv
+*credentials*.csv
+*accesskeys*.csv
+global-bundle.pem
+application.jar
+*.sql
+!src/main/resources/db/migration/**/*.sql
+*.zip
+.elasticbeanstalk/*.log
+.aws-sam/

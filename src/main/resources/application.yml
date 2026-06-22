@@ -11,6 +11,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+    validate-migration-naming: true
   servlet:
     multipart:
       # 인증 증빙과 프로필 이미지 업로드를 허용하며, 운영 환경에서는 .env로 조정한다.

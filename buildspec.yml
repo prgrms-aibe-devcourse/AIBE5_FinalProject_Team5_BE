@@ -1,0 +1,14 @@
+version: 0.2
+
+phases:
+  build:
+    commands:
+      - echo Building Spring Boot application for Elastic Beanstalk...
+      - chmod +x gradlew
+      - ./gradlew clean bootJar -x test --no-daemon
+      - cp build/libs/*.jar application.jar
+
+artifacts:
+  files:
+    - application.jar
+    - Procfile

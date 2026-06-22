@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course.repository.CourseRepository;
 import com.bootsignal.domain.course_session.entity.CourseSession;
+import com.bootsignal.domain.user.entity.User;
+import com.bootsignal.domain.user.repository.UserRepository;
 import jakarta.persistence.criteria.JoinType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -14,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -27,6 +30,7 @@ import org.springframework.data.jpa.domain.Specification;
         "spring.datasource.driver-class-name=org.h2.Driver"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@ActiveProfiles("test")
 class CourseSessionRepositorySortTest {
 
     @Autowired
@@ -38,7 +42,10 @@ class CourseSessionRepositorySortTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private long bookmarkUserSequence = 1L;
+    @Autowired
+    private UserRepository userRepository;
+
+    private int bookmarkUserSequence = 1;
 
     @Test
     void findAllSortsByCourseSatisfactionWithFetchJoin() {
@@ -158,11 +165,14 @@ class CourseSessionRepositorySortTest {
 
     private void saveBookmarks(CourseSession courseSession, int count) {
         for (int i = 0; i < count; i++) {
-            // 인기순 검증에는 user 엔티티 내용이 필요하지 않아 bookmark 집계 행만 직접 추가합니다.
+            int seq = bookmarkUserSequence++;
+            User user = userRepository.save(
+                    User.signupLocal("bookmark-user-" + seq + "@test.com", "pw", "bm-nick-" + seq)
+            );
             jdbcTemplate.update(
                     "INSERT INTO bookmark (course_session_id, user_id, start_date, end_date) VALUES (?, ?, ?, ?)",
                     courseSession.getId(),
-                    bookmarkUserSequence++,
+                    user.getId(),
                     courseSession.getTraStartDate(),
                     courseSession.getTraEndDate()
             );
