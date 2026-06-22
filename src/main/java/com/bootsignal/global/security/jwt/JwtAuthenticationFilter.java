@@ -15,8 +15,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
- * Authorization 헤더의 Access Token을 검증해 SecurityContext에 인증 정보를 설정하는 필터입니다.
- * 인증 API는 Refresh Token 본문 검증 흐름과 충돌하지 않도록 필터 대상에서 제외합니다.
+ * Authorization 헤더 또는 HttpOnly 쿠키의 Access Token을 검증해 SecurityContext에 인증 정보를 설정하는 필터입니다.
+ * 인증 API는 로그인과 Refresh Token 쿠키 처리 흐름과 충돌하지 않도록 필터 대상에서 제외합니다.
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -24,13 +24,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final JwtTokenProvider jwtTokenProvider;
+	private final JwtTokenCookieManager jwtTokenCookieManager;
 	private final HandlerExceptionResolver handlerExceptionResolver;
 
 	public JwtAuthenticationFilter(
 		JwtTokenProvider jwtTokenProvider,
+		JwtTokenCookieManager jwtTokenCookieManager,
 		HandlerExceptionResolver handlerExceptionResolver
 	) {
 		this.jwtTokenProvider = jwtTokenProvider;
+		this.jwtTokenCookieManager = jwtTokenCookieManager;
 		this.handlerExceptionResolver = handlerExceptionResolver;
 	}
 
@@ -67,7 +70,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private String resolveToken(HttpServletRequest request) {
 		String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 		if (!StringUtils.hasText(authorizationHeader)) {
-			return null;
+			return jwtTokenCookieManager.resolveAccessToken(request);
 		}
 		if (!authorizationHeader.startsWith(BEARER_PREFIX)) {
 			throw new BootSignalException(ErrorCode.UNAUTHORIZED, "Bearer 인증 토큰이 필요합니다.");

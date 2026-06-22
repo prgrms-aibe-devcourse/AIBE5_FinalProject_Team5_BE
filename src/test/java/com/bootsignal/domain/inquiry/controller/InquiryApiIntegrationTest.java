@@ -1,5 +1,12 @@
 package com.bootsignal.domain.inquiry.controller;
 
+import static com.bootsignal.support.AuthCookieTestUtils.extractAccessToken;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.domain.user.repository.UserRepository;
@@ -17,12 +24,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 실제 HTTP 흐름에 가깝게 사용자 문의 등록부터 관리자 답변, 사용자 답변 확인까지 검증하는 통합 테스트입니다.
@@ -108,7 +109,7 @@ class InquiryApiIntegrationTest {
     }
 
     private String login(String email, String password) throws Exception {
-        String loginResponse = mockMvc.perform(post("/api/auth/login")
+        return extractAccessToken(mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {
@@ -117,10 +118,6 @@ class InquiryApiIntegrationTest {
                     }
                     """.formatted(email, password)))
             .andExpect(status().isOk())
-            .andReturn()
-            .getResponse()
-            .getContentAsString(StandardCharsets.UTF_8);
-
-        return objectMapper.readTree(loginResponse).path("data").path("accessToken").asText();
+            .andReturn());
     }
 }

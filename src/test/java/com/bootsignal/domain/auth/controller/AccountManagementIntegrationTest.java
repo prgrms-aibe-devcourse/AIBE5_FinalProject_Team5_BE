@@ -1,5 +1,6 @@
 package com.bootsignal.domain.auth.controller;
 
+import static com.bootsignal.support.AuthCookieTestUtils.extractAccessToken;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -73,7 +74,7 @@ class AccountManagementIntegrationTest {
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.data.available").value(false));
 
-		String accessToken = login("account-flow@example.com", "password123").path("accessToken").asText();
+		String accessToken = login("account-flow@example.com", "password123");
 
 		mockMvc.perform(patch("/api/members/me/password")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
@@ -117,7 +118,7 @@ class AccountManagementIntegrationTest {
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.error.code").value("PASSWORD_RESET_TOKEN_INVALID"));
 
-		String resetAccessToken = login("account-flow@example.com", "resetPassword123").path("accessToken").asText();
+		String resetAccessToken = login("account-flow@example.com", "resetPassword123");
 
 		mockMvc.perform(delete("/api/members/me")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + resetAccessToken))
@@ -187,16 +188,12 @@ class AccountManagementIntegrationTest {
 		return resetToken;
 	}
 
-	private JsonNode login(String email, String password) throws Exception {
-		String response = mockMvc.perform(post("/api/auth/login")
+	private String login(String email, String password) throws Exception {
+		return extractAccessToken(mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(loginJson(email, password)))
 			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString(StandardCharsets.UTF_8);
-
-		return objectMapper.readTree(response).path("data");
+			.andReturn());
 	}
 
 	private String loginJson(String email, String password) {

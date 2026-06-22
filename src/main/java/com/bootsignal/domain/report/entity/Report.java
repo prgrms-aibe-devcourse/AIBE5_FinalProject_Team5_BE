@@ -51,6 +51,7 @@ public class Report extends BaseEntity {
     private ReportStatus status = ReportStatus.PENDING;
 
     @Enumerated(EnumType.STRING)
+    @Column(length = 20)
     private ReportAction action;
 
     private String processReason;

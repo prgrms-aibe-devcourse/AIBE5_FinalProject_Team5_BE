@@ -1,7 +1,11 @@
 package com.bootsignal.domain.auth.controller;
 
+import static com.bootsignal.support.AuthCookieTestUtils.extractAccessTokenCookie;
+import static com.bootsignal.support.AuthCookieTestUtils.extractCsrfTokenCookie;
+import static com.bootsignal.support.AuthCookieTestUtils.extractRefreshTokenCookie;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -12,9 +16,8 @@ import com.bootsignal.domain.auth.oauth.GoogleUserInfo;
 import com.bootsignal.domain.auth.oauth.KakaoTokenVerifier;
 import com.bootsignal.domain.auth.oauth.KakaoUserInfo;
 import com.bootsignal.domain.auth.repository.RefreshTokenRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
+import com.bootsignal.global.security.jwt.JwtTokenCookieManager;
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -40,9 +44,6 @@ class AuthRefreshTokenIntegrationTest {
 	private MockMvc mockMvc;
 
 	@Autowired
-	private ObjectMapper objectMapper;
-
-	@Autowired
 	private RefreshTokenRepository refreshTokenRepository;
 
 	@MockitoBean
@@ -54,43 +55,43 @@ class AuthRefreshTokenIntegrationTest {
 	@Test
 	void refreshTokenIsStoredAsHashAndCannotBeReusedAfterRefreshOrLogout() throws Exception {
 		signup("security-flow@example.com", "password123", "securityUser");
-		JsonNode loginData = login("security-flow@example.com", "password123");
-		String firstRefreshToken = loginData.path("refreshToken").asText();
+		AuthCookies loginCookies = login("security-flow@example.com", "password123");
+		String firstRefreshToken = loginCookies.refreshToken().getValue();
 
 		List<RefreshToken> issuedTokens = refreshTokenRepository.findAll();
 		assertThat(issuedTokens).hasSize(1);
 		assertThat(issuedTokens.getFirst().getTokenHash()).hasSize(64);
 		assertThat(issuedTokens.getFirst().getTokenHash()).isNotEqualTo(firstRefreshToken);
 
-		JsonNode refreshData = refresh(firstRefreshToken);
-		String rotatedRefreshToken = refreshData.path("refreshToken").asText();
+		AuthCookies refreshedCookies = refresh(loginCookies);
+		String rotatedRefreshToken = refreshedCookies.refreshToken().getValue();
 		assertThat(rotatedRefreshToken).isNotEqualTo(firstRefreshToken);
 
 		mockMvc.perform(post("/api/auth/refresh")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(firstRefreshToken)))
+				.cookie(loginCookies.refreshToken(), loginCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, loginCookies.csrfToken().getValue()))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("REFRESH_TOKEN_REUSED"));
 
 		mockMvc.perform(post("/api/auth/refresh")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(rotatedRefreshToken)))
+				.cookie(refreshedCookies.refreshToken(), refreshedCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, refreshedCookies.csrfToken().getValue()))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("REFRESH_TOKEN_REUSED"));
 
-		JsonNode secondLoginData = login("security-flow@example.com", "password123");
-		String logoutRefreshToken = secondLoginData.path("refreshToken").asText();
+		AuthCookies secondLoginCookies = login("security-flow@example.com", "password123");
+		String logoutRefreshToken = secondLoginCookies.refreshToken().getValue();
 
 		mockMvc.perform(post("/api/auth/logout")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(logoutRefreshToken)))
+				.cookie(secondLoginCookies.refreshToken(), secondLoginCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, secondLoginCookies.csrfToken().getValue()))
 			.andExpect(status().isNoContent());
 
 		mockMvc.perform(post("/api/auth/refresh")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(logoutRefreshToken)))
+				.cookie(secondLoginCookies.refreshToken(), secondLoginCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, secondLoginCookies.csrfToken().getValue()))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("REFRESH_TOKEN_REUSED"));
@@ -103,27 +104,76 @@ class AuthRefreshTokenIntegrationTest {
 	@Test
 	void refreshAndLogoutUseRefreshTokenEvenWhenAuthorizationHeaderIsStale() throws Exception {
 		signup("stale-authorization@example.com", "password123", "staleAuthUser");
-		JsonNode loginData = login("stale-authorization@example.com", "password123");
-		String firstRefreshToken = loginData.path("refreshToken").asText();
+		AuthCookies loginCookies = login("stale-authorization@example.com", "password123");
+		String firstRefreshToken = loginCookies.refreshToken().getValue();
 
-		String refreshResponse = mockMvc.perform(post("/api/auth/refresh")
+		MvcResult refreshResult = mockMvc.perform(post("/api/auth/refresh")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer stale-or-invalid-access-token")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(firstRefreshToken)))
+				.cookie(loginCookies.refreshToken()))
 			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString(StandardCharsets.UTF_8);
+			.andReturn();
 
-		JsonNode refreshData = objectMapper.readTree(refreshResponse).path("data");
-		String rotatedRefreshToken = refreshData.path("refreshToken").asText();
+		AuthCookies refreshedCookies = extractAuthCookies(refreshResult);
+		String rotatedRefreshToken = refreshedCookies.refreshToken().getValue();
 		assertThat(rotatedRefreshToken).isNotEqualTo(firstRefreshToken);
 
 		mockMvc.perform(post("/api/auth/logout")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer stale-or-invalid-access-token")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(rotatedRefreshToken)))
+				.cookie(refreshedCookies.refreshToken()))
 			.andExpect(status().isNoContent());
+	}
+
+	@Test
+	void cookieAuthenticationRequiresCsrfTokenForUnsafeRequest() throws Exception {
+		signup("csrf-cookie@example.com", "password123", "csrfCookieUser");
+		AuthCookies loginCookies = login("csrf-cookie@example.com", "password123");
+
+		mockMvc.perform(post("/api/posts")
+				.cookie(loginCookies.accessToken())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(postJson("CSRF 실패 게시글")))
+			.andExpect(status().isForbidden())
+			.andExpect(jsonPath("$.success").value(false))
+			.andExpect(jsonPath("$.error.code").value("CSRF_TOKEN_INVALID"));
+
+		mockMvc.perform(post("/api/posts")
+				.cookie(loginCookies.accessToken(), loginCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, loginCookies.csrfToken().getValue())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(postJson("CSRF 성공 게시글")))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.title").value("CSRF 성공 게시글"));
+	}
+
+	@Test
+	void accessTokenCookieAuthenticatesProtectedEndpoint() throws Exception {
+		signup("cookie-auth@example.com", "password123", "cookieAuthUser");
+		AuthCookies loginCookies = login("cookie-auth@example.com", "password123");
+
+		mockMvc.perform(get("/api/users/me")
+				.cookie(loginCookies.accessToken()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true))
+			.andExpect(jsonPath("$.data.email").value("cookie-auth@example.com"));
+	}
+
+	@Test
+	void publicLoginApiAllowsExistingAuthCookieWithoutCsrfHeader() throws Exception {
+		signup("legacy-cookie@example.com", "password123", "legacyCookieUser");
+		AuthCookies loginCookies = login("legacy-cookie@example.com", "password123");
+
+		mockMvc.perform(post("/api/auth/login")
+				.cookie(loginCookies.refreshToken())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+						"email": "legacy-cookie@example.com",
+						"password": "password123"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.success").value(true));
 	}
 
 	@Test
@@ -136,21 +186,21 @@ class AuthRefreshTokenIntegrationTest {
 				"https://example.com/google.png"
 			));
 
-		JsonNode loginData = socialLogin("/api/auth/google/login", "google-id-token");
-		String refreshToken = loginData.path("refreshToken").asText();
+		AuthCookies loginCookies = socialLogin("/api/auth/google/login", "google-id-token");
+		String refreshToken = loginCookies.refreshToken().getValue();
 
-		JsonNode refreshData = refresh(refreshToken);
-		String rotatedRefreshToken = refreshData.path("refreshToken").asText();
+		AuthCookies refreshedCookies = refresh(loginCookies);
+		String rotatedRefreshToken = refreshedCookies.refreshToken().getValue();
 		assertThat(rotatedRefreshToken).isNotEqualTo(refreshToken);
 
 		mockMvc.perform(post("/api/auth/logout")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(rotatedRefreshToken)))
+				.cookie(refreshedCookies.refreshToken(), refreshedCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, refreshedCookies.csrfToken().getValue()))
 			.andExpect(status().isNoContent());
 
 		mockMvc.perform(post("/api/auth/refresh")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(rotatedRefreshToken)))
+				.cookie(refreshedCookies.refreshToken(), refreshedCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, refreshedCookies.csrfToken().getValue()))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("REFRESH_TOKEN_REUSED"));
@@ -166,21 +216,21 @@ class AuthRefreshTokenIntegrationTest {
 				"https://example.com/kakao.png"
 			));
 
-		JsonNode loginData = socialLogin("/api/auth/kakao/login", "kakao-id-token");
-		String refreshToken = loginData.path("refreshToken").asText();
+		AuthCookies loginCookies = socialLogin("/api/auth/kakao/login", "kakao-id-token");
+		String refreshToken = loginCookies.refreshToken().getValue();
 
-		JsonNode refreshData = refresh(refreshToken);
-		String rotatedRefreshToken = refreshData.path("refreshToken").asText();
+		AuthCookies refreshedCookies = refresh(loginCookies);
+		String rotatedRefreshToken = refreshedCookies.refreshToken().getValue();
 		assertThat(rotatedRefreshToken).isNotEqualTo(refreshToken);
 
 		mockMvc.perform(post("/api/auth/logout")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(rotatedRefreshToken)))
+				.cookie(refreshedCookies.refreshToken(), refreshedCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, refreshedCookies.csrfToken().getValue()))
 			.andExpect(status().isNoContent());
 
 		mockMvc.perform(post("/api/auth/refresh")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(rotatedRefreshToken)))
+				.cookie(refreshedCookies.refreshToken(), refreshedCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, refreshedCookies.csrfToken().getValue()))
 			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.error.code").value("REFRESH_TOKEN_REUSED"));
@@ -199,8 +249,8 @@ class AuthRefreshTokenIntegrationTest {
 			.andExpect(status().isCreated());
 	}
 
-	private JsonNode login(String email, String password) throws Exception {
-		String response = mockMvc.perform(post("/api/auth/login")
+	private AuthCookies login(String email, String password) throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/auth/login")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -209,15 +259,13 @@ class AuthRefreshTokenIntegrationTest {
 					}
 					""".formatted(email, password)))
 			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString(StandardCharsets.UTF_8);
+			.andReturn();
 
-		return objectMapper.readTree(response).path("data");
+		return extractAuthCookies(result);
 	}
 
-	private JsonNode socialLogin(String path, String idToken) throws Exception {
-		String response = mockMvc.perform(post(path)
+	private AuthCookies socialLogin(String path, String idToken) throws Exception {
+		MvcResult result = mockMvc.perform(post(path)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -225,30 +273,44 @@ class AuthRefreshTokenIntegrationTest {
 					}
 					""".formatted(idToken)))
 			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString(StandardCharsets.UTF_8);
+			.andReturn();
 
-		return objectMapper.readTree(response).path("data");
+		return extractAuthCookies(result);
 	}
 
-	private JsonNode refresh(String refreshToken) throws Exception {
-		String response = mockMvc.perform(post("/api/auth/refresh")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(refreshTokenJson(refreshToken)))
+	private AuthCookies refresh(AuthCookies authCookies) throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/auth/refresh")
+				.cookie(authCookies.refreshToken(), authCookies.csrfToken())
+				.header(JwtTokenCookieManager.CSRF_TOKEN_HEADER_NAME, authCookies.csrfToken().getValue()))
 			.andExpect(status().isOk())
-			.andReturn()
-			.getResponse()
-			.getContentAsString(StandardCharsets.UTF_8);
+			.andReturn();
 
-		return objectMapper.readTree(response).path("data");
+		return extractAuthCookies(result);
 	}
 
-	private String refreshTokenJson(String refreshToken) {
+	private AuthCookies extractAuthCookies(MvcResult result) {
+		return new AuthCookies(
+			extractAccessTokenCookie(result),
+			extractRefreshTokenCookie(result),
+			extractCsrfTokenCookie(result)
+		);
+	}
+
+	private String postJson(String title) {
 		return """
 			{
-				"refreshToken": "%s"
+				"postType": "BOARD",
+				"category": "자유",
+				"title": "%s",
+				"content": "CSRF 검증용 게시글 내용"
 			}
-			""".formatted(refreshToken);
+			""".formatted(title);
+	}
+
+	private record AuthCookies(
+		Cookie accessToken,
+		Cookie refreshToken,
+		Cookie csrfToken
+	) {
 	}
 }

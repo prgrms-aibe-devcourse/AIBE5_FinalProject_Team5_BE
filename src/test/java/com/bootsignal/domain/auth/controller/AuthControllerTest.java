@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -20,10 +21,13 @@ import com.bootsignal.domain.user.entity.AuthProvider;
 import com.bootsignal.domain.user.entity.UserRole;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
+import com.bootsignal.global.security.jwt.JwtTokenCookieManager;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,6 +37,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @WebMvcTest(controllers = AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import(JwtTokenCookieManager.class)
 class AuthControllerTest {
 
 	@Autowired
@@ -140,11 +145,19 @@ class AuthControllerTest {
 					"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
-			.andExpect(jsonPath("$.data.accessToken").value("access-token"))
-			.andExpect(jsonPath("$.data.tokenType").value("Bearer"))
-			.andExpect(jsonPath("$.data.expiresIn").value(3600))
-			.andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
-			.andExpect(jsonPath("$.data.refreshTokenExpiresIn").value(1209600))
+			.andExpect(cookie().exists(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME, true))
+			.andExpect(cookie().maxAge(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME, 3600))
+			.andExpect(cookie().exists(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME, true))
+			.andExpect(cookie().maxAge(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME, 1209600))
+			.andExpect(cookie().exists(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME, false))
+			.andExpect(jsonPath("$.data.accessToken").doesNotExist())
+			.andExpect(jsonPath("$.data.tokenType").doesNotExist())
+			.andExpect(jsonPath("$.data.expiresIn").doesNotExist())
+			.andExpect(jsonPath("$.data.refreshToken").doesNotExist())
+			.andExpect(jsonPath("$.data.refreshTokenExpiresIn").doesNotExist())
 			.andExpect(jsonPath("$.data.user.userId").value(1))
 			.andExpect(jsonPath("$.data.user.email").value("user@example.com"))
 			.andExpect(jsonPath("$.data.user.name").value("tester"))
@@ -168,11 +181,14 @@ class AuthControllerTest {
 					"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
-			.andExpect(jsonPath("$.data.accessToken").value("access-token"))
-			.andExpect(jsonPath("$.data.tokenType").value("Bearer"))
-			.andExpect(jsonPath("$.data.expiresIn").value(3600))
-			.andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
-			.andExpect(jsonPath("$.data.refreshTokenExpiresIn").value(1209600))
+			.andExpect(cookie().exists(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME, true))
+			.andExpect(cookie().exists(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME, true))
+			.andExpect(cookie().exists(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME, false))
+			.andExpect(jsonPath("$.data.accessToken").doesNotExist())
+			.andExpect(jsonPath("$.data.refreshToken").doesNotExist())
 			.andExpect(jsonPath("$.data.user.userId").value(1))
 			.andExpect(jsonPath("$.data.user.email").value("user@example.com"))
 			.andExpect(jsonPath("$.data.user.nickname").value("tester"))
@@ -195,11 +211,14 @@ class AuthControllerTest {
 					"""))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
-			.andExpect(jsonPath("$.data.accessToken").value("access-token"))
-			.andExpect(jsonPath("$.data.tokenType").value("Bearer"))
-			.andExpect(jsonPath("$.data.expiresIn").value(3600))
-			.andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
-			.andExpect(jsonPath("$.data.refreshTokenExpiresIn").value(1209600))
+			.andExpect(cookie().exists(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME, true))
+			.andExpect(cookie().exists(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME, true))
+			.andExpect(cookie().exists(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME, false))
+			.andExpect(jsonPath("$.data.accessToken").doesNotExist())
+			.andExpect(jsonPath("$.data.refreshToken").doesNotExist())
 			.andExpect(jsonPath("$.data.user.userId").value(1))
 			.andExpect(jsonPath("$.data.user.email").value("user@example.com"))
 			.andExpect(jsonPath("$.data.user.nickname").value("tester"))
@@ -214,16 +233,17 @@ class AuthControllerTest {
 			.willReturn(loginResponse(AuthProvider.LOCAL, "new-access-token", "new-refresh-token"));
 
 		mockMvc.perform(post("/api/auth/refresh")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
-					{
-						"refreshToken": "refresh-token"
-					}
-					"""))
+				.cookie(new Cookie(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME, "refresh-token")))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.success").value(true))
-			.andExpect(jsonPath("$.data.accessToken").value("new-access-token"))
-			.andExpect(jsonPath("$.data.refreshToken").value("new-refresh-token"))
+			.andExpect(cookie().exists(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME, true))
+			.andExpect(cookie().exists(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME, true))
+			.andExpect(cookie().exists(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME))
+			.andExpect(cookie().httpOnly(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME, false))
+			.andExpect(jsonPath("$.data.accessToken").doesNotExist())
+			.andExpect(jsonPath("$.data.refreshToken").doesNotExist())
 			.andExpect(jsonPath("$.data.user.userId").value(1))
 			.andExpect(jsonPath("$.error").doesNotExist());
 	}
@@ -231,13 +251,11 @@ class AuthControllerTest {
 	@Test
 	void logoutReturnsNoContent() throws Exception {
 		mockMvc.perform(post("/api/auth/logout")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
-					{
-						"refreshToken": "refresh-token"
-					}
-					"""))
+				.cookie(new Cookie(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME, "refresh-token")))
 			.andExpect(status().isNoContent())
+			.andExpect(cookie().maxAge(JwtTokenCookieManager.ACCESS_TOKEN_COOKIE_NAME, 0))
+			.andExpect(cookie().maxAge(JwtTokenCookieManager.REFRESH_TOKEN_COOKIE_NAME, 0))
+			.andExpect(cookie().maxAge(JwtTokenCookieManager.CSRF_TOKEN_COOKIE_NAME, 0))
 			.andReturn();
 
 		verify(authService).logout(any());
@@ -319,37 +337,23 @@ class AuthControllerTest {
 	}
 
 	@Test
-	void refreshReturnsValidationErrorWhenRequestIsInvalid() throws Exception {
-		mockMvc.perform(post("/api/auth/refresh")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
-					{
-						"refreshToken": ""
-					}
-					"""))
-			.andExpect(status().isBadRequest())
+	void refreshReturnsUnauthorizedWhenRefreshCookieIsMissing() throws Exception {
+		mockMvc.perform(post("/api/auth/refresh"))
+			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.data").doesNotExist())
-			.andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
-			.andExpect(jsonPath("$.error.fieldErrors").isArray());
+			.andExpect(jsonPath("$.error.code").value("INVALID_REFRESH_TOKEN"));
 
 		verify(authService, never()).refresh(any());
 	}
 
 	@Test
-	void logoutReturnsValidationErrorWhenRequestIsInvalid() throws Exception {
-		mockMvc.perform(post("/api/auth/logout")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("""
-					{
-						"refreshToken": ""
-					}
-					"""))
-			.andExpect(status().isBadRequest())
+	void logoutReturnsUnauthorizedWhenRefreshCookieIsMissing() throws Exception {
+		mockMvc.perform(post("/api/auth/logout"))
+			.andExpect(status().isUnauthorized())
 			.andExpect(jsonPath("$.success").value(false))
 			.andExpect(jsonPath("$.data").doesNotExist())
-			.andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"))
-			.andExpect(jsonPath("$.error.fieldErrors").isArray());
+			.andExpect(jsonPath("$.error.code").value("INVALID_REFRESH_TOKEN"));
 
 		verify(authService, never()).logout(any());
 	}
