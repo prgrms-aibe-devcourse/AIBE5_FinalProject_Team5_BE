@@ -15,14 +15,18 @@ import com.bootsignal.domain.ai.log.AgentExecutionStatus;
 import com.bootsignal.domain.ai.openai.OpenAiClient;
 import com.bootsignal.domain.ai.openai.OpenAiRequest;
 import com.bootsignal.domain.ai.openai.OpenAiResponse;
+import com.bootsignal.domain.ai.review.repository.ReviewSummaryCacheRepository;
 import com.bootsignal.domain.ai.review.tool.CrawledReviewLoadTool;
 import com.bootsignal.domain.ai.review.tool.CrawledReviewSnippet;
 import com.bootsignal.domain.ai.review.tool.ReviewSummaryInput;
+import com.bootsignal.domain.crawled_review.repository.CrawledReviewRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -61,8 +65,17 @@ class ReviewSummaryIntegrationTest {
 	@MockitoBean
 	private OpenAiClient openAiClient;
 
+	@MockitoBean
+	private CrawledReviewRepository crawledReviewRepository;
+
+	@MockitoBean
+	private ReviewSummaryCacheRepository reviewSummaryCacheRepository;
+
 	@Test
 	void createReviewSummaryWithLoginAccessToken() throws Exception {
+		given(crawledReviewRepository.findReviewSnapshotByCourseId(1L))
+			.willReturn(Optional.of(new Object[]{2L, Instant.now()}));
+		given(reviewSummaryCacheRepository.findByCourseId(1L)).willReturn(Optional.empty());
 		given(reviewLoadTool.load(any())).willReturn(new ReviewSummaryInput(
 			1L,
 			"백엔드 과정",
