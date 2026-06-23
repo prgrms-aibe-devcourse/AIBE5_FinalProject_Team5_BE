@@ -8,6 +8,7 @@ import com.bootsignal.domain.verification.entity.Verification;
 import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.repository.VerificationRepository;
+import com.bootsignal.domain.verification.storage.VerificationFileStorage;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import com.bootsignal.global.security.SecurityUtil;
@@ -25,13 +26,16 @@ public class AdminVerificationService {
 
     private final VerificationRepository verificationRepository;
     private final UserRepository userRepository;
+    private final VerificationFileStorage verificationFileStorage;
 
     public AdminVerificationService(
         VerificationRepository verificationRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        VerificationFileStorage verificationFileStorage
     ) {
         this.verificationRepository = verificationRepository;
         this.userRepository = userRepository;
+        this.verificationFileStorage = verificationFileStorage;
     }
 
     public Page<VerificationResponse> getList(VerificationStatus status, Pageable pageable) {
@@ -48,7 +52,7 @@ public class AdminVerificationService {
         VerificationEvidenceType evidenceType
     ) {
         Verification verification = findVerification(verificationId);
-        return VerificationEvidenceFileResolver.toEvidenceFile(verification, evidenceType);
+        return VerificationEvidenceFileResolver.toEvidenceFile(verification, evidenceType, verificationFileStorage);
     }
 
     @Transactional

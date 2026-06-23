@@ -120,7 +120,8 @@ class LocalProfileImageStorageTest {
 				uploadDir.toString(),
 				"/local-files/profile",
 				"http://localhost:8080"
-			)
+			),
+			null
 		);
 	}
 
