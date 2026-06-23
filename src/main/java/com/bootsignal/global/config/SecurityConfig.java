@@ -67,8 +67,7 @@ public class SecurityConfig {
 					"/api/auth/refresh",
 					"/api/auth/logout",
 					"/api/auth/password/forgot",
-					"/api/auth/password/reset",
-					"/api/auth/csrf-token"
+					"/api/auth/password/reset"
 				).permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/**").permitAll()
 				.requestMatchers(HttpMethod.GET, "/api/course-sessions/**").permitAll()
