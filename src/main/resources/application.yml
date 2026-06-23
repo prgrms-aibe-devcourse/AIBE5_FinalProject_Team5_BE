@@ -137,3 +137,16 @@ app:
       scope: ${GOOGLE_CALENDAR_SCOPE:openid email profile https://www.googleapis.com/auth/calendar.events}
       connect-success-url: ${GOOGLE_CALENDAR_CONNECT_SUCCESS_URL:http://localhost:5173/dashboard/schedule}
       connect-failure-url: ${GOOGLE_CALENDAR_CONNECT_FAILURE_URL:http://localhost:5173/dashboard/schedule}
+  scheduler:
+    # 스케줄러 활성화 여부. 운영 환경에서만 SCHEDULER_ENABLED=true 로 명시적 활성화한다.
+    # 로컬/테스트 환경에서 실수로 스케줄이 실행되는 것을 방지하기 위해 기본값은 false.
+    enabled: ${SCHEDULER_ENABLED:false}
+    # cron 표현식 (Spring cron: 초 분 시 일 월 요일)
+    hrd-collect-cron: ${HRD_COLLECT_CRON:0 0 2 * * MON}      # 매주 월요일 02:00 - HRD API 수집
+    hrd-refine-cron: ${HRD_REFINE_CRON:0 0 3 * * MON}        # 매주 월요일 03:00 - Raw → 서비스 엔티티 정제 (수집 1시간 후)
+    hrd-web-crawl-cron: ${HRD_WEB_CRAWL_CRON:0 0 2 * * WED}  # 매주 수요일 02:00 - HTML 크롤링 (정제 이틀 후)
+    review-crawl-cron: ${REVIEW_CRAWL_CRON:0 0 4 * * WED}    # 매주 수요일 04:00 - 수강후기 크롤링 (웹크롤 2시간 후)
+    tech-article-collect-cron: ${TECH_ARTICLE_COLLECT_CRON:0 0 9 * * MON} # 매주 월요일 09:00 - RSS 수집
+    # 수강후기 과정당 최대 크롤링 페이지 수 (페이지당 10건, 기본 10 = 최대 100건)
+    # AI 요약이 기본 50건(5페이지)만 사용하므로 10페이지로 충분
+    review-max-pages: ${REVIEW_MAX_PAGES:10}

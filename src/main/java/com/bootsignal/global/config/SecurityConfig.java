@@ -42,83 +42,75 @@ public class SecurityConfig {
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(
-		HttpSecurity http,
-		JwtCsrfTokenFilter jwtCsrfTokenFilter,
-		JwtAuthenticationFilter jwtAuthenticationFilter,
-		@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
-	) throws Exception {
+			HttpSecurity http,
+			JwtCsrfTokenFilter jwtCsrfTokenFilter,
+			JwtAuthenticationFilter jwtAuthenticationFilter,
+			@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver) throws Exception {
 		return http
-			// JWT 쿠키 인증은 별도 double-submit CSRF 필터(JwtCsrfTokenFilter)로 검증한다.
-			.csrf(AbstractHttpConfigurer::disable)
-			.httpBasic(AbstractHttpConfigurer::disable)
-			.formLogin(AbstractHttpConfigurer::disable)
-			.logout(AbstractHttpConfigurer::disable)
-			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-			.authorizeHttpRequests(auth -> auth
-				.requestMatchers("/api/health", "/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
-				.requestMatchers("/local-files/profile/**").permitAll()
-				.requestMatchers(
-					"/api/auth/check-email",
-					"/api/auth/signup",
-					"/api/auth/login",
-					"/api/auth/google/login",
-					"/api/auth/kakao/login",
-					"/api/auth/refresh",
-					"/api/auth/logout",
-					"/api/auth/password/forgot",
-					"/api/auth/password/reset"
-				).permitAll()
-				.requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/**").permitAll()
-				.requestMatchers(HttpMethod.GET, "/api/course-sessions/**").permitAll()
-				.requestMatchers(HttpMethod.GET, "/api/institutions", "/api/institutions/**").permitAll()
-				.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/**").permitAll()
-				.requestMatchers(HttpMethod.GET, "/api/reviews", "/api/reviews/**").permitAll()
-				.requestMatchers(HttpMethod.GET, "/api/articles", "/api/articles/**").permitAll()
-				.requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/**").permitAll()
-				.requestMatchers(HttpMethod.GET, "/api/calendar/connect/google/callback").permitAll()
-				.requestMatchers("/api/admin/**").hasRole("ADMIN")
-				.requestMatchers(HttpMethod.POST, "/api/work24/**").hasRole("ADMIN")
-				.anyRequest().authenticated()
-			)
-			.exceptionHandling(exception -> exception
-				.authenticationEntryPoint((request, response, authException) ->
-					handlerExceptionResolver.resolveException(
-						request,
-						response,
-						null,
-						new BootSignalException(ErrorCode.UNAUTHORIZED)
-					)
-				)
-				.accessDeniedHandler((request, response, accessDeniedException) ->
-					handlerExceptionResolver.resolveException(
-						request,
-						response,
-						null,
-						new BootSignalException(ErrorCode.FORBIDDEN)
-					)
-				)
-			)
-			.addFilterBefore(jwtCsrfTokenFilter, UsernamePasswordAuthenticationFilter.class)
-			.addFilterAfter(jwtAuthenticationFilter, JwtCsrfTokenFilter.class)
-			.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
-			.build();
+				// JWT 쿠키 인증은 별도 double-submit CSRF 필터(JwtCsrfTokenFilter)로 검증한다.
+				.csrf(AbstractHttpConfigurer::disable)
+				.httpBasic(AbstractHttpConfigurer::disable)
+				.formLogin(AbstractHttpConfigurer::disable)
+				.logout(AbstractHttpConfigurer::disable)
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+				.authorizeHttpRequests(auth -> auth
+						.requestMatchers("/api/health", "/actuator/health", "/actuator/info", "/h2-console/**")
+						.permitAll()
+						.requestMatchers("/local-files/profile/**").permitAll()
+						.requestMatchers(
+								"/api/auth/check-email",
+								"/api/auth/signup",
+								"/api/auth/login",
+								"/api/auth/google/login",
+								"/api/auth/kakao/login",
+								"/api/auth/refresh",
+								"/api/auth/logout",
+								"/api/auth/password/forgot",
+								"/api/auth/password/reset")
+						.permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/courses", "/api/courses/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/course-sessions/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/institutions", "/api/institutions/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/reviews", "/api/reviews/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/articles", "/api/articles/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/notices", "/api/notices/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/calendar/connect/google/callback").permitAll()
+						.requestMatchers("/api/admin/**").hasRole("ADMIN")
+						.requestMatchers(HttpMethod.POST, "/api/work24/**").hasRole("ADMIN")
+						.anyRequest().authenticated())
+				.exceptionHandling(exception -> exception
+						.authenticationEntryPoint(
+								(request, response, authException) -> handlerExceptionResolver.resolveException(
+										request,
+										response,
+										null,
+										new BootSignalException(ErrorCode.UNAUTHORIZED)))
+						.accessDeniedHandler(
+								(request, response, accessDeniedException) -> handlerExceptionResolver.resolveException(
+										request,
+										response,
+										null,
+										new BootSignalException(ErrorCode.FORBIDDEN))))
+				.addFilterBefore(jwtCsrfTokenFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterAfter(jwtAuthenticationFilter, JwtCsrfTokenFilter.class)
+				.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
+				.build();
 	}
 
 	@Bean
 	public JwtCsrfTokenFilter jwtCsrfTokenFilter(
-		JwtTokenCookieManager jwtTokenCookieManager,
-		@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
-	) {
+			JwtTokenCookieManager jwtTokenCookieManager,
+			@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver) {
 		return new JwtCsrfTokenFilter(jwtTokenCookieManager, handlerExceptionResolver);
 	}
 
 	@Bean
 	public JwtAuthenticationFilter jwtAuthenticationFilter(
-		JwtTokenProvider jwtTokenProvider,
-		JwtTokenCookieManager jwtTokenCookieManager,
-		@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver
-	) {
+			JwtTokenProvider jwtTokenProvider,
+			JwtTokenCookieManager jwtTokenCookieManager,
+			@Qualifier("handlerExceptionResolver") HandlerExceptionResolver handlerExceptionResolver) {
 		return new JwtAuthenticationFilter(jwtTokenProvider, jwtTokenCookieManager, handlerExceptionResolver);
 	}
 
@@ -131,9 +123,9 @@ public class SecurityConfig {
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
 		List<String> allowedOrigins = corsProperties.allowedOrigins().stream()
-			.filter(Objects::nonNull)
-			.filter(StringUtils::hasText)
-			.toList();
+				.filter(Objects::nonNull)
+				.filter(StringUtils::hasText)
+				.toList();
 		configuration.setAllowedOrigins(allowedOrigins);
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("*"));
