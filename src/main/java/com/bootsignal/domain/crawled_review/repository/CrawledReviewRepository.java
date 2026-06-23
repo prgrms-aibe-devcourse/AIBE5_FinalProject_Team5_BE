@@ -2,13 +2,14 @@ package com.bootsignal.domain.crawled_review.repository;
 
 import com.bootsignal.domain.crawled_review.entity.CrawledReview;
 import com.bootsignal.domain.crawled_review.entity.CrawledReviewSource;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
-import java.util.List;
 
 public interface CrawledReviewRepository extends JpaRepository<CrawledReview, Long> {
 
@@ -25,5 +26,14 @@ public interface CrawledReviewRepository extends JpaRepository<CrawledReview, Lo
         GROUP BY cr.course.id
         """)
     List<Object[]> findCrawledReviewSumsByCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    @Query("""
+        SELECT COUNT(cr), MAX(cr.crawledAt)
+        FROM CrawledReview cr
+        WHERE cr.course.id = :courseId
+          AND cr.content IS NOT NULL
+          AND TRIM(cr.content) <> ''
+        """)
+    Optional<Object[]> findReviewSnapshotByCourseId(@Param("courseId") Long courseId);
 }
 
