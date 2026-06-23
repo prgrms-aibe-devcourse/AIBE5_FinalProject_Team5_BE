@@ -2,6 +2,9 @@ package com.bootsignal.domain.crawled_review.repository;
 
 import com.bootsignal.domain.crawled_review.entity.CrawledReview;
 import com.bootsignal.domain.crawled_review.entity.CrawledReviewSource;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -33,5 +36,11 @@ public interface CrawledReviewRepository extends JpaRepository<CrawledReview, Lo
      */
     @Query("SELECT cr.externalReviewId FROM CrawledReview cr WHERE cr.course.id = :courseId")
     Set<String> findExternalReviewIdsByCourseId(@Param("courseId") Long courseId);
+           
+    @Query("SELECT COUNT(cr) FROM CrawledReview cr WHERE cr.course.id = :courseId")
+    long countReviewsByCourseId(@Param("courseId") Long courseId);
+
+    @Query("SELECT MAX(cr.crawledAt) FROM CrawledReview cr WHERE cr.course.id = :courseId")
+    Optional<Instant> findMaxCrawledAtByCourseId(@Param("courseId") Long courseId);
 }
 
