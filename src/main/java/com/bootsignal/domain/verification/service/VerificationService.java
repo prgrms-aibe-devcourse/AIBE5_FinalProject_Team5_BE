@@ -12,10 +12,10 @@ import com.bootsignal.domain.verification.entity.Verification;
 import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.repository.VerificationRepository;
+import com.bootsignal.domain.verification.storage.VerificationFileStorage;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import com.bootsignal.global.security.SecurityUtil;
-import java.io.IOException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
@@ -32,22 +32,26 @@ import org.springframework.web.multipart.MultipartFile;
 public class VerificationService {
 
     private static final String DEFAULT_EVIDENCE_CONTENT_TYPE = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+    private static final String VERIFICATION_S3_KEY_PREFIX = "verifications";
 
     private final VerificationRepository verificationRepository;
     private final UserRepository userRepository;
     private final CourseRepository courseRepository;
     private final CourseSessionRepository courseSessionRepository;
+    private final VerificationFileStorage verificationFileStorage;
 
     public VerificationService(
         VerificationRepository verificationRepository,
         UserRepository userRepository,
         CourseRepository courseRepository,
-        CourseSessionRepository courseSessionRepository
+        CourseSessionRepository courseSessionRepository,
+        VerificationFileStorage verificationFileStorage
     ) {
         this.verificationRepository = verificationRepository;
         this.userRepository = userRepository;
         this.courseRepository = courseRepository;
         this.courseSessionRepository = courseSessionRepository;
+        this.verificationFileStorage = verificationFileStorage;
     }
 
     @Transactional
@@ -64,27 +68,30 @@ public class VerificationService {
         validateCourseSessionBelongsToCourse(courseSession, course);
         validateNotDuplicated(user.getId(), courseSession.getId());
 
-        EvidencePayload jobTrainingHistory = toEvidencePayload(
+        validateEvidenceFile(jobTrainingHistoryFile, VerificationEvidenceType.JOB_TRAINING_HISTORY);
+        validateEvidenceFile(onlineCourseApplicationFile, VerificationEvidenceType.ONLINE_COURSE_APPLICATION);
+
+        String jobTrainingHistoryS3Key = verificationFileStorage.upload(
             jobTrainingHistoryFile,
-            VerificationEvidenceType.JOB_TRAINING_HISTORY
+            VERIFICATION_S3_KEY_PREFIX + "/" + VerificationEvidenceType.JOB_TRAINING_HISTORY.pathSegment()
         );
-        EvidencePayload onlineCourseApplication = toEvidencePayload(
+        String onlineCourseApplicationS3Key = verificationFileStorage.upload(
             onlineCourseApplicationFile,
-            VerificationEvidenceType.ONLINE_COURSE_APPLICATION
+            VERIFICATION_S3_KEY_PREFIX + "/" + VerificationEvidenceType.ONLINE_COURSE_APPLICATION.pathSegment()
         );
 
         Verification verification = Verification.builder()
             .user(user)
             .course(course)
             .courseSession(courseSession)
-            .jobTrainingHistoryFileName(jobTrainingHistory.fileName())
-            .jobTrainingHistoryContentType(jobTrainingHistory.contentType())
-            .jobTrainingHistoryFileSize(jobTrainingHistory.fileSize())
-            .jobTrainingHistoryData(jobTrainingHistory.data())
-            .onlineCourseApplicationFileName(onlineCourseApplication.fileName())
-            .onlineCourseApplicationContentType(onlineCourseApplication.contentType())
-            .onlineCourseApplicationFileSize(onlineCourseApplication.fileSize())
-            .onlineCourseApplicationData(onlineCourseApplication.data())
+            .jobTrainingHistoryFileName(resolveFileName(jobTrainingHistoryFile, VerificationEvidenceType.JOB_TRAINING_HISTORY))
+            .jobTrainingHistoryContentType(resolveContentType(jobTrainingHistoryFile))
+            .jobTrainingHistoryFileSize(jobTrainingHistoryFile.getSize())
+            .jobTrainingHistoryS3Key(jobTrainingHistoryS3Key)
+            .onlineCourseApplicationFileName(resolveFileName(onlineCourseApplicationFile, VerificationEvidenceType.ONLINE_COURSE_APPLICATION))
+            .onlineCourseApplicationContentType(resolveContentType(onlineCourseApplicationFile))
+            .onlineCourseApplicationFileSize(onlineCourseApplicationFile.getSize())
+            .onlineCourseApplicationS3Key(onlineCourseApplicationS3Key)
             .build();
 
         return VerificationResponse.from(verificationRepository.save(verification));
@@ -107,7 +114,7 @@ public class VerificationService {
     ) {
         User user = getAuthenticatedUser();
         Verification verification = findMyVerification(verificationId, user.getId());
-        return VerificationEvidenceFileResolver.toEvidenceFile(verification, evidenceType);
+        return VerificationEvidenceFileResolver.toEvidenceFile(verification, evidenceType, verificationFileStorage);
     }
 
     private Verification findMyVerification(Long verificationId, Long userId) {
@@ -127,33 +134,11 @@ public class VerificationService {
         }
     }
 
-    private EvidencePayload toEvidencePayload(MultipartFile evidenceFile, VerificationEvidenceType evidenceType) {
-        validateEvidenceFile(evidenceFile, evidenceType);
-        return new EvidencePayload(
-            resolveFileName(evidenceFile, evidenceType),
-            resolveContentType(evidenceFile),
-            evidenceFile.getSize(),
-            readEvidenceBytes(evidenceFile, evidenceType)
-        );
-    }
-
     private void validateEvidenceFile(MultipartFile evidenceFile, VerificationEvidenceType evidenceType) {
         if (evidenceFile == null || evidenceFile.isEmpty()) {
             throw new BootSignalException(
                 ErrorCode.VERIFICATION_EVIDENCE_REQUIRED,
                 evidenceType.displayName() + "는 필수입니다."
-            );
-        }
-    }
-
-    private byte[] readEvidenceBytes(MultipartFile evidenceFile, VerificationEvidenceType evidenceType) {
-        try {
-            return evidenceFile.getBytes();
-        } catch (IOException exception) {
-            throw new BootSignalException(
-                ErrorCode.INTERNAL_SERVER_ERROR,
-                evidenceType.displayName() + " 저장 중 오류가 발생했습니다.",
-                exception
             );
         }
     }
@@ -186,13 +171,5 @@ public class VerificationService {
     private CourseSession getCourseSession(Long courseSessionId) {
         return courseSessionRepository.findById(courseSessionId)
             .orElseThrow(() -> new BootSignalException(ErrorCode.COURSE_SESSION_NOT_FOUND));
-    }
-
-    private record EvidencePayload(
-        String fileName,
-        String contentType,
-        Long fileSize,
-        byte[] data
-    ) {
     }
 }

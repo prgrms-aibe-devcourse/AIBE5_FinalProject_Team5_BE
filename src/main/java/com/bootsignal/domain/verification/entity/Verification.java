@@ -4,7 +4,6 @@ import com.bootsignal.domain.course.entity.Course;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.global.entity.BaseEntity;
-import jakarta.persistence.Basic;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,7 +13,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -68,10 +66,8 @@ public class Verification extends BaseEntity {
     @Column(name = "job_training_history_file_size")
     private Long jobTrainingHistoryFileSize;
 
-    @Lob
-    @Basic(fetch = FetchType.LAZY)
-    @Column(name = "job_training_history_data", columnDefinition = "LONGBLOB")
-    private byte[] jobTrainingHistoryData;
+    @Column(name = "job_training_history_s3_key", length = 500)
+    private String jobTrainingHistoryS3Key;
 
     @Column(name = "online_course_application_file_name", length = 255)
     private String onlineCourseApplicationFileName;
@@ -82,10 +78,8 @@ public class Verification extends BaseEntity {
     @Column(name = "online_course_application_file_size")
     private Long onlineCourseApplicationFileSize;
 
-    @Lob
-    @Basic(fetch = FetchType.LAZY)
-    @Column(name = "online_course_application_data", columnDefinition = "LONGBLOB")
-    private byte[] onlineCourseApplicationData;
+    @Column(name = "online_course_application_s3_key", length = 500)
+    private String onlineCourseApplicationS3Key;
 
     @Column(name = "reject_reason", columnDefinition = "TEXT")
     private String rejectReason;
@@ -108,11 +102,11 @@ public class Verification extends BaseEntity {
         String jobTrainingHistoryFileName,
         String jobTrainingHistoryContentType,
         Long jobTrainingHistoryFileSize,
-        byte[] jobTrainingHistoryData,
+        String jobTrainingHistoryS3Key,
         String onlineCourseApplicationFileName,
         String onlineCourseApplicationContentType,
         Long onlineCourseApplicationFileSize,
-        byte[] onlineCourseApplicationData
+        String onlineCourseApplicationS3Key
     ) {
         this.user = user;
         this.course = course;
@@ -121,11 +115,11 @@ public class Verification extends BaseEntity {
         this.jobTrainingHistoryFileName = jobTrainingHistoryFileName;
         this.jobTrainingHistoryContentType = jobTrainingHistoryContentType;
         this.jobTrainingHistoryFileSize = jobTrainingHistoryFileSize;
-        this.jobTrainingHistoryData = jobTrainingHistoryData;
+        this.jobTrainingHistoryS3Key = jobTrainingHistoryS3Key;
         this.onlineCourseApplicationFileName = onlineCourseApplicationFileName;
         this.onlineCourseApplicationContentType = onlineCourseApplicationContentType;
         this.onlineCourseApplicationFileSize = onlineCourseApplicationFileSize;
-        this.onlineCourseApplicationData = onlineCourseApplicationData;
+        this.onlineCourseApplicationS3Key = onlineCourseApplicationS3Key;
     }
 
     public void approve(User admin, String adminMemo) {

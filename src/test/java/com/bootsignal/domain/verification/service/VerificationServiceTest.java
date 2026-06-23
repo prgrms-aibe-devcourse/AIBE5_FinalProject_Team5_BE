@@ -3,6 +3,7 @@ package com.bootsignal.domain.verification.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 
 import com.bootsignal.domain.course.entity.Course;
@@ -17,6 +18,7 @@ import com.bootsignal.domain.verification.entity.Verification;
 import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.repository.VerificationRepository;
+import com.bootsignal.domain.verification.storage.VerificationFileStorage;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import java.nio.charset.StandardCharsets;
@@ -56,6 +58,9 @@ class VerificationServiceTest {
     @Mock
     private CourseSessionRepository courseSessionRepository;
 
+    @Mock
+    private VerificationFileStorage verificationFileStorage;
+
     private VerificationService verificationService;
 
     @BeforeEach
@@ -64,7 +69,8 @@ class VerificationServiceTest {
             verificationRepository,
             userRepository,
             courseRepository,
-            courseSessionRepository
+            courseSessionRepository,
+            verificationFileStorage
         );
     }
 
@@ -85,6 +91,9 @@ class VerificationServiceTest {
         given(courseRepository.findById(10L)).willReturn(Optional.of(course));
         given(courseSessionRepository.findById(20L)).willReturn(Optional.of(courseSession));
         given(verificationRepository.existsByUserIdAndCourseSessionId(1L, 20L)).willReturn(false);
+        given(verificationFileStorage.upload(any(), anyString()))
+            .willReturn("verifications/job-training-history/test-key-1")
+            .willReturn("verifications/online-course-application/test-key-2");
         given(verificationRepository.save(any(Verification.class))).willAnswer(invocation -> {
             Verification verification = invocation.getArgument(0);
             ReflectionTestUtils.setField(verification, "id", 100L);
@@ -225,6 +234,8 @@ class VerificationServiceTest {
 
         given(userRepository.findByEmail("user@example.com")).willReturn(Optional.of(user));
         given(verificationRepository.findByIdAndUserId(100L, 1L)).willReturn(Optional.of(verification));
+        given(verificationFileStorage.download("verifications/online-course-application/test-key"))
+            .willReturn("online-application-content".getBytes(StandardCharsets.UTF_8));
 
         VerificationEvidenceFile evidenceFile = verificationService.getMyEvidenceFile(
             100L,
@@ -280,11 +291,11 @@ class VerificationServiceTest {
             .jobTrainingHistoryFileName("job-training-history.txt")
             .jobTrainingHistoryContentType("text/plain")
             .jobTrainingHistoryFileSize(20L)
-            .jobTrainingHistoryData("job-training-content".getBytes(StandardCharsets.UTF_8))
+            .jobTrainingHistoryS3Key("verifications/job-training-history/test-key")
             .onlineCourseApplicationFileName("online-course-application.txt")
             .onlineCourseApplicationContentType("text/plain")
             .onlineCourseApplicationFileSize(26L)
-            .onlineCourseApplicationData("online-application-content".getBytes(StandardCharsets.UTF_8))
+            .onlineCourseApplicationS3Key("verifications/online-course-application/test-key")
             .build();
         ReflectionTestUtils.setField(verification, "id", id);
         return verification;

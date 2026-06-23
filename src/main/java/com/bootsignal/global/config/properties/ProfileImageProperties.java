@@ -15,8 +15,8 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.profile-image")
 public record ProfileImageProperties(
 	@NotBlank String storageType,
-	@Valid Local local
-	// S3 전환 시: , @Valid S3 s3
+	@Valid Local local,
+	S3 s3
 ) {
 
 	/** storage-type=local 일 때 사용 */
@@ -28,5 +28,9 @@ public record ProfileImageProperties(
 	}
 
 	/** storage-type=s3 일 때 사용 */
-	// public record S3(){}
+	public record S3(
+		String keyPrefix,
+		String baseUrl
+	) {
+	}
 }
