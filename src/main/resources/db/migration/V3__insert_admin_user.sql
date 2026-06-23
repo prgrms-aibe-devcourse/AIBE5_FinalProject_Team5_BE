@@ -7,7 +7,7 @@ INSERT INTO `users` (
     `provider`,
     `provider_user_id`,
     `profile_image_url`,
-    `deleted`,
+    `is_deleted`,
     `deleted_at`,
     `created_at`,
     `updated_at`
