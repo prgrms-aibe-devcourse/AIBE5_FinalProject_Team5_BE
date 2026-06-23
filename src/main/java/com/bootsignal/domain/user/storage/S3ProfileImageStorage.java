@@ -30,6 +30,13 @@ public class S3ProfileImageStorage implements ProfileImageStorage {
 		AwsProperties awsProperties,
 		ProfileImageProperties profileImageProperties
 	) {
+		if (profileImageProperties.s3() == null
+			|| !StringUtils.hasText(profileImageProperties.s3().baseUrl())
+			|| !StringUtils.hasText(profileImageProperties.s3().keyPrefix())) {
+			throw new IllegalStateException(
+				"storage-type=s3 설정 시 PROFILE_IMAGE_S3_BASE_URL, PROFILE_IMAGE_S3_KEY_PREFIX 환경 변수가 필요합니다."
+			);
+		}
 		this.s3Client = s3Client;
 		this.awsProperties = awsProperties;
 		this.profileImageProperties = profileImageProperties;
@@ -42,6 +49,13 @@ public class S3ProfileImageStorage implements ProfileImageStorage {
 		String extension = resolveExtension(file);
 		String key = profileImageProperties.s3().keyPrefix() + "/" + userId + "_" + UUID.randomUUID() + extension;
 
+		byte[] bytes;
+		try {
+			bytes = file.getBytes();
+		} catch (IOException exception) {
+			throw new BootSignalException(ErrorCode.INTERNAL_SERVER_ERROR, "프로필 이미지 저장에 실패했습니다.");
+		}
+
 		try {
 			s3Client.putObject(
 				PutObjectRequest.builder()
@@ -50,9 +64,9 @@ public class S3ProfileImageStorage implements ProfileImageStorage {
 					.contentType(file.getContentType())
 					.contentLength(file.getSize())
 					.build(),
-				RequestBody.fromBytes(file.getBytes())
+				RequestBody.fromBytes(bytes)
 			);
-		} catch (IOException exception) {
+		} catch (Exception exception) {
 			throw new BootSignalException(ErrorCode.INTERNAL_SERVER_ERROR, "프로필 이미지 저장에 실패했습니다.");
 		}
 

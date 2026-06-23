@@ -31,6 +31,13 @@ public class S3VerificationFileStorage implements VerificationFileStorage {
 		String extension = resolveExtension(originalFilename);
 		String key = keyPrefix + "/" + UUID.randomUUID() + extension;
 
+		byte[] bytes;
+		try {
+			bytes = file.getBytes();
+		} catch (IOException exception) {
+			throw new BootSignalException(ErrorCode.INTERNAL_SERVER_ERROR, "인증 자료 업로드에 실패했습니다.");
+		}
+
 		try {
 			s3Client.putObject(
 				PutObjectRequest.builder()
@@ -39,9 +46,9 @@ public class S3VerificationFileStorage implements VerificationFileStorage {
 					.contentType(resolveContentType(file))
 					.contentLength(file.getSize())
 					.build(),
-				RequestBody.fromBytes(file.getBytes())
+				RequestBody.fromBytes(bytes)
 			);
-		} catch (IOException exception) {
+		} catch (Exception exception) {
 			throw new BootSignalException(ErrorCode.INTERNAL_SERVER_ERROR, "인증 자료 업로드에 실패했습니다.");
 		}
 
