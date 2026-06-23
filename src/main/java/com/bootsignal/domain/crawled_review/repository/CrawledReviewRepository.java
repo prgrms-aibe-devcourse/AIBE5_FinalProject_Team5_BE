@@ -27,11 +27,10 @@ public interface CrawledReviewRepository extends JpaRepository<CrawledReview, Lo
         """)
     List<Object[]> findCrawledReviewSumsByCourseIds(@Param("courseIds") List<Long> courseIds);
 
-    @Query("""
-        SELECT COUNT(cr), MAX(cr.crawledAt)
-        FROM CrawledReview cr
-        WHERE cr.course.id = :courseId
-        """)
-    Optional<Object[]> findReviewSnapshotByCourseId(@Param("courseId") Long courseId);
+    @Query("SELECT COUNT(cr) FROM CrawledReview cr WHERE cr.course.id = :courseId")
+    long countReviewsByCourseId(@Param("courseId") Long courseId);
+
+    @Query("SELECT MAX(cr.crawledAt) FROM CrawledReview cr WHERE cr.course.id = :courseId")
+    Optional<Instant> findMaxCrawledAtByCourseId(@Param("courseId") Long courseId);
 }
 

@@ -69,8 +69,8 @@ class ReviewSummaryServiceTest {
 			List.of("프로젝트")
 		);
 
-		Object[] snapshot = new Object[]{10L, Instant.now()};
-		given(crawledReviewRepository.findReviewSnapshotByCourseId(eq(1L))).willReturn(Optional.of(snapshot));
+		given(crawledReviewRepository.countReviewsByCourseId(eq(1L))).willReturn(10L);
+		given(crawledReviewRepository.findMaxCrawledAtByCourseId(eq(1L))).willReturn(Optional.of(Instant.now()));
 		given(cacheRepository.findByCourseId(eq(1L))).willReturn(Optional.empty());
 		given(userRepository.findByEmail("reviewer@example.com")).willReturn(Optional.of(user));
 		given(agentHarness.execute(any())).willAnswer(invocation -> AgentExecutionResult.success(

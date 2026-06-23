@@ -23,7 +23,6 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -34,26 +33,24 @@ public class ReviewSummaryService {
 	private final ReviewSummaryCacheRepository cacheRepository;
 	private final CrawledReviewRepository crawledReviewRepository;
 
-	@Transactional
 	public ReviewSummaryResponse createSummary(ReviewSummaryCreateRequest request) {
 		getAuthenticatedUser();
 		Long courseId = request.courseId();
 
-		Object[] snapshot = resolveSnapshot(courseId);
-		int currentCount = toInt(snapshot[0]);
-		Instant currentLatestCrawledAt = (Instant) snapshot[1];
+		long currentCount = countReviews(courseId);
+		Instant currentLatestCrawledAt = latestCrawledAt(courseId);
 
 		Optional<ReviewSummaryCache> cached = cacheRepository.findByCourseId(courseId);
 
 		if (cached.isPresent()) {
 			ReviewSummaryCache cache = cached.get();
-			if (!cache.isStale(currentCount, currentLatestCrawledAt)) {
+			if (!cache.isStale((int) currentCount, currentLatestCrawledAt)) {
 				return toCachedResponse(cache);
 			}
 			return regenerateAndUpdate(request, cache);
 		}
 
-		return generateAndSave(request, currentCount, currentLatestCrawledAt);
+		return generateAndSave(request, (int) currentCount, currentLatestCrawledAt);
 	}
 
 	private ReviewSummaryResponse generateAndSave(ReviewSummaryCreateRequest request,
@@ -84,11 +81,11 @@ public class ReviewSummaryService {
 		AgentExecutionResult result = executeAgent(request);
 		ReviewSummaryContent content = extractContent(result);
 
-		Object[] snapshot = resolveSnapshot(request.courseId());
+		Long courseId = request.courseId();
 		cache.update(
 			result.executionId().toString(),
-			toInt(snapshot[0]),
-			(Instant) snapshot[1],
+			(int) countReviews(courseId),
+			latestCrawledAt(courseId),
 			asBigDecimal(result.output().get("averageRating")),
 			asString(result.output().get("courseTitle")),
 			content
@@ -140,10 +137,16 @@ public class ReviewSummaryService {
 		);
 	}
 
-	private Object[] resolveSnapshot(Long courseId) {
-		return crawledReviewRepository.findReviewSnapshotByCourseId(courseId)
-			.filter(row -> row[0] != null && toInt(row[0]) > 0)
-			.orElseThrow(() -> new BootSignalException(ErrorCode.AI_INPUT_INVALID, "요약할 고용24 수강후기가 없습니다."));
+	private long countReviews(Long courseId) {
+		long count = crawledReviewRepository.countReviewsByCourseId(courseId);
+		if (count == 0) {
+			throw new BootSignalException(ErrorCode.AI_INPUT_INVALID, "요약할 고용24 수강후기가 없습니다.");
+		}
+		return count;
+	}
+
+	private Instant latestCrawledAt(Long courseId) {
+		return crawledReviewRepository.findMaxCrawledAtByCourseId(courseId).orElse(Instant.EPOCH);
 	}
 
 	private Map<String, Object> toInput(ReviewSummaryCreateRequest request) {

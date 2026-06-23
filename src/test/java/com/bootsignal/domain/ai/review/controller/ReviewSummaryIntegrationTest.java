@@ -73,8 +73,8 @@ class ReviewSummaryIntegrationTest {
 
 	@Test
 	void createReviewSummaryWithLoginAccessToken() throws Exception {
-		given(crawledReviewRepository.findReviewSnapshotByCourseId(1L))
-			.willReturn(Optional.of(new Object[]{2L, Instant.now()}));
+		given(crawledReviewRepository.countReviewsByCourseId(1L)).willReturn(2L);
+		given(crawledReviewRepository.findMaxCrawledAtByCourseId(1L)).willReturn(Optional.of(Instant.now()));
 		given(reviewSummaryCacheRepository.findByCourseId(1L)).willReturn(Optional.empty());
 		given(reviewLoadTool.load(any())).willReturn(new ReviewSummaryInput(
 			1L,
