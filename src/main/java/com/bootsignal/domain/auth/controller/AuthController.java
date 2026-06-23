@@ -13,6 +13,7 @@ import com.bootsignal.domain.auth.dto.RefreshTokenRequest;
 import com.bootsignal.domain.auth.dto.SignupRequest;
 import com.bootsignal.domain.auth.dto.SignupResponse;
 import com.bootsignal.domain.auth.service.AuthService;
+import com.bootsignal.global.response.ApiResponse;
 import com.bootsignal.global.security.jwt.JwtTokenCookieManager;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -108,5 +109,12 @@ public class AuthController {
 		} finally {
 			jwtTokenCookieManager.clearTokenCookies(response);
 		}
+	}
+
+	// JS가 쿠키 도메인 불일치로 XSRF-TOKEN을 읽지 못하는 경우의 폴백 엔드포인트.
+	// CORS로 허용된 오리진만 응답을 읽을 수 있으므로 토큰 노출 위험이 없다.
+	@GetMapping("/csrf-token")
+	public ApiResponse<String> csrfToken(HttpServletRequest request) {
+		return ApiResponse.success(jwtTokenCookieManager.resolveCsrfToken(request));
 	}
 }
