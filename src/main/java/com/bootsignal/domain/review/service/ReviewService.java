@@ -134,7 +134,7 @@ public class ReviewService {
 
         validateAuthor(review, user);
 
-        review.softDelete();
+        reviewRepository.delete(review);
     }
 
     private void validateCourseSessionBelongsToCourse(CourseSession courseSession, Long courseId) {
