@@ -31,8 +31,6 @@ public interface CrawledReviewRepository extends JpaRepository<CrawledReview, Lo
         SELECT COUNT(cr), MAX(cr.crawledAt)
         FROM CrawledReview cr
         WHERE cr.course.id = :courseId
-          AND cr.content IS NOT NULL
-          AND TRIM(cr.content) <> ''
         """)
     Optional<Object[]> findReviewSnapshotByCourseId(@Param("courseId") Long courseId);
 }
