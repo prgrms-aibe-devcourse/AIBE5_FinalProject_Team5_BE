@@ -43,7 +43,7 @@ public class ReviewSummaryCache extends BaseEntity {
 	@Column(name = "average_rating", precision = 3, scale = 2)
 	private BigDecimal averageRating;
 
-	@Column(name = "course_title", nullable = false)
+	@Column(name = "course_title", nullable = false, length = 500)
 	private String courseTitle;
 
 	@Column(columnDefinition = "TEXT", nullable = false)

@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -33,8 +34,9 @@ public class ReviewSummaryService {
 	private final ReviewSummaryCacheRepository cacheRepository;
 	private final CrawledReviewRepository crawledReviewRepository;
 
+	@Transactional
 	public ReviewSummaryResponse createSummary(ReviewSummaryCreateRequest request) {
-		getAuthenticatedUser();
+		User user = getAuthenticatedUser();
 		Long courseId = request.courseId();
 
 		long currentCount = countReviews(courseId);
@@ -47,15 +49,15 @@ public class ReviewSummaryService {
 			if (!cache.isStale((int) currentCount, currentLatestCrawledAt)) {
 				return toCachedResponse(cache);
 			}
-			return regenerateAndUpdate(request, cache);
+			return regenerateAndUpdate(request, cache, user, (int) currentCount, currentLatestCrawledAt);
 		}
 
-		return generateAndSave(request, (int) currentCount, currentLatestCrawledAt);
+		return generateAndSave(request, user, (int) currentCount, currentLatestCrawledAt);
 	}
 
 	private ReviewSummaryResponse generateAndSave(ReviewSummaryCreateRequest request,
-		int reviewCount, Instant latestCrawledAt) {
-		AgentExecutionResult result = executeAgent(request);
+		User user, int reviewCount, Instant latestCrawledAt) {
+		AgentExecutionResult result = executeAgent(request, user);
 		ReviewSummaryContent content = extractContent(result);
 
 		ReviewSummaryCache cache = ReviewSummaryCache.builder()
@@ -77,15 +79,14 @@ public class ReviewSummaryService {
 	}
 
 	private ReviewSummaryResponse regenerateAndUpdate(ReviewSummaryCreateRequest request,
-		ReviewSummaryCache cache) {
-		AgentExecutionResult result = executeAgent(request);
+		ReviewSummaryCache cache, User user, int reviewCount, Instant latestCrawledAt) {
+		AgentExecutionResult result = executeAgent(request, user);
 		ReviewSummaryContent content = extractContent(result);
 
-		Long courseId = request.courseId();
 		cache.update(
 			result.executionId().toString(),
-			(int) countReviews(courseId),
-			latestCrawledAt(courseId),
+			reviewCount,
+			latestCrawledAt,
 			asBigDecimal(result.output().get("averageRating")),
 			asString(result.output().get("courseTitle")),
 			content
@@ -105,10 +106,10 @@ public class ReviewSummaryService {
 		);
 	}
 
-	private AgentExecutionResult executeAgent(ReviewSummaryCreateRequest request) {
+	private AgentExecutionResult executeAgent(ReviewSummaryCreateRequest request, User user) {
 		AgentExecutionResult result = agentHarness.execute(AgentExecutionContext.of(
 			AgentType.REVIEW_SUMMARY,
-			getAuthenticatedUser().getId(),
+			user.getId(),
 			toInputSummary(request),
 			toInput(request)
 		));
@@ -175,10 +176,6 @@ public class ReviewSummaryService {
 	}
 
 	private int asInt(Object value) {
-		return value instanceof Number number ? number.intValue() : 0;
-	}
-
-	private int toInt(Object value) {
 		return value instanceof Number number ? number.intValue() : 0;
 	}
 
