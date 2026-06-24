@@ -55,6 +55,8 @@ public class CourseService {
     public PageResponse<CourseListResponse> getCourses(CourseListRequest request) {
         CourseSort courseSort = CourseSort.from(request.sort());
         LocalDate today = LocalDate.now(SERVICE_ZONE);
+        boolean shouldPrioritize = Boolean.TRUE.equals(request.prioritizeFull());
+
         Specification<CourseSession> spec = Specification.allOf(
                 CourseSessionSpecification.withKeyword(request.keyword()),
                 CourseSessionSpecification.withTrngAreaCd(request.trngAreaCd()),
@@ -71,9 +73,28 @@ public class CourseService {
         } else if (courseSort == CourseSort.DEADLINE) {
             // 모집 마감 임박순은 이미 시작한 과정보다 시작 예정 과정을 우선 노출합니다.
             spec = spec.and(CourseSessionSpecification.orderByDeadlineSoon(today));
+        } else if (shouldPrioritize) {
+            // prioritizeFull=true 시 Pageable Sort 대신 Criteria ORDER BY 로 전환하여 우선순위와 결합합니다.
+            spec = switch (courseSort) {
+                case LATEST -> spec.and(CourseSessionSpecification.orderByLatest());
+                case SATISFACTION -> spec.and(CourseSessionSpecification.orderBySatisfaction());
+                case EMPLOYMENT_RATE -> spec.and(CourseSessionSpecification.orderByEmploymentRate());
+                default -> spec;
+            };
         }
 
-        Pageable pageable = PageRequest.of(request.page(), request.size(), toSort(courseSort));
+        if (shouldPrioritize) {
+            // 기본 정렬 Specification 뒤에 완전한 데이터 우선순위를 삽입합니다.
+            spec = spec.and(CourseSessionSpecification.orderByCompleteDataFirst());
+        }
+
+        // prioritizeFull=true 이고 LATEST/SATISFACTION/EMPLOYMENT_RATE 정렬인 경우
+        // Criteria ORDER BY 를 사용하므로 Pageable Sort 는 비워둡니다.
+        boolean useCriteriaSort = shouldPrioritize
+                && courseSort != CourseSort.POPULAR
+                && courseSort != CourseSort.DEADLINE;
+        Pageable pageable = PageRequest.of(request.page(), request.size(),
+                useCriteriaSort ? Sort.unsorted() : toSort(courseSort));
 
         // N+1 방지를 위해 course와 institution을 fetch join
         Specification<CourseSession> withFetch = spec.and((root, query, cb) -> {

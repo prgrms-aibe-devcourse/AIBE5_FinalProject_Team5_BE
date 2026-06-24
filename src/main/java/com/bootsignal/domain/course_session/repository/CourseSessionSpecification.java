@@ -6,7 +6,10 @@ import com.bootsignal.domain.course.dto.DurationFilter;
 import com.bootsignal.domain.course.dto.PriceRange;
 import com.bootsignal.domain.course.dto.FieldCategory;
 import com.bootsignal.domain.course_session.entity.CourseSession;
+import com.bootsignal.domain.crawled_review.entity.CrawledReview;
+import com.bootsignal.domain.review.entity.Review;
 import jakarta.persistence.criteria.JoinType;
+import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -14,6 +17,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -158,6 +163,110 @@ public class CourseSessionSpecification {
                         cb.desc(root.get("id"))
                 );
             }
+            return cb.conjunction();
+        };
+    }
+
+    /**
+     * 최신순 Criteria 정렬 — prioritizeFull과 함께 사용할 때 Pageable Sort 대신 적용합니다.
+     */
+    public static Specification<CourseSession> orderByLatest() {
+        return (root, query, cb) -> {
+            if (query != null && Long.class != query.getResultType() && long.class != query.getResultType()) {
+                query.orderBy(cb.desc(root.get("id")));
+            }
+            return cb.conjunction();
+        };
+    }
+
+    /**
+     * 만족도순 Criteria 정렬 — prioritizeFull과 함께 사용할 때 Pageable Sort 대신 적용합니다.
+     */
+    public static Specification<CourseSession> orderBySatisfaction() {
+        return (root, query, cb) -> {
+            if (query != null && Long.class != query.getResultType() && long.class != query.getResultType()) {
+                var courseJoin = root.join("course", JoinType.LEFT);
+                query.orderBy(
+                        cb.desc(courseJoin.get("stdgScor")),
+                        cb.desc(root.get("id"))
+                );
+            }
+            return cb.conjunction();
+        };
+    }
+
+    /**
+     * 취업률순 Criteria 정렬 — prioritizeFull과 함께 사용할 때 Pageable Sort 대신 적용합니다.
+     */
+    public static Specification<CourseSession> orderByEmploymentRate() {
+        return (root, query, cb) -> {
+            if (query != null && Long.class != query.getResultType() && long.class != query.getResultType()) {
+                query.orderBy(
+                        cb.desc(root.get("employmentRate")),
+                        cb.desc(root.get("id"))
+                );
+            }
+            return cb.conjunction();
+        };
+    }
+
+    /**
+     * 기관 이미지·만족도·취업률·별점이 모두 있는 과정을 기존 정렬 기준 내에서 우선 노출합니다.
+     * 기존 ORDER BY 앞에 완전성 우선순위(0=완전, 1=불완전)를 삽입합니다.
+     * 반드시 기본 정렬 Specification을 체이닝한 뒤 마지막에 추가해야 합니다.
+     */
+    public static Specification<CourseSession> orderByCompleteDataFirst() {
+        return (root, query, cb) -> {
+            if (query == null || Long.class == query.getResultType() || long.class == query.getResultType()) {
+                return cb.conjunction();
+            }
+
+            var courseJoin = root.join("course", JoinType.LEFT);
+            var institutionJoin = courseJoin.join("institution", JoinType.LEFT);
+
+            // 사용자 리뷰 존재 여부 서브쿼리
+            Subquery<Long> reviewCount = query.subquery(Long.class);
+            Root<Review> review = reviewCount.from(Review.class);
+            reviewCount.select(cb.count(review.get("id")));
+            reviewCount.where(
+                    cb.and(
+                            cb.equal(review.get("course").get("id"), courseJoin.get("id")),
+                            cb.isNull(review.get("deletedAt"))
+                    )
+            );
+
+            // 크롤링 리뷰 존재 여부 서브쿼리
+            Subquery<Long> crawledReviewCount = query.subquery(Long.class);
+            Root<CrawledReview> crawled = crawledReviewCount.from(CrawledReview.class);
+            crawledReviewCount.select(cb.count(crawled.get("id")));
+            crawledReviewCount.where(
+                    cb.and(
+                            cb.equal(crawled.get("course").get("id"), courseJoin.get("id")),
+                            cb.isNotNull(crawled.get("rating"))
+                    )
+            );
+
+            // 4가지 조건 모두 충족 시 우선순위 0, 아닐 경우 1
+            var completePriority = cb.selectCase()
+                    .when(
+                            cb.and(
+                                    cb.isNotNull(institutionJoin.get("profileImageUrl")),
+                                    cb.isNotNull(courseJoin.get("stdgScor")),
+                                    cb.isNotNull(root.get("employmentRate")),
+                                    cb.or(
+                                            cb.greaterThan(reviewCount, 0L),
+                                            cb.greaterThan(crawledReviewCount, 0L)
+                                    )
+                            ),
+                            0
+                    )
+                    .otherwise(1);
+
+            List<Order> orders = new ArrayList<>();
+            orders.add(cb.asc(completePriority));
+            orders.addAll(query.getOrderList());
+            query.orderBy(orders);
+
             return cb.conjunction();
         };
     }
