@@ -68,7 +68,8 @@ class CourseServiceTest {
                 null,
                 sort,
                 0,
-                10
+                10,
+                null
         );
 
         courseService.getCourses(request);
@@ -100,7 +101,8 @@ class CourseServiceTest {
                 null,
                 "popular",
                 0,
-                7
+                7,
+                null
         );
 
         courseService.getCourses(request);
@@ -132,7 +134,8 @@ class CourseServiceTest {
                 null,
                 "deadline",
                 0,
-                10
+                10,
+                null
         );
 
         courseService.getCourses(request);

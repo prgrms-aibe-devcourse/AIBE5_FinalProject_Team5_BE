@@ -44,7 +44,13 @@ public record CourseListRequest(
 
         @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다.")
         @Max(value = 100, message = "페이지 크기는 100 이하이어야 합니다.")
-        Integer size
+        Integer size,
+
+        /**
+         * true 전달 시 기관 이미지·만족도·취업률·별점이 모두 있는 과정을 기존 정렬 내에서 우선 노출합니다.
+         * null 또는 false이면 기존 정렬 동작을 그대로 유지합니다.
+         */
+        Boolean prioritizeFull
 ) {
     // page와 size가 null이거나 기본값이 누락되었을 때 방어 코드 적용
     public CourseListRequest {
