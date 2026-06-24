@@ -11,6 +11,7 @@ public record CourseListResponse(
         Long courseId,
         Long courseSessionId,
         String trprId,
+        Integer trprDegr,
         String title,
         String institutionName,
         String trngAreaCd,
@@ -48,6 +49,7 @@ public record CourseListResponse(
                 id,
                 null,
                 trprId,
+                null,
                 title,
                 institutionName,
                 trngAreaCd,
@@ -77,7 +79,10 @@ public record CourseListResponse(
                 : null;
         return new CourseListResponse(
                 course.getId(),
+                course.getId(),
+                repSession != null ? repSession.getId() : null,
                 course.getTrprId(),
+                repSession != null ? repSession.getTrprDegr() : null,
                 course.getTitle(),
                 course.getSubTitle(),       // 기관명은 subTitle에 비정규화됨
                 course.getTrngAreaCd(),
@@ -87,7 +92,13 @@ public record CourseListResponse(
                 repSession != null ? repSession.getTotalTrainingDays() : null,
                 repSession != null ? repSession.getTotalTrainingHours() : null,
                 course.getNcsName(),
-                profileImageUrl
+                profileImageUrl,
+                repSession != null ? repSession.getTraStartDate() : null,
+                repSession != null ? repSession.getTraEndDate() : null,
+                repSession != null ? repSession.getEiEmplRate3() : null,
+                repSession != null ? repSession.getEiEmplRate6() : null,
+                null,
+                repSession != null ? repSession.getEmploymentRate() : null
         );
     }
 
@@ -101,6 +112,7 @@ public record CourseListResponse(
                 course != null ? course.getId() : null,
                 session.getId(),
                 session.getTrprId(),
+                session.getTrprDegr(),
                 course != null ? course.getTitle() : null,
                 course != null ? course.getSubTitle() : null,
                 course != null ? course.getTrngAreaCd() : null,

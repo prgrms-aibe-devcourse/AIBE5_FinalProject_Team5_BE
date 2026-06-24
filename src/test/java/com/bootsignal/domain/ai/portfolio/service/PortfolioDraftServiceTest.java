@@ -17,6 +17,7 @@ import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftProject;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftResponse;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftTone;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioProjectExperienceRequest;
+import com.bootsignal.domain.ai.portfolio.repository.PortfolioDraftHistoryRepository;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.global.exception.BootSignalException;
@@ -43,6 +44,9 @@ class PortfolioDraftServiceTest {
 	@Mock
 	private UserRepository userRepository;
 
+	@Mock
+	private PortfolioDraftHistoryRepository portfolioDraftHistoryRepository;
+
 	@AfterEach
 	void clearSecurityContext() {
 		SecurityContextHolder.clearContext();
@@ -52,7 +56,7 @@ class PortfolioDraftServiceTest {
 	void createDraftRunsPortfolioAgentForAuthenticatedUser() {
 		User user = User.signupLocal("writer@example.com", "encoded-password", "writer");
 		setAuthentication(user.getEmail());
-		PortfolioDraftService service = new PortfolioDraftService(agentHarness, userRepository);
+		PortfolioDraftService service = new PortfolioDraftService(agentHarness, userRepository, portfolioDraftHistoryRepository);
 		PortfolioDraftContent content = new PortfolioDraftContent(
 			"백엔드 개발자 포트폴리오 소개입니다.",
 			List.of("API 구현"),
@@ -88,7 +92,7 @@ class PortfolioDraftServiceTest {
 
 	@Test
 	void createDraftThrowsUnauthorizedWithoutAuthentication() {
-		PortfolioDraftService service = new PortfolioDraftService(agentHarness, userRepository);
+		PortfolioDraftService service = new PortfolioDraftService(agentHarness, userRepository, portfolioDraftHistoryRepository);
 
 		assertThatThrownBy(() -> service.createDraft(request()))
 			.isInstanceOf(BootSignalException.class)
