@@ -123,14 +123,15 @@ app:
       timeout-millis: ${WORK24_CRAWLER_TIMEOUT_MILLIS:30000}
       user-agent: ${WORK24_CRAWLER_USER_AGENT:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36}
   profile-image:
-    # 프로필 이미지 저장소 유형이다. 현재 구현은 local 저장소를 사용하며, s3는 추후 확장용이다.
+    # 프로필 이미지 저장소 유형이다. local 또는 s3로 설정한다.
     storage-type: ${PROFILE_IMAGE_STORAGE_TYPE:local}
     local:
       upload-dir: ${PROFILE_IMAGE_UPLOAD_DIR:temp-storage/profile-images}
       public-path-prefix: ${PROFILE_IMAGE_PUBLIC_PATH_PREFIX:/local-files/profile}
       base-url: ${PROFILE_IMAGE_BASE_URL:http://localhost:8080}
     s3:
-      # S3 저장소 관련 설정은 S3 구현 추가 시 확장한다.
+      key-prefix: ${PROFILE_IMAGE_S3_KEY_PREFIX:profile-images}
+      base-url: ${PROFILE_IMAGE_S3_BASE_URL:}
   calendar:
     google:
       redirect-uri: ${GOOGLE_CALENDAR_REDIRECT_URI:http://localhost:8080/api/calendar/connect/google/callback}

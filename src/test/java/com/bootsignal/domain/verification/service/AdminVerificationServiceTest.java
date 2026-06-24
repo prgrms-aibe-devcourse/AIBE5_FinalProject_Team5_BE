@@ -15,6 +15,7 @@ import com.bootsignal.domain.verification.entity.Verification;
 import com.bootsignal.domain.verification.entity.VerificationEvidenceType;
 import com.bootsignal.domain.verification.entity.VerificationStatus;
 import com.bootsignal.domain.verification.repository.VerificationRepository;
+import com.bootsignal.domain.verification.storage.VerificationFileStorage;
 import com.bootsignal.global.exception.BootSignalException;
 import com.bootsignal.global.exception.ErrorCode;
 import java.nio.charset.StandardCharsets;
@@ -46,11 +47,14 @@ class AdminVerificationServiceTest {
     @Mock
     private UserRepository userRepository;
 
+    @Mock
+    private VerificationFileStorage verificationFileStorage;
+
     private AdminVerificationService adminVerificationService;
 
     @BeforeEach
     void setUp() {
-        adminVerificationService = new AdminVerificationService(verificationRepository, userRepository);
+        adminVerificationService = new AdminVerificationService(verificationRepository, userRepository, verificationFileStorage);
     }
 
     @AfterEach
@@ -116,6 +120,8 @@ class AdminVerificationServiceTest {
         Verification verification = verification(100L);
 
         given(verificationRepository.findWithDetailsById(100L)).willReturn(Optional.of(verification));
+        given(verificationFileStorage.download("verifications/job-training-history/test-key"))
+            .willReturn("job-training-content".getBytes(StandardCharsets.UTF_8));
 
         VerificationEvidenceFile evidenceFile = adminVerificationService.getEvidenceFile(
             100L,
@@ -179,11 +185,11 @@ class AdminVerificationServiceTest {
             .jobTrainingHistoryFileName("job-training-history.txt")
             .jobTrainingHistoryContentType("text/plain")
             .jobTrainingHistoryFileSize(20L)
-            .jobTrainingHistoryData("job-training-content".getBytes(StandardCharsets.UTF_8))
+            .jobTrainingHistoryS3Key("verifications/job-training-history/test-key")
             .onlineCourseApplicationFileName("online-course-application.txt")
             .onlineCourseApplicationContentType("text/plain")
             .onlineCourseApplicationFileSize(26L)
-            .onlineCourseApplicationData("online-application-content".getBytes(StandardCharsets.UTF_8))
+            .onlineCourseApplicationS3Key("verifications/online-course-application/test-key")
             .build();
         ReflectionTestUtils.setField(verification, "id", id);
         return verification;
