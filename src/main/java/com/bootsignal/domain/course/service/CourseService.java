@@ -83,8 +83,10 @@ public class CourseService {
             };
         }
 
-        if (shouldPrioritize) {
-            // 기본 정렬 Specification 뒤에 완전한 데이터 우선순위를 삽입합니다.
+        // POPULAR/DEADLINE은 각각 북마크 수·마감일 기준 정렬이 주목적이므로 완전성 우선순위를 적용하지 않습니다.
+        if (shouldPrioritize
+                && courseSort != CourseSort.POPULAR
+                && courseSort != CourseSort.DEADLINE) {
             spec = spec.and(CourseSessionSpecification.orderByCompleteDataFirst());
         }
 
