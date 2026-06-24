@@ -54,6 +54,6 @@ public class TechArticleService {
 	// 페이지네이션 정렬
 	private Pageable toSortedPageable(Pageable pageable) {
 		int size = Math.min(pageable.getPageSize(), MAX_PAGE_SIZE);
-		return PageRequest.of(pageable.getPageNumber(), size, Sort.by(Sort.Direction.DESC, "updatedAt"));
+		return PageRequest.of(pageable.getPageNumber(), size, Sort.by(Sort.Direction.DESC, "publishedAt"));
 	}
 }
