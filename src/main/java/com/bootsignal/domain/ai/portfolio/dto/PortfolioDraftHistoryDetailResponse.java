@@ -7,14 +7,12 @@ import java.util.List;
 public record PortfolioDraftHistoryDetailResponse(
 	Long historyId,
 	String executionId,
-	// 사용자 입력 정보
 	String targetJob,
 	List<String> skills,
-	List<Object> projects,
+	List<PortfolioProjectExperienceRequest> projects,
 	String education,
 	String careerSummary,
 	String tone,
-	// AI 생성 초안
 	String introduction,
 	List<String> coreCompetencies,
 	List<PortfolioDraftProject> projectDescriptions,
@@ -27,16 +25,16 @@ public record PortfolioDraftHistoryDetailResponse(
 			history.getId(),
 			history.getExecutionId(),
 			history.getTargetJob(),
-			history.getSkillList(),
-			history.getProjectList(),
+			history.getSkills(),
+			history.getProjects(),
 			history.getEducation(),
 			history.getCareerSummary(),
 			history.getTone(),
 			history.getIntroduction(),
-			history.getCoreCompetencyList(),
-			history.getProjectDescriptionList(),
+			history.getCoreCompetencies(),
+			history.getProjectDescriptions(),
 			history.getTechStackSummary(),
-			history.getImprovementSuggestionList(),
+			history.getImprovementSuggestions(),
 			history.getCreatedAt()
 		);
 	}

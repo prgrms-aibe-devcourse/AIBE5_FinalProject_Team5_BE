@@ -69,16 +69,14 @@ public record CourseListResponse(
         );
     }
 
-    public static CourseListResponse from(Course course) {
-        return from(course, null);
-    }
-
-    public static CourseListResponse from(Course course, CourseSession repSession) {
+    public static CourseListResponse from(Course course, CourseSession repSession, BigDecimal reviewRating) {
         String profileImageUrl = course.getInstitution() != null
                 ? course.getInstitution().getProfileImageUrl()
                 : null;
+        // id는 세션이 있으면 세션 PK, 없으면 과정 PK — from(CourseSession, BigDecimal) 와 동일한 규칙
+        Long id = repSession != null ? repSession.getId() : course.getId();
         return new CourseListResponse(
-                course.getId(),
+                id,
                 course.getId(),
                 repSession != null ? repSession.getId() : null,
                 course.getTrprId(),
@@ -97,7 +95,7 @@ public record CourseListResponse(
                 repSession != null ? repSession.getTraEndDate() : null,
                 repSession != null ? repSession.getEiEmplRate3() : null,
                 repSession != null ? repSession.getEiEmplRate6() : null,
-                null,
+                reviewRating,
                 repSession != null ? repSession.getEmploymentRate() : null
         );
     }

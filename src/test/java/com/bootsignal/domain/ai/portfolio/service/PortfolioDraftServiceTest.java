@@ -17,6 +17,7 @@ import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftProject;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftResponse;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftTone;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioProjectExperienceRequest;
+import com.bootsignal.domain.ai.portfolio.entity.PortfolioDraftHistory;
 import com.bootsignal.domain.ai.portfolio.repository.PortfolioDraftHistoryRepository;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
@@ -88,6 +89,7 @@ class PortfolioDraftServiceTest {
 		assertThat(context.inputSummary()).contains("목표 직무: 백엔드 개발자");
 		assertThat(context.input()).containsEntry("targetJob", "백엔드 개발자");
 		assertThat(context.input()).containsEntry("tone", PortfolioDraftTone.PROFESSIONAL);
+		verify(portfolioDraftHistoryRepository).save(any(PortfolioDraftHistory.class));
 	}
 
 	@Test

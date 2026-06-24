@@ -1,13 +1,15 @@
 package com.bootsignal.domain.ai.portfolio.entity;
 
+import com.bootsignal.domain.ai.portfolio.converter.PortfolioDraftProjectListConverter;
+import com.bootsignal.domain.ai.portfolio.converter.PortfolioProjectExperienceRequestListConverter;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftContent;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftCreateRequest;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftProject;
+import com.bootsignal.domain.ai.portfolio.dto.PortfolioProjectExperienceRequest;
+import com.bootsignal.global.converter.StringListConverter;
 import com.bootsignal.global.entity.BaseEntity;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -24,8 +26,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class PortfolioDraftHistory extends BaseEntity {
 
-	private static final ObjectMapper MAPPER = new ObjectMapper();
-
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -39,11 +39,13 @@ public class PortfolioDraftHistory extends BaseEntity {
 	@Column(name = "target_job", nullable = false, length = 100)
 	private String targetJob;
 
+	@Convert(converter = StringListConverter.class)
 	@Column(name = "skills", nullable = false, columnDefinition = "text")
-	private String skills;
+	private List<String> skills;
 
+	@Convert(converter = PortfolioProjectExperienceRequestListConverter.class)
 	@Column(name = "projects", nullable = false, columnDefinition = "text")
-	private String projects;
+	private List<PortfolioProjectExperienceRequest> projects;
 
 	@Column(name = "education", length = 500)
 	private String education;
@@ -57,17 +59,20 @@ public class PortfolioDraftHistory extends BaseEntity {
 	@Column(name = "introduction", columnDefinition = "text")
 	private String introduction;
 
+	@Convert(converter = StringListConverter.class)
 	@Column(name = "core_competencies", columnDefinition = "text")
-	private String coreCompetencies;
+	private List<String> coreCompetencies;
 
+	@Convert(converter = PortfolioDraftProjectListConverter.class)
 	@Column(name = "project_descriptions", columnDefinition = "text")
-	private String projectDescriptions;
+	private List<PortfolioDraftProject> projectDescriptions;
 
 	@Column(name = "tech_stack_summary", columnDefinition = "text")
 	private String techStackSummary;
 
+	@Convert(converter = StringListConverter.class)
 	@Column(name = "improvement_suggestions", columnDefinition = "text")
-	private String improvementSuggestions;
+	private List<String> improvementSuggestions;
 
 	public static PortfolioDraftHistory of(
 		String executionId,
@@ -79,55 +84,16 @@ public class PortfolioDraftHistory extends BaseEntity {
 		history.executionId = executionId;
 		history.userId = userId;
 		history.targetJob = request.targetJob();
-		history.skills = toJson(request.skills());
-		history.projects = toJson(request.projects());
+		history.skills = request.skills();
+		history.projects = request.projects();
 		history.education = request.education();
 		history.careerSummary = request.careerSummary();
 		history.tone = request.resolvedTone().name();
 		history.introduction = content.introduction();
-		history.coreCompetencies = toJson(content.coreCompetencies());
-		history.projectDescriptions = toJson(content.projectDescriptions());
+		history.coreCompetencies = content.coreCompetencies();
+		history.projectDescriptions = content.projectDescriptions();
 		history.techStackSummary = content.techStackSummary();
-		history.improvementSuggestions = toJson(content.improvementSuggestions());
+		history.improvementSuggestions = content.improvementSuggestions();
 		return history;
-	}
-
-	public List<String> getSkillList() {
-		return fromJson(skills, new TypeReference<>() {});
-	}
-
-	public List<Object> getProjectList() {
-		return fromJson(projects, new TypeReference<>() {});
-	}
-
-	public List<String> getCoreCompetencyList() {
-		return fromJson(coreCompetencies, new TypeReference<>() {});
-	}
-
-	public List<PortfolioDraftProject> getProjectDescriptionList() {
-		return fromJson(projectDescriptions, new TypeReference<>() {});
-	}
-
-	public List<String> getImprovementSuggestionList() {
-		return fromJson(improvementSuggestions, new TypeReference<>() {});
-	}
-
-	private static String toJson(Object value) {
-		try {
-			return MAPPER.writeValueAsString(value);
-		} catch (JsonProcessingException e) {
-			throw new IllegalStateException("JSON 직렬화 실패", e);
-		}
-	}
-
-	private static <T> T fromJson(String json, TypeReference<T> type) {
-		if (json == null) {
-			return null;
-		}
-		try {
-			return MAPPER.readValue(json, type);
-		} catch (JsonProcessingException e) {
-			throw new IllegalStateException("JSON 역직렬화 실패", e);
-		}
 	}
 }

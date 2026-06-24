@@ -20,16 +20,17 @@ import com.bootsignal.global.security.SecurityUtil;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PortfolioDraftService {
 
-	// 인증된 사용자 정보를 실행 컨텍스트에 담아 포트폴리오 Agent 실행을 요청한다.
 	private final AgentHarness agentHarness;
 	private final UserRepository userRepository;
 	private final PortfolioDraftHistoryRepository portfolioDraftHistoryRepository;
@@ -53,9 +54,14 @@ public class PortfolioDraftService {
 			throw new BootSignalException(ErrorCode.AI_OUTPUT_INVALID, "포트폴리오 초안 결과를 찾을 수 없습니다.");
 		}
 
-		portfolioDraftHistoryRepository.save(
-			PortfolioDraftHistory.of(result.executionId().toString(), user.getId(), request, content)
-		);
+		// 이력 저장 실패가 AI 응답 반환을 막지 않도록 예외를 흡수한다.
+		try {
+			portfolioDraftHistoryRepository.save(
+				PortfolioDraftHistory.of(result.executionId().toString(), user.getId(), request, content)
+			);
+		} catch (Exception e) {
+			log.warn("포트폴리오 이력 저장 실패 executionId={}", result.executionId(), e);
+		}
 
 		return PortfolioDraftResponse.from(result.executionId(), content);
 	}

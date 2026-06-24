@@ -9,7 +9,6 @@ import com.bootsignal.global.dto.PageResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,7 +39,7 @@ public class PortfolioDraftController {
 		@RequestParam(defaultValue = "10") int size
 	) {
 		return portfolioDraftService.getHistory(
-			PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+			PageRequest.of(page, size)
 		);
 	}
 
