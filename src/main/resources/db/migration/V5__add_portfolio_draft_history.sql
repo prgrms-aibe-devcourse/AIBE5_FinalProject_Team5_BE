@@ -1,0 +1,22 @@
+CREATE TABLE `portfolio_draft_history` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `execution_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` bigint NOT NULL,
+  `target_job` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `skills` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `projects` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `education` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `career_summary` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tone` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `introduction` text COLLATE utf8mb4_unicode_ci,
+  `core_competencies` text COLLATE utf8mb4_unicode_ci,
+  `project_descriptions` text COLLATE utf8mb4_unicode_ci,
+  `tech_stack_summary` text COLLATE utf8mb4_unicode_ci,
+  `improvement_suggestions` text COLLATE utf8mb4_unicode_ci,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_portfolio_draft_history_execution_id` (`execution_id`),
+  KEY `idx_portfolio_draft_history_user_id` (`user_id`),
+  CONSTRAINT `fk_portfolio_draft_history_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
