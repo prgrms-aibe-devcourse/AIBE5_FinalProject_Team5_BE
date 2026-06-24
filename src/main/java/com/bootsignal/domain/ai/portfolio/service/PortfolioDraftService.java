@@ -76,6 +76,15 @@ public class PortfolioDraftService {
 		return PortfolioDraftHistoryDetailResponse.from(history);
 	}
 
+	@Transactional
+	public void deleteHistory(Long historyId) {
+		User user = getAuthenticatedUser();
+		PortfolioDraftHistory history = portfolioDraftHistoryRepository
+			.findByIdAndUserId(historyId, user.getId())
+			.orElseThrow(() -> new BootSignalException(ErrorCode.NOT_FOUND));
+		portfolioDraftHistoryRepository.delete(history);
+	}
+
 	private Map<String, Object> toInput(User user, PortfolioDraftCreateRequest request) {
 		Map<String, Object> input = new LinkedHashMap<>();
 		input.put("targetJob", request.targetJob());
