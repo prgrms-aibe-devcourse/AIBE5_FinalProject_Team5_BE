@@ -20,13 +20,13 @@ public interface TechArticleRepository extends JpaRepository<TechArticle, Long> 
 		""")
 	Optional<LocalDateTime> findMaxUpdatedAt(@Param("source") ArticleSource source);
 
-	Page<TechArticle> findByUpdatedAtGreaterThanEqualAndUpdatedAtLessThanOrderByUpdatedAtDesc(
+	Page<TechArticle> findByUpdatedAtGreaterThanEqualAndUpdatedAtLessThan(
 		LocalDateTime startInclusive,
 		LocalDateTime endExclusive,
 		Pageable pageable
 	);
 
-	Page<TechArticle> findBySourceAndUpdatedAtGreaterThanEqualAndUpdatedAtLessThanOrderByUpdatedAtDesc(
+	Page<TechArticle> findBySourceAndUpdatedAtGreaterThanEqualAndUpdatedAtLessThan(
 		ArticleSource source,
 		LocalDateTime startInclusive,
 		LocalDateTime endExclusive,

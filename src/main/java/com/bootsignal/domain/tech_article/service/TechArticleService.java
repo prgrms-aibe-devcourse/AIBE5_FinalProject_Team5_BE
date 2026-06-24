@@ -36,9 +36,9 @@ public class TechArticleService {
 		Pageable sortedPageable = toSortedPageable(pageable);
 
 		Page<TechArticle> articles = source == null
-			? techArticleRepository.findByUpdatedAtGreaterThanEqualAndUpdatedAtLessThanOrderByUpdatedAtDesc(
+			? techArticleRepository.findByUpdatedAtGreaterThanEqualAndUpdatedAtLessThan(
 				batchStart, batchEnd, sortedPageable)
-			: techArticleRepository.findBySourceAndUpdatedAtGreaterThanEqualAndUpdatedAtLessThanOrderByUpdatedAtDesc(
+			: techArticleRepository.findBySourceAndUpdatedAtGreaterThanEqualAndUpdatedAtLessThan(
 				source, batchStart, batchEnd, sortedPageable);
 
 		return PageResponse.from(articles.map(TechArticleResponse::from));
