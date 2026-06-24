@@ -4,6 +4,13 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      # 배치 Job + 일반 HTTP 요청 동시 처리를 위해 기본값(10)보다 상향
+      # RDS db.t3.micro 최대 Connection 수(~66) 대비 여유 확보
+      maximum-pool-size: 20
+      connection-timeout: 30000   # 30초 초과 시 예외
+      idle-timeout: 600000        # 10분 유휴 후 반환
+      max-lifetime: 1800000       # 30분 후 강제 재생성
   jpa:
     hibernate:
       ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
