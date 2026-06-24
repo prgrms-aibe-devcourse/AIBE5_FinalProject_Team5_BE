@@ -34,6 +34,7 @@ public class PortfolioDraftService {
 	private final AgentHarness agentHarness;
 	private final UserRepository userRepository;
 	private final PortfolioDraftHistoryRepository portfolioDraftHistoryRepository;
+	private final PortfolioDraftHistoryWriter portfolioDraftHistoryWriter;
 
 	@Transactional
 	public PortfolioDraftResponse createDraft(PortfolioDraftCreateRequest request) {
@@ -54,11 +55,8 @@ public class PortfolioDraftService {
 			throw new BootSignalException(ErrorCode.AI_OUTPUT_INVALID, "포트폴리오 초안 결과를 찾을 수 없습니다.");
 		}
 
-		// 이력 저장 실패가 AI 응답 반환을 막지 않도록 예외를 흡수한다.
 		try {
-			portfolioDraftHistoryRepository.save(
-				PortfolioDraftHistory.of(result.executionId().toString(), user.getId(), request, content)
-			);
+			portfolioDraftHistoryWriter.save(result.executionId().toString(), user.getId(), request, content);
 		} catch (Exception e) {
 			log.warn("포트폴리오 이력 저장 실패 executionId={}", result.executionId(), e);
 		}

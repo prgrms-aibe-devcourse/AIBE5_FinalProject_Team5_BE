@@ -17,8 +17,8 @@ import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftProject;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftResponse;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioDraftTone;
 import com.bootsignal.domain.ai.portfolio.dto.PortfolioProjectExperienceRequest;
-import com.bootsignal.domain.ai.portfolio.entity.PortfolioDraftHistory;
 import com.bootsignal.domain.ai.portfolio.repository.PortfolioDraftHistoryRepository;
+import com.bootsignal.domain.ai.portfolio.service.PortfolioDraftHistoryWriter;
 import com.bootsignal.domain.user.entity.User;
 import com.bootsignal.domain.user.repository.UserRepository;
 import com.bootsignal.global.exception.BootSignalException;
@@ -48,6 +48,9 @@ class PortfolioDraftServiceTest {
 	@Mock
 	private PortfolioDraftHistoryRepository portfolioDraftHistoryRepository;
 
+	@Mock
+	private PortfolioDraftHistoryWriter portfolioDraftHistoryWriter;
+
 	@AfterEach
 	void clearSecurityContext() {
 		SecurityContextHolder.clearContext();
@@ -57,7 +60,7 @@ class PortfolioDraftServiceTest {
 	void createDraftRunsPortfolioAgentForAuthenticatedUser() {
 		User user = User.signupLocal("writer@example.com", "encoded-password", "writer");
 		setAuthentication(user.getEmail());
-		PortfolioDraftService service = new PortfolioDraftService(agentHarness, userRepository, portfolioDraftHistoryRepository);
+		PortfolioDraftService service = new PortfolioDraftService(agentHarness, userRepository, portfolioDraftHistoryRepository, portfolioDraftHistoryWriter);
 		PortfolioDraftContent content = new PortfolioDraftContent(
 			"백엔드 개발자 포트폴리오 소개입니다.",
 			List.of("API 구현"),
@@ -89,12 +92,12 @@ class PortfolioDraftServiceTest {
 		assertThat(context.inputSummary()).contains("목표 직무: 백엔드 개발자");
 		assertThat(context.input()).containsEntry("targetJob", "백엔드 개발자");
 		assertThat(context.input()).containsEntry("tone", PortfolioDraftTone.PROFESSIONAL);
-		verify(portfolioDraftHistoryRepository).save(any(PortfolioDraftHistory.class));
+		verify(portfolioDraftHistoryWriter).save(any(String.class), any(), any(PortfolioDraftCreateRequest.class), any(PortfolioDraftContent.class));
 	}
 
 	@Test
 	void createDraftThrowsUnauthorizedWithoutAuthentication() {
-		PortfolioDraftService service = new PortfolioDraftService(agentHarness, userRepository, portfolioDraftHistoryRepository);
+		PortfolioDraftService service = new PortfolioDraftService(agentHarness, userRepository, portfolioDraftHistoryRepository, portfolioDraftHistoryWriter);
 
 		assertThatThrownBy(() -> service.createDraft(request()))
 			.isInstanceOf(BootSignalException.class)

@@ -29,46 +29,6 @@ public record CourseListResponse(
         BigDecimal reviewRating,
         BigDecimal employmentRate
 ) {
-    // 12-인자 생성자 (기존 코드 하위 호환성 유지)
-    public CourseListResponse(
-            Long id,
-            String trprId,
-            String title,
-            String institutionName,
-            String trngAreaCd,
-            Integer courseMan,
-            Integer selfPaymentAmount,
-            BigDecimal stdgScor,
-            Integer totalTrainingDays,
-            Integer totalTrainingHours,
-            String ncsName,
-            String profileImageUrl
-    ) {
-        this(
-                id,
-                id,
-                null,
-                trprId,
-                null,
-                title,
-                institutionName,
-                trngAreaCd,
-                courseMan,
-                selfPaymentAmount,
-                stdgScor,
-                totalTrainingDays,
-                totalTrainingHours,
-                ncsName,
-                profileImageUrl,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
-    }
-
     public static CourseListResponse from(Course course, CourseSession repSession, BigDecimal reviewRating) {
         String profileImageUrl = course.getInstitution() != null
                 ? course.getInstitution().getProfileImageUrl()
