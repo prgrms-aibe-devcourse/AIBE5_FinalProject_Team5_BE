@@ -74,15 +74,17 @@ public class ReviewPageCrawlerService {
     }
 
     /**
-     * 수강후기 페이지를 fetch하여 전체 페이지네이션을 순회하며 리뷰를 수집한다.
+     * 수강후기 페이지를 fetch하여 페이지네이션을 순회하며 리뷰를 수집한다.
+     * maxPages 상한으로 과도한 크롤링을 방지한다.
      *
-     * @param titleLink  CourseSession.titleLink
+     * @param titleLink   CourseSession.titleLink
      * @param delayMillis 페이지 간 요청 딜레이 (ms)
+     * @param maxPages    최대 크롤링 페이지 수 (페이지당 10건, 기본 10 = 최대 100건)
      */
-    public List<ReviewCrawlResult> fetchAndParseAllReviews(String titleLink, long delayMillis)
+    public List<ReviewCrawlResult> fetchAndParseAllReviews(String titleLink, long delayMillis, int maxPages)
             throws IOException, InterruptedException {
 
-        log.info("[DEBUG] fetchAndParseAllReviews - titleLink: '{}'", titleLink);
+        log.info("[DEBUG] fetchAndParseAllReviews - titleLink: '{}', maxPages: {}", titleLink, maxPages);
         int pathIdx = titleLink.indexOf("/hr/");
         if (pathIdx < 0) {
             log.warn("수강후기 크롤링 실패 - /hr/ 경로 없음: {}", titleLink);
@@ -109,7 +111,13 @@ public class ReviewPageCrawlerService {
         int pageNo = 1;
 
         while (true) {
-            log.debug("수강후기 크롤링 AJAX 요청 (pageNo={}, url={})", pageNo, ajaxUrl);
+            // 최대 페이지 수 초과 시 조기 종료 (과도한 크롤링 및 DB 적재 방지)
+            if (pageNo > maxPages) {
+                log.info("수강후기 최대 페이지({}) 도달 — 조기 종료 (titleLink={})", maxPages, titleLink);
+                break;
+            }
+
+            log.debug("수강후기 크롤링 AJAX 요청 (pageNo={}/{}, url={})", pageNo, maxPages, ajaxUrl);
 
             Map<String, String> postData = new LinkedHashMap<>();
             postData.put("tracseId", tracseId);
@@ -145,6 +153,14 @@ public class ReviewPageCrawlerService {
 
         log.info("수강후기 수집 완료 (총 {}건, titleLink={})", all.size(), titleLink);
         return all;
+    }
+
+    /**
+     * 기본 maxPages(10)를 사용하는 편의 메서드. 하위 호환성 유지용.
+     */
+    public List<ReviewCrawlResult> fetchAndParseAllReviews(String titleLink, long delayMillis)
+            throws IOException, InterruptedException {
+        return fetchAndParseAllReviews(titleLink, delayMillis, 10);
     }
 
     // ───────────────────────────────────────────────────

@@ -31,6 +31,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 고용24 수강후기 페이지를 크롤링하여 CrawledReview 에 저장하는 Job.
@@ -99,14 +100,17 @@ public class ReviewCrawlJobConfig {
     }
 
     /**
-     * Course → 대표 세션의 titleLink로 수강후기 페이지 전체 크롤링 → ReviewCrawlOutput 반환.
+     * Course → 대표 세션의 titleLink로 수강후기 페이지 크롤링 → ReviewCrawlOutput 반환.
      *
-     * @param delayMillis 페이지 간 요청 딜레이(ms). Job Parameter 'delayMillis' 로 조정 가능.
+     * @param delayMillis 페이지 간 요청 딜레이(ms). Job Parameter 'delayMillis' 로 조정 가능. 기본 500ms.
+     * @param maxPages    과정당 최대 크롤링 페이지 수. Job Parameter 'maxPages' 로 조정 가능. 기본 10 (= 최대 100건).
+     *                    AI 요약이 기본 50건(5페이지)만 사용하므로 10페이지 상한으로 충분.
      */
     @Bean
     @StepScope
     public ItemProcessor<Course, ReviewCrawlOutput> reviewCrawlProcessor(
-            @Value("#{jobParameters['delayMillis'] ?: 500L}") Long delayMillis) {
+            @Value("#{jobParameters['delayMillis'] ?: 500L}") Long delayMillis,
+            @Value("#{jobParameters['maxPages'] ?: 10}") Integer maxPages) {
 
         return course -> {
             String titleLink = courseSessionRepo
@@ -121,12 +125,15 @@ public class ReviewCrawlJobConfig {
 
             try {
                 List<ReviewCrawlResult> results =
-                        reviewCrawlerService.fetchAndParseAllReviews(titleLink, delayMillis);
+                        reviewCrawlerService.fetchAndParseAllReviews(titleLink, delayMillis, maxPages);
+
+                // 기존 externalReviewId를 한 번에 조회 (N+1 쿼리 방지)
+                Set<String> existingIds =
+                        crawledReviewRepo.findExternalReviewIdsByCourseId(course.getId());
 
                 Instant crawledAt = Instant.now();
                 List<CrawledReview> newReviews = results.stream()
-                        .filter(r -> !crawledReviewRepo.existsByCourseIdAndExternalReviewId(
-                                course.getId(), r.externalReviewId()))
+                        .filter(r -> !existingIds.contains(r.externalReviewId()))
                         .map(r -> CrawledReview.builder()
                                 .course(course)
                                 .source(CrawledReviewSource.WORK24)
