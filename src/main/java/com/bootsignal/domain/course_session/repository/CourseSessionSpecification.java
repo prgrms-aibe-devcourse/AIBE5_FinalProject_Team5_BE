@@ -8,6 +8,8 @@ import com.bootsignal.domain.course.dto.FieldCategory;
 import com.bootsignal.domain.course_session.entity.CourseSession;
 import com.bootsignal.domain.crawled_review.entity.CrawledReview;
 import com.bootsignal.domain.review.entity.Review;
+import jakarta.persistence.criteria.From;
+import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
@@ -27,6 +29,18 @@ import java.util.Set;
 public class CourseSessionSpecification {
 
     private CourseSessionSpecification() {
+    }
+
+    /**
+     * 이미 생성된 JOIN이 있으면 재사용하고, 없으면 새로 생성합니다.
+     * 동일 Specification 체인 내에서 같은 연관 경로에 대한 중복 JOIN을 방지합니다.
+     */
+    @SuppressWarnings("unchecked")
+    private static <Y> Join<?, Y> findOrJoin(From<?, ?> from, String attribute, JoinType joinType) {
+        return (Join<?, Y>) from.getJoins().stream()
+                .filter(j -> attribute.equals(j.getAttribute().getName()))
+                .findFirst()
+                .orElseGet(() -> from.join(attribute, joinType));
     }
 
     /**
@@ -185,7 +199,7 @@ public class CourseSessionSpecification {
     public static Specification<CourseSession> orderBySatisfaction() {
         return (root, query, cb) -> {
             if (query != null && Long.class != query.getResultType() && long.class != query.getResultType()) {
-                var courseJoin = root.join("course", JoinType.LEFT);
+                var courseJoin = findOrJoin(root, "course", JoinType.LEFT);
                 query.orderBy(
                         cb.desc(courseJoin.get("stdgScor")),
                         cb.desc(root.get("id"))
@@ -221,25 +235,25 @@ public class CourseSessionSpecification {
                 return cb.conjunction();
             }
 
-            var courseJoin = root.join("course", JoinType.LEFT);
-            var institutionJoin = courseJoin.join("institution", JoinType.LEFT);
+            // 기존 Specification 체인에서 생성된 JOIN을 재사용하여 중복 JOIN을 방지합니다.
+            Join<?, ?> courseJoin = findOrJoin(root, "course", JoinType.LEFT);
+            Join<?, ?> institutionJoin = findOrJoin(courseJoin, "institution", JoinType.LEFT);
 
-            // 사용자 리뷰 존재 여부 서브쿼리
-            Subquery<Long> reviewCount = query.subquery(Long.class);
-            Root<Review> review = reviewCount.from(Review.class);
-            reviewCount.select(cb.count(review.get("id")));
-            reviewCount.where(
+            // EXISTS 서브쿼리: 첫 번째 일치 행에서 단락(short-circuit)되어 COUNT보다 효율적입니다.
+            Subquery<Integer> reviewExists = query.subquery(Integer.class);
+            Root<Review> review = reviewExists.from(Review.class);
+            reviewExists.select(cb.literal(1));
+            reviewExists.where(
                     cb.and(
                             cb.equal(review.get("course").get("id"), courseJoin.get("id")),
                             cb.isNull(review.get("deletedAt"))
                     )
             );
 
-            // 크롤링 리뷰 존재 여부 서브쿼리
-            Subquery<Long> crawledReviewCount = query.subquery(Long.class);
-            Root<CrawledReview> crawled = crawledReviewCount.from(CrawledReview.class);
-            crawledReviewCount.select(cb.count(crawled.get("id")));
-            crawledReviewCount.where(
+            Subquery<Integer> crawledExists = query.subquery(Integer.class);
+            Root<CrawledReview> crawled = crawledExists.from(CrawledReview.class);
+            crawledExists.select(cb.literal(1));
+            crawledExists.where(
                     cb.and(
                             cb.equal(crawled.get("course").get("id"), courseJoin.get("id")),
                             cb.isNotNull(crawled.get("rating"))
@@ -254,8 +268,8 @@ public class CourseSessionSpecification {
                                     cb.isNotNull(courseJoin.get("stdgScor")),
                                     cb.isNotNull(root.get("employmentRate")),
                                     cb.or(
-                                            cb.greaterThan(reviewCount, 0L),
-                                            cb.greaterThan(crawledReviewCount, 0L)
+                                            cb.exists(reviewExists),
+                                            cb.exists(crawledExists)
                                     )
                             ),
                             0
