@@ -63,7 +63,7 @@ BootSignal은 **사용자 경험 데이터를 구조화**하여
 ### 주요 아키텍처 특징
 
 - **CI/CD 자동화** — GitHub Actions로 빌드·테스트 후 AWS Elastic Beanstalk에 자동 배포
-- **내부 AI Agent** — Agent Harness가 Portfolio Draft Agent / Review Summary Agent를 조율하고 OpenAI Client를 공유 호출
+- **내부 AI Agent** — Agent Harness가 Portfolio Draft Agent / Review Summary Agent를 조율하며, 각 Agent는 OpenAI API를 직접 호출하여 요약 및 초안을 생성
 - **외부 데이터 수집** — 고용24 OpenAPI에서 과정 데이터를 Raw 테이블에 수집한 뒤 Course / Institution / CourseSession으로 정제
 - **Google Calendar 연동** — 관심 과정 일정을 사용자의 Google Calendar에 직접 추가
 - **파일 스토리지** — 수강 인증 자료 및 첨부 이미지는 AWS S3에 저장
@@ -118,9 +118,10 @@ BootSignal은 **사용자 경험 데이터를 구조화**하여
 
 <br>
 
-- **AI 리뷰 요약** — 과정별 리뷰를 수집해 핵심 인사이트로 압축
-- **AI 과정 비교 요약** — 두 과정의 차이점을 자연어로 비교
-- **AI 포트폴리오 초안 생성** — 수료생의 프로젝트 경험 입력 시 포트폴리오 초안 자동 생성
+- **AI 리뷰 요약** — 과정별 리뷰를 수집해 OpenAI API로 핵심 인사이트 압축
+- **AI 과정 비교 요약** — 두 과정의 차이점을 OpenAI API로 자연어 비교
+- **AI 포트폴리오 초안 생성** — 수료생의 프로젝트 경험 입력 시 OpenAI API로 포트폴리오 초안 자동 생성
+- Spring Boot 내부에서 Agent Harness가 각 Agent를 조율하고, Agent가 OpenAI API를 직접 호출
 - AI는 판단을 대신하지 않고, 내부 데이터 요약과 초안 생성을 **보조하는 역할**로만 사용
 
 </details>
@@ -158,9 +159,8 @@ BootSignal은 **사용자 경험 데이터를 구조화**하여
 | Backend | Java 21, Spring Boot 3.5, Spring Web, Spring Data JPA |
 | Auth | Spring Security, OAuth2 Client, JWT |
 | Database | MySQL, H2 |
-| Cache | Redis |
 | File | AWS S3 SDK |
-| AI | OpenAI API (GPT), 내부 Agent Harness |
+| AI | OpenAI API, 내부 Agent Harness (Portfolio Draft Agent, Review Summary Agent) |
 | External API | 고용24 OpenAPI, Google Calendar API |
 | Infra | Docker, Docker Compose, GitHub Actions, AWS Elastic Beanstalk, AWS CloudFront |
 | Test | JUnit 5, Spring Boot Test, Spring Security Test |
@@ -185,10 +185,10 @@ BootSignal은 **사용자 경험 데이터를 구조화**하여
 
 ## 🐳 개발 인프라 실행
 
-MySQL과 Redis를 Docker로 먼저 실행합니다.
+MySQL을 Docker로 먼저 실행합니다.
 
 ```bash
-docker compose up -d mysql redis
+docker compose up -d mysql
 ```
 
 `dev` 프로파일로 애플리케이션을 실행합니다.
@@ -209,8 +209,8 @@ SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 | Profile | 용도 |
 |---|---|
 | `local` | H2 인메모리 DB 기본 실행 |
-| `dev` | Docker Compose MySQL + Redis 사용 |
-| `prod` | 운영 배포용, DB·Redis·외부 서비스를 환경 변수로 주입 |
+| `dev` | Docker Compose MySQL 사용 |
+| `prod` | 운영 배포용, DB·외부 서비스를 환경 변수로 주입 |
 | `test` | 테스트 전용 H2 인메모리 DB |
 
 환경 변수 예시는 [.env.example](.env.example)을 참고하세요.
