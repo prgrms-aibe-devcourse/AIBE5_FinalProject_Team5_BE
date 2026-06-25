@@ -44,9 +44,12 @@ class CourseControllerTest {
     @Test
     void getCoursesReturnsPageResponse() throws Exception {
         CourseListResponse course = new CourseListResponse(
-                1L, "TR001", "Spring Boot Course", "Boot Camp Center",
-                "01", 30, 0, BigDecimal.valueOf(4.5),
-                100, 800, "SW Dev", "http://image.url"
+                1L, 1L, null,
+                "TR001", null,
+                "Spring Boot Course", "Boot Camp Center", "01",
+                30, 0, BigDecimal.valueOf(4.5),
+                100, 800, "SW Dev", "http://image.url",
+                null, null, null, null, null, null
         );
         PageResponse<CourseListResponse> response = new PageResponse<>(
                 List.of(course), 0, 20, 1L, 1, false
