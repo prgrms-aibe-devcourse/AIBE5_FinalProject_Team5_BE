@@ -1,190 +1,191 @@
 # BootSignal Backend
 
-BootSignal은 부트캠프 예비 수강생이 자신과 비슷한 조건의 사람들이 실제로 과정을 완주했는지, 어떤 어려움을 겪었는지, 수강 후 어떤 결과를 얻었는지 확인할 수 있도록 돕는 데이터 기반 부트캠프 의사결정 플랫폼입니다.
+<div align="center">
 
-이 저장소는 BootSignal의 메인 백엔드 API 서버입니다. 산출물 기준으로는 기획서, WBS v1.3, 주차별 WBS v1.2, API 명세 v1.3, ERD v1.2의 내용을 반영합니다.
+**"나와 비슷한 사람이 이 과정에서 살아남았는가?"**
 
-## 핵심 가치
+> 부트캠프 예비 수강생이 자신과 비슷한 조건의 사람들이  
+> 실제로 과정을 완주했는지, 어떤 어려움을 겪었는지,  
+> 수강 후 어떤 결과를 얻었는지 확인할 수 있도록 돕는  
+> **데이터 기반 부트캠프 의사결정 플랫폼**
 
-BootSignal이 답하려는 질문은 다음입니다.
+</div>
 
-> 나와 비슷한 사람이 이 과정에서 살아남았는가?
+<br>
 
-기존 부트캠프 정보 서비스는 과정 목록, 커리큘럼, 후기 탐색에 집중하지만, BootSignal은 사용자 경험 데이터를 구조화해 과정별 통계, 인증 리뷰, 조건별 비교, AI 보조 기능으로 제공합니다.
+## 📖 목차
 
-## 주요 사용자
+1. [🧑‍💻 팀 소개](#-팀-소개)
+2. [💡 개발 배경](#-개발-배경)
+3. [🧩 시스템 아키텍처](#-시스템-아키텍처)
+4. [🚀 주요 기능](#-주요-기능)
+5. [🛠️ 기술 스택](#️-기술-스택)
+6. [⚙️ 로컬 실행](#️-로컬-실행)
+7. [🐳 개발 인프라 실행](#-개발-인프라-실행)
 
-| 사용자 | 제공 가치 |
-| --- | --- |
-| 비전공 예비 수강생 | 비전공자 기준 난이도, 진도 속도, 수료 가능성 확인 |
-| 전공자 취준생 | 선수 지식 수준별 만족도와 프로젝트 성취도 확인 |
-| 직장 병행 수강생 | 평균 자습 시간, 진도 속도, 수강 형태별 부담 확인 |
-| 현재 수강생 | 수강 중 리뷰, QnA, 커뮤니티 참여 |
-| 수료생 | AI 포트폴리오 초안 생성, 수료 후 리뷰 작성 |
-| 관리자 | 수강 인증, 신고, 데이터 동기화, 운영 지표 관리 |
+<br>
 
-## MVP 범위
+## 🧑‍💻 팀 소개
 
-### P0: 발표 MVP 필수
+| [![](https://avatars.githubusercontent.com/u/252306385?v=4)](https://github.com/Paley-Z) | [![](https://avatars.githubusercontent.com/u/115200565?v=4)](https://github.com/yongseong123) | [![](https://avatars.githubusercontent.com/u/126655454?v=4)](https://github.com/2mhh) | [![](https://avatars.githubusercontent.com/u/252306408?v=4)](https://github.com/hwangbohye03) | [![](https://avatars.githubusercontent.com/u/247369302?v=4)](https://github.com/holly000) |
+|:---:|:---:|:---:|:---:|:---:|
+| <p align="center">이상민<br/>팀장 · 관리자</p> | <p align="center">최용성<br/>AI Agent · 인증</p> | <p align="center">이민홍<br/>데이터파이프라인 · 크롤링</p> | <p align="center">황보혜<br/>대시보드 · 캘린더</p> | <p align="center">나윤하<br/>커뮤니티 · 리뷰</p> |
 
-- 이메일 회원가입/로그인, Google 로그인, Kakao 로그인, JWT 인증
-- 고용24 OpenAPI 데이터 수집, Raw 저장, Course/Institution/CourseSession 정제
-- 과정 목록, 과정 상세, 과정 세션 조회
-- Google Calendar 연결 및 과정 일정 추가
-- 수강 증빙 업로드, 관리자 승인/반려, 내 인증 상태 조회
-- 일반 리뷰, 인증 리뷰, 수강 중/수료 후/중도 포기 리뷰 구분
-- 조건별 통계, 표본 수 N, 데이터 부족 경고
-- AI 리뷰 요약, AI 과정 비교 요약, AI 포트폴리오 초안 생성
-- 최대 3개 과정 비교
-- Docker, GitHub Actions, EC2, MySQL, S3 기반 배포 준비
+<br>
 
-### P1: 완성도 강화
+## 💡 개발 배경
 
-- OCR 인증 판독 보조
-- 커뮤니티: 프로젝트 구인구직, QnA, 아티클, 자유 게시판
-- 과정 북마크
-- 리뷰/게시글/댓글 신고 및 관리자 처리
-- 관리자 대시보드: 인증 대기, 리뷰, 신고, 데이터 부족 과정, AI 사용량
-- 정책 페이지: 개인정보, 이용약관, 리뷰 정책, 인증 자료 처리, 데이터 활용 동의, AI 사용 고지
-- Redis 기반 통계/AI 결과 캐싱 및 사용량 제한
+부트캠프 수강을 고민하는 사람들이 가장 많이 찾는 정보는 **"나와 비슷한 사람이 실제로 어떤 경험을 했는가"** 입니다.
 
-### P2: Post-MVP
+기존 부트캠프 정보 서비스는 과정 목록, 커리큘럼, 후기 탐색에 집중하지만,  
+막상 후기를 읽어도 **내 상황과 같은 사람의 이야기인지 알기 어렵습니다.**
 
-- AI 상담
-- OCR 기반 자동 인증 고도화
-- 과정 비교 PDF 리포트
-- 개인화 과정 추천
-- 운영사 대시보드 SaaS, B2B 데이터 리포트
-- 개발 외 교육 카테고리 확장
+> 비전공자인 나도 완주할 수 있을까?  
+> 직장을 다니면서 병행할 수 있는 강도일까?  
+> 수료 후 실제로 취업이 됐을까?
 
-## 시스템 아키텍처
+BootSignal은 **사용자 경험 데이터를 구조화**하여  
+이러한 질문에 데이터로 답합니다.
 
-```mermaid
-flowchart LR
-    User["사용자"] --> FE["React + React Bits + TypeScript Frontend"]
-    FE --> BE["Spring Boot Backend"]
-    BE --> DB["MySQL"]
-    BE --> Redis["Redis"]
-    BE --> S3["AWS S3"]
-    BE --> Work24["고용24 OpenAPI"]
-    BE --> Google["Google OAuth / Calendar"]
-    BE --> Kakao["Kakao OAuth"]
-    BE --> AI["FastAPI AI Server"]
-    AI --> OpenAI["OpenAI API"]
-    AI --> OCR["OCR API 또는 Tesseract"]
-```
+- 조건별(비전공/전공, 직장 병행 여부 등) 통계와 수료율 제공
+- 수강 인증 기반 신뢰도 높은 리뷰 시스템
+- AI 리뷰 요약으로 방대한 후기를 빠르게 파악
+- 수료생을 위한 AI 포트폴리오 초안 생성
+
+<br>
+
+## 🧩 시스템 아키텍처
+
+<div align="center">
+  <img width="900" alt="BootSignal Architecture" src="images/architecture.png" />
+</div>
+
+### 주요 아키텍처 특징
+
+- **CI/CD 자동화** — GitHub Actions로 빌드·테스트 후 AWS Elastic Beanstalk에 자동 배포
+- **내부 AI Agent** — Agent Harness가 Portfolio Draft Agent / Review Summary Agent를 조율하고 OpenAI Client를 공유 호출
+- **외부 데이터 수집** — 고용24 OpenAPI에서 과정 데이터를 Raw 테이블에 수집한 뒤 Course / Institution / CourseSession으로 정제
+- **Google Calendar 연동** — 관심 과정 일정을 사용자의 Google Calendar에 직접 추가
+- **파일 스토리지** — 수강 인증 자료 및 첨부 이미지는 AWS S3에 저장
 
 프론트엔드 저장소: [prgrms-aibe-devcourse/AIBE5_FinalProject_Team5_FE](https://github.com/prgrms-aibe-devcourse/AIBE5_FinalProject_Team5_FE)
 
-## 기술 스택
+<br>
+
+## 🚀 주요 기능
+
+<details>
+<summary><b>🔐 회원 / 인증</b></summary>
+
+<br>
+
+- 이메일 회원가입 / 로그인
+- Google, Kakao OAuth2 소셜 로그인
+- JWT Access Token + Refresh Token 발급 및 갱신
+- 수강 증빙 파일 업로드 → 관리자 승인/반려 → 인증 리뷰 권한 부여
+- 인증은 전역 Role이 아닌 **과정(courseId)별 승인 여부**로 판단
+
+</details>
+
+<details>
+<summary><b>📚 과정 탐색 / 비교</b></summary>
+
+<br>
+
+- 고용24 OpenAPI 연동 과정 목록 · 상세 · 개강 일정 조회
+- 최대 3개 과정 나란히 비교
+- AI 과정 비교 요약 — 두 과정의 차이를 자연어로 요약
+- Google Calendar 연동으로 관심 과정 일정 추가
+- 과정 북마크
+
+</details>
+
+<details>
+<summary><b>⭐ 리뷰 / 통계</b></summary>
+
+<br>
+
+- 일반 리뷰, 인증 리뷰 구분 작성
+- 수강 중 / 수료 후 / 중도 포기 리뷰 구분
+- 조건별 통계 (비전공/전공, 직장 병행 여부 등) 및 표본 수(N) 표시
+- 표본 부족 과정은 데이터 부족 상태를 명확히 반환 (통계 과장 방지)
+- AI 리뷰 요약 — 리뷰 전체를 요점 중심으로 자동 요약
+
+</details>
+
+<details>
+<summary><b>🤖 AI 기능</b></summary>
+
+<br>
+
+- **AI 리뷰 요약** — 과정별 리뷰를 수집해 핵심 인사이트로 압축
+- **AI 과정 비교 요약** — 두 과정의 차이점을 자연어로 비교
+- **AI 포트폴리오 초안 생성** — 수료생의 프로젝트 경험 입력 시 포트폴리오 초안 자동 생성
+- AI는 판단을 대신하지 않고, 내부 데이터 요약과 초안 생성을 **보조하는 역할**로만 사용
+
+</details>
+
+<details>
+<summary><b>💬 커뮤니티</b></summary>
+
+<br>
+
+- 프로젝트 구인구직, QnA, 아티클, 자유 게시판
+- 댓글, 대댓글
+- 게시글 / 댓글 신고 및 관리자 처리
+
+</details>
+
+<details>
+<summary><b>🛡️ 관리자</b></summary>
+
+<br>
+
+- 수강 인증 요청 목록 조회 · 승인 · 반려
+- 고용24 데이터 수동 동기화
+- 리뷰 · 게시글 · 댓글 신고 처리
+- 관리자 대시보드: 인증 대기, 신고, 데이터 부족 과정, AI 사용량 요약
+
+</details>
+
+<br>
+
+## 🛠️ 기술 스택
 
 | 영역 | 기술 |
-| --- | --- |
-| Frontend | React, React Bits, TypeScript |
-| Backend | Java 21, Spring Boot 3.5.14, Spring Web, Spring Data JPA |
+|---|---|
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Backend | Java 21, Spring Boot 3.5, Spring Web, Spring Data JPA |
 | Auth | Spring Security, OAuth2 Client, JWT |
 | Database | MySQL, H2 |
 | Cache | Redis |
 | File | AWS S3 SDK |
-| AI 연동 | OpenAI API, FastAPI AI 서버 연동 예정 |
-| Infra | Docker, Docker Compose, GitHub Actions, EC2 |
+| AI | OpenAI API (GPT), 내부 Agent Harness |
+| External API | 고용24 OpenAPI, Google Calendar API |
+| Infra | Docker, Docker Compose, GitHub Actions, AWS Elastic Beanstalk, AWS CloudFront |
 | Test | JUnit 5, Spring Boot Test, Spring Security Test |
 
-## 백엔드 설계 원칙
+<br>
 
-- 사용자 화면은 고용24 OpenAPI를 직접 호출하지 않고 BootSignal API만 호출합니다.
-- 고용24 데이터는 Raw 테이블에 저장한 뒤 서비스용 Course, Institution, CourseSession으로 정제합니다.
-- 고용24의 `TRPR_DEGR`는 사용자 표시 기수가 아니라 원본 회차값으로 저장합니다.
-- 인증 리뷰 권한은 전역 Role이 아니라 `courseId`별 `APPROVED` 인증 여부로 판단합니다.
-- 고용24 외부 통계와 BootSignal 내부 인증 리뷰 통계는 분리합니다.
-- 표본 수가 부족한 과정은 통계를 과장하지 않고 데이터 부족 상태를 명확히 반환합니다.
-- AI는 판단을 대신하지 않고 내부 데이터 요약, 비교, 포트폴리오 초안 생성을 보조합니다.
-- OCR은 자동 승인용이 아니라 관리자 인증 검토 보조로만 사용합니다.
+## ⚙️ 로컬 실행
 
-## 주요 API 범위
+기본값으로 `local` 프로파일이 적용됩니다 (H2 인메모리 DB 사용).
 
-| 도메인 | Endpoint | 설명 | 우선순위 |
-| --- | --- | --- | --- |
-| Health | `GET /api/health` | Spring Boot 서버 상태 확인 | P0 |
-| Auth | `POST /api/auth/signup` | 이메일 회원가입 | P0 |
-| Auth | `POST /api/auth/login` | 이메일 로그인 및 JWT 발급 | P0 |
-| Auth | `GET /api/auth/oauth/google` | Google 로그인 시작 | P0 |
-| Auth | `GET /api/auth/oauth/kakao` | Kakao 로그인 시작 | P0 |
-| User | `GET /api/users/me` | 내 정보 조회 | P0 |
-| Course | `GET /api/courses` | 과정 목록 조회 | P0 |
-| Course | `GET /api/courses/{courseId}` | 과정 상세 조회 | P0 |
-| Course Session | `GET /api/courses/{courseId}/sessions` | 과정 개강 일정 조회 | P0 |
-| Calendar | `GET /api/calendar/status` | Google Calendar 연결 상태 조회 | P0 |
-| Calendar | `POST /api/calendar/events/course-session` | 과정 일정 캘린더 추가 | P0 |
-| HRD Sync | `POST /api/admin/hrd/sync` | 고용24 데이터 수동 동기화 | P0 |
-| Verification | `POST /api/verifications` | 수강 인증 신청 | P0 |
-| Verification | `GET /api/verifications/me` | 내 인증 상태 조회 | P0 |
-| Admin Verification | `GET /api/admin/verifications` | 인증 요청 목록 | P0 |
-| Admin Verification | `PATCH /api/admin/verifications/{id}/approve` | 인증 승인 | P0 |
-| Admin Verification | `PATCH /api/admin/verifications/{id}/reject` | 인증 반려 | P0 |
-| Review | `POST /api/courses/{courseId}/reviews` | 일반/수강 중 리뷰 작성 | P0 |
-| Review | `POST /api/courses/{courseId}/premium-reviews` | 인증 리뷰 작성 | P0 |
-| Statistic | `GET /api/courses/{courseId}/statistics` | 조건별 통계 조회 | P0 |
-| AI Summary | `GET /api/courses/{courseId}/ai-summary` | AI 리뷰 요약 조회 | P0 |
-| Compare | `GET /api/courses/compare` | 최대 3개 과정 비교 | P0 |
-| AI Compare | `POST /api/courses/compare/ai-summary` | AI 과정 비교 요약 | P0 |
-| AI Portfolio | `POST /api/ai/portfolio-drafts` | AI 포트폴리오 초안 생성 | P0 |
-| Community | `POST /api/posts`, `GET /api/posts` | 커뮤니티 게시글 작성/조회 | P1 |
-| Bookmark | `POST /api/bookmarks/courses/{courseId}` | 과정 북마크 | P1 |
-| Report | `POST /api/reports` | 리뷰/게시글/댓글 신고 | P1 |
-| Admin Dashboard | `GET /api/admin/dashboard/summary` | 관리자 요약 지표 | P1 |
-
-응답은 공통 `ApiResponse<T>` 형식을 기준으로 합니다.
-
-```json
-{
-  "success": true,
-  "code": "OK",
-  "message": "요청이 성공했습니다.",
-  "data": {}
-}
-```
-
-## 주요 도메인 모델
-
-| 영역 | 주요 테이블 |
-| --- | --- |
-| 사용자/인증 | `USER`, `OAUTH_ACCOUNT`, `GOOGLE_CALENDAR_TOKEN`, `CALENDAR_EVENT_LOG` |
-| 고용24 Raw/Sync | `HRD_SYNC_LOG`, `HRD_COURSE_LIST_RAW`, `HRD_COURSE_DETAIL_RAW`, `HRD_TRAINING_SCHEDULE_RAW` |
-| 과정 | `INSTITUTION`, `COURSE`, `COURSE_SESSION`, `EXTERNAL_REVIEW_SOURCE` |
-| 수강 인증 | `VERIFICATION`, `OCR_RESULT` |
-| 리뷰/통계 | `REVIEW`, `REVIEW_METRIC`, `COURSE_STATISTIC` |
-| AI | `AI_SUMMARY`, `AI_SUMMARY_TARGET`, `AI_PORTFOLIO_DRAFT`, `AI_USAGE_LOG` |
-| 커뮤니티/운영 | `POST`, `COMMENT`, `BOOKMARK`, `REPORT`, `ADMIN_AUDIT_LOG` |
-
-## 프로파일
-
-| Profile | 용도 |
-| --- | --- |
-| `local` | 기본 실행 프로파일입니다. H2 인메모리 DB를 사용합니다. |
-| `dev` | Docker Compose로 실행한 MySQL, Redis를 사용합니다. |
-| `prod` | 운영 배포용 프로파일입니다. DB, Redis, 외부 서비스 값을 환경 변수로 주입합니다. |
-| `test` | 테스트 실행용 H2 인메모리 DB를 사용합니다. |
-
-## 로컬 실행
-
-기본값으로 `local` 프로파일이 적용됩니다.
-
-Windows:
-
+**Windows**
 ```powershell
 .\gradlew.bat bootRun
 ```
 
-macOS/Linux:
-
+**macOS / Linux**
 ```bash
 ./gradlew bootRun
 ```
 
-## 개발 인프라 실행
+<br>
 
-MySQL과 Redis를 Docker로 실행합니다.
+## 🐳 개발 인프라 실행
+
+MySQL과 Redis를 Docker로 먼저 실행합니다.
 
 ```bash
 docker compose up -d mysql redis
@@ -192,92 +193,34 @@ docker compose up -d mysql redis
 
 `dev` 프로파일로 애플리케이션을 실행합니다.
 
-Windows PowerShell:
-
+**Windows**
 ```powershell
 $env:SPRING_PROFILES_ACTIVE = "dev"
 .\gradlew.bat bootRun
 ```
 
-macOS/Linux:
-
+**macOS / Linux**
 ```bash
 SPRING_PROFILES_ACTIVE=dev ./gradlew bootRun
 ```
 
-## 테스트
+### 프로파일 목록
 
-Windows:
+| Profile | 용도 |
+|---|---|
+| `local` | H2 인메모리 DB 기본 실행 |
+| `dev` | Docker Compose MySQL + Redis 사용 |
+| `prod` | 운영 배포용, DB·Redis·외부 서비스를 환경 변수로 주입 |
+| `test` | 테스트 전용 H2 인메모리 DB |
 
-```powershell
-.\gradlew.bat clean test
-```
+환경 변수 예시는 [.env.example](.env.example)을 참고하세요.
 
-macOS/Linux:
+<br>
 
-```bash
-./gradlew clean test
-```
+---
 
-## 빌드
+<div align="center">
 
-Windows:
+_2026 프로그래머스 AIBE 5기 — Team 5_
 
-```powershell
-.\gradlew.bat clean build
-```
-
-macOS/Linux:
-
-```bash
-./gradlew clean build
-```
-
-## Docker 이미지 빌드
-
-```bash
-./gradlew clean build
-docker build -t bootsignal-backend .
-docker run --rm -p 8080:8080 bootsignal-backend
-```
-
-Windows에서는 첫 줄을 `.\gradlew.bat clean build`로 실행합니다.
-
-## 환경 변수
-
-환경 변수 예시는 [.env.example](.env.example)을 기준으로 확인합니다. 실제 `.env` 파일과 비밀 값은 Git에 커밋하지 않습니다.
-
-| 변수 | 설명 |
-| --- | --- |
-| `SPRING_PROFILES_ACTIVE` | 활성 프로파일 |
-| `SERVER_PORT` | 서버 포트 |
-| `DB_URL` | MySQL JDBC URL |
-| `DB_USERNAME` | DB 사용자 |
-| `DB_PASSWORD` | DB 비밀번호 |
-| `REDIS_HOST` | Redis 호스트 |
-| `REDIS_PORT` | Redis 포트 |
-| `JWT_ISSUER` | JWT 발급자 |
-| `JWT_SECRET` | JWT 서명 키 |
-| `JWT_ACCESS_TOKEN_VALIDITY_SECONDS` | Access Token 유효 시간 |
-| `JWT_REFRESH_TOKEN_VALIDITY_SECONDS` | Refresh Token 유효 시간 |
-| `CORS_ALLOWED_ORIGINS` | 허용 Origin 목록 |
-| `AWS_REGION` | AWS 리전 |
-| `AWS_S3_BUCKET` | S3 버킷 |
-| `OPENAI_API_KEY` | OpenAI API Key |
-| `OPENAI_MODEL` | OpenAI 모델명 |
-
-## 현재 저장소 상태
-
-현재 백엔드 저장소에는 Spring Boot 기반 실행 환경과 공통 설정이 구성되어 있습니다.
-
-- Java 21, Spring Boot, Gradle Wrapper 설정
-- Security, CORS, BCrypt `PasswordEncoder` 기본 설정
-- JPA Auditing 설정
-- H2, MySQL 프로파일 설정
-- Redis 접속 설정
-- AWS S3 Client Bean 설정
-- OpenAI RestClient Bean 설정
-- Dockerfile, Docker Compose 설정
-- 기본 테스트 환경 설정
-
-도메인 엔티티, 공통 응답/예외, 인증 API, 고용24 동기화, 과정/리뷰/통계/AI API 구현은 산출물 기준으로 순차 반영 예정입니다.
+</div>
